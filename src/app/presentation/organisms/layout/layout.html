@@ -1,0 +1,36 @@
+<div class="min-h-screen flex flex-col bg-background text-gray-800 font-sans">
+  <!-- Cabecera Institucional -->
+  <header class="bg-primary text-white p-4 shadow-md flex justify-between items-center z-10">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-accent rounded-full opacity-90"></div>
+      <h1 class="text-xl font-bold tracking-widest uppercase">SIGA</h1>
+    </div>
+    
+    <div class="flex items-center gap-4 text-sm">
+      <span class="hidden sm:block font-medium">Usuario Administrador</span>
+      <button class="bg-primary-hover px-4 py-2 rounded-md transition-colors border border-white/20 hover:bg-white hover:text-primary">
+        Salir
+      </button>
+    </div>
+  </header>
+
+  <div class="flex flex-1 overflow-hidden">
+    <!-- Menú Lateral -->
+    <aside class="w-64 bg-surface shadow-xl hidden md:block overflow-y-auto border-r border-gray-200">
+      <nav class="p-4 space-y-1">
+        <p class="text-xs font-bold text-secondary uppercase tracking-wider mb-4 mt-2 px-2">Módulos</p>
+        <a href="#" class="block px-4 py-3 rounded-lg bg-background text-primary font-semibold border-l-4 border-primary transition-all">
+          Registro de Personas
+        </a>
+        <a href="#" class="block px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-secondary transition-all">
+          Tablero Principal
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Área de Trabajo Dinámica -->
+    <main class="flex-1 p-8 overflow-y-auto">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

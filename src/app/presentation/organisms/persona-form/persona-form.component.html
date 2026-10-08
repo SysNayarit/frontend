@@ -1,0 +1,40 @@
+<form [formGroup]="personaForm" (ngSubmit)="onSubmit()" class="siga-form">
+  <div>
+    <label for="nombres">Nombres *</label>
+    <input id="nombres" type="text" formControlName="nombres" />
+    <span *ngIf="personaForm.get('nombres')?.invalid && personaForm.get('nombres')?.touched" style="color: red; font-size: 0.8rem;">
+      El nombre es obligatorio y debe tener máximo 150 caracteres.
+    </span>
+  </div>
+
+  <div>
+    <label for="apellido_paterno">Apellido Paterno</label>
+    <input id="apellido_paterno" type="text" formControlName="apellido_paterno" />
+  </div>
+
+  <div>
+    <label for="apellido_materno">Apellido Materno</label>
+    <input id="apellido_materno" type="text" formControlName="apellido_materno" />
+  </div>
+
+  <div>
+    <label for="curp">CURP</label>
+    <input id="curp" type="text" formControlName="curp" maxlength="18" style="text-transform: uppercase;" />
+  </div>
+
+  <div>
+    <label for="sexo">Sexo</label>
+    <select id="sexo" formControlName="sexo">
+      <option value="">Seleccione...</option>
+      <option value="MASCULINO">Masculino</option>
+      <option value="FEMENINO">Femenino</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="correo_institucional">Correo Institucional</label>
+    <input id="correo_institucional" type="email" formControlName="correo_institucional" />
+  </div>
+
+  <button type="submit" [disabled]="personaForm.invalid" style="margin-top: 1rem;">Registrar Persona</button>
+</form>

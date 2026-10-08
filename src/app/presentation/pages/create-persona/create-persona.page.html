@@ -1,0 +1,20 @@
+<div style="max-width: 600px; margin: 2rem auto; font-family: sans-serif;">
+  <header style="margin-bottom: 2rem;">
+    <h2>Alta de Nueva Persona</h2>
+    <p>Núcleo de identidad institucional SIGA</p>
+  </header>
+
+  <main>
+    <!-- Alertas de estado -->
+    <div *ngIf="mensajeExito" style="background: #e6fffa; color: #047481; padding: 1rem; border-left: 4px solid #047481; margin-bottom: 1rem;">
+      {{ mensajeExito }}
+    </div>
+
+    <div *ngIf="mensajeError" style="background: #fff5f5; color: #c53030; padding: 1rem; border-left: 4px solid #c53030; margin-bottom: 1rem;">
+      {{ mensajeError }}
+    </div>
+
+    <!-- Integración del Organismo -->
+    <app-persona-form (formSubmit)="onRegistrarPersona($event)"></app-persona-form>
+  </main>
+</div>
