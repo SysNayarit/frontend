@@ -111,6 +111,31 @@ El Frontend actual fue reconstruido desde cero conservando únicamente el reposi
 - Node.js 24.18.1;
 - npm 11.16.0.
 
+### Decisión de interfaz y estilos
+
+Angular es el framework oficial para el desarrollo del Frontend de SIGA.
+
+Tailwind CSS es la tecnología oficial para la construcción, composición y mantenimiento de la interfaz visual y de los estilos del Frontend.
+
+La interfaz deberá desarrollarse utilizando las utilidades, principios de composición y capacidades de Tailwind CSS como base de presentación.
+
+No se incorporará otro framework CSS en paralelo salvo que exista una necesidad técnica real, evaluación previa y decisión documentada.
+
+Los estilos CSS personalizados deberán limitarse a aquellos casos que no puedan resolverse adecuadamente mediante Tailwind CSS o que correspondan a necesidades globales justificadas de la aplicación.
+
+La incorporación de componentes visuales deberá respetar:
+
+- accesibilidad;
+- consistencia visual;
+- diseño adaptable;
+- mantenibilidad;
+- reutilización;
+- separación entre presentación y reglas de negocio;
+- compatibilidad con Angular;
+- ausencia de lógica de autorización basada exclusivamente en la interfaz.
+
+Tailwind CSS pertenece exclusivamente a la capa de presentación y no sustituye las validaciones, permisos ni controles de seguridad establecidos por el Backend.
+
 ### Reconstrucción
 
 La implementación anterior fue eliminada.
