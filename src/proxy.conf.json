@@ -1,0 +1,22 @@
+{
+  "/api/**": {
+    "target": "http://localhost:8000",
+    "secure": false
+  },
+  "/sanctum/**": {
+    "target": "http://localhost:8000",
+    "secure": false
+  },
+  "/login": {
+    "target": "http://localhost:8000",
+    "secure": false
+  },
+  "/logout": {
+    "target": "http://localhost:8000",
+    "secure": false
+  },
+  "/reauthenticate": {
+    "target": "http://localhost:8000",
+    "secure": false
+  }
+}
