@@ -1,16 +1,14 @@
 import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   standalone: true,
+  imports: [
+    RouterOutlet,
+  ],
   template: `
-    <main class="min-h-screen bg-slate-50 p-8 text-slate-900">
-      <h1 class="text-3xl font-semibold">SIGA</h1>
-
-      <p class="mt-2 text-slate-600">
-        Plataforma Integral
-      </p>
-    </main>
+    <router-outlet />
   `,
 })
 export class App {}
