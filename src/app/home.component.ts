@@ -1,9 +1,13 @@
 import {
   Component,
   inject,
+  signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
 
+import {
+  AuthenticatedUser,
+} from './auth/auth.models';
 import { AuthService } from './auth/auth.service';
 
 @Component({
@@ -45,11 +49,21 @@ import { AuthService } from './auth/auth.service';
             <div
               class="flex items-center gap-4"
             >
-              <p
-                class="text-sm font-medium text-slate-300"
-              >
-                Sesión iniciada
-              </p>
+              @if (user()) {
+                <div class="text-right">
+                  <p
+                    class="text-sm font-semibold text-white"
+                  >
+                    {{ displayName() }}
+                  </p>
+
+                  <p
+                    class="mt-1 text-xs text-slate-300"
+                  >
+                    {{ user()?.email }}
+                  </p>
+                </div>
+              }
 
               <button
                 type="button"
@@ -78,10 +92,47 @@ import { AuthService } from './auth/auth.service';
             Bienvenido a SIGA
           </h2>
 
+          @if (user()) {
+            <div
+              class="mt-6 grid gap-4 sm:grid-cols-2"
+            >
+              <div
+                class="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"
+              >
+                <p
+                  class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+                >
+                  Usuario
+                </p>
+
+                <p
+                  class="mt-2 font-semibold text-slate-900"
+                >
+                  {{ displayName() }}
+                </p>
+              </div>
+
+              <div
+                class="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"
+              >
+                <p
+                  class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+                >
+                  Correo
+                </p>
+
+                <p
+                  class="mt-2 font-semibold text-slate-900"
+                >
+                  {{ user()?.email }}
+                </p>
+              </div>
+            </div>
+          }
+
           <p
-            class="mt-3 max-w-2xl leading-7 text-slate-600"
+            class="mt-6 max-w-2xl leading-7 text-slate-600"
           >
-            La autenticación se completó correctamente.
             Los módulos disponibles se incorporarán de acuerdo
             con los permisos asignados al usuario.
           </p>
@@ -94,9 +145,52 @@ export class HomeComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
+  readonly user = signal<AuthenticatedUser | null>(
+    null,
+  );
+
+  constructor() {
+    this.loadCurrentUser();
+  }
+
+  displayName(): string {
+    const currentUser = this.user();
+
+    if (currentUser === null) {
+      return '';
+    }
+
+    if (currentUser.person === null) {
+      return currentUser.name;
+    }
+
+    return [
+      currentUser.person.nombres,
+      currentUser.person.apellido_paterno,
+      currentUser.person.apellido_materno,
+    ]
+      .filter(
+        (part): part is string =>
+          typeof part === 'string' &&
+          part.trim().length > 0,
+      )
+      .join(' ');
+  }
+
   logout(): void {
     this.auth.logout().subscribe({
       next: () => {
+        void this.router.navigateByUrl('/acceso');
+      },
+    });
+  }
+
+  private loadCurrentUser(): void {
+    this.auth.currentUser().subscribe({
+      next: (user) => {
+        this.user.set(user);
+      },
+      error: () => {
         void this.router.navigateByUrl('/acceso');
       },
     });
