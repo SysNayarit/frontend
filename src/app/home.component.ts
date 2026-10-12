@@ -1,4 +1,10 @@
-import { Component } from '@angular/core';
+import {
+  Component,
+  inject,
+} from '@angular/core';
+import { Router } from '@angular/router';
+
+import { AuthService } from './auth/auth.service';
 
 @Component({
   selector: 'app-home',
@@ -36,11 +42,24 @@ import { Component } from '@angular/core';
               </p>
             </div>
 
-            <p
-              class="text-sm font-medium text-slate-300"
+            <div
+              class="flex items-center gap-4"
             >
-              Sesión iniciada
-            </p>
+              <p
+                class="text-sm font-medium text-slate-300"
+              >
+                Sesión iniciada
+              </p>
+
+              <button
+                type="button"
+                data-testid="logout-button"
+                (click)="logout()"
+                class="rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus:ring-4 focus:ring-white/10"
+              >
+                Cerrar sesión
+              </button>
+            </div>
           </div>
         </header>
 
@@ -71,4 +90,15 @@ import { Component } from '@angular/core';
     </main>
   `,
 })
-export class HomeComponent {}
+export class HomeComponent {
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+
+  logout(): void {
+    this.auth.logout().subscribe({
+      next: () => {
+        void this.router.navigateByUrl('/login');
+      },
+    });
+  }
+}
