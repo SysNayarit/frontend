@@ -1,1 +1,54 @@
 @import "tailwindcss";
+
+:root {
+  --siga-guinda: #611232;
+  --siga-guinda-claro: #9b2247;
+  --siga-dorado: #a57f2c;
+  --siga-dorado-claro: #e6d194;
+  --siga-verde: #1e5b4f;
+  --siga-verde-oscuro: #002f2a;
+  --siga-negro: #161a1d;
+  --siga-gris: #98989a;
+  --siga-fondo: #f7f7f5;
+}
+
+html {
+  background: var(--siga-fondo);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  color: var(--siga-negro);
+  background: var(--siga-fondo);
+  font-family:
+    "Noto Sans",
+    "Segoe UI",
+    Arial,
+    sans-serif;
+}
+
+.siga-title {
+  font-family:
+    "Patria",
+    Georgia,
+    "Times New Roman",
+    serif;
+}
+
+.siga-texture {
+  background-image:
+    linear-gradient(
+      rgba(255, 255, 255, 0.93),
+      rgba(255, 255, 255, 0.93)
+    ),
+    url("/branding/textura-institucional-gris.jpg");
+  background-position: center;
+  background-size: cover;
+}
+
+.siga-focus:focus-visible {
+  outline: 3px solid var(--siga-dorado-claro);
+  outline-offset: 2px;
+}

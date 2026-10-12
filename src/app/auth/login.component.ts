@@ -22,7 +22,7 @@ import { AuthService } from './auth.service';
   ],
   template: `
     <form
-      class="space-y-6"
+      class="space-y-5"
       [formGroup]="form"
       (ngSubmit)="submit()"
       novalidate
@@ -30,7 +30,7 @@ import { AuthService } from './auth.service';
       <div>
         <label
           for="email"
-          class="block text-sm font-semibold text-slate-800"
+          class="block text-sm font-semibold text-[#161a1d]"
         >
           Correo electrónico
         </label>
@@ -41,7 +41,7 @@ import { AuthService } from './auth.service';
           formControlName="email"
           autocomplete="username"
           inputmode="email"
-          class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
+          class="siga-focus mt-2 block w-full rounded-xl border border-[#98989a]/50 bg-white px-4 py-3 text-[#161a1d] shadow-sm outline-none transition placeholder:text-[#98989a] hover:border-[#a57f2c] focus:border-[#611232] focus:ring-4 focus:ring-[#611232]/10"
           placeholder="usuario@institucion.mx"
           [attr.aria-invalid]="
             form.controls.email.invalid &&
@@ -58,14 +58,14 @@ import { AuthService } from './auth.service';
             form.controls.email.touched &&
             form.controls.email.hasError('required')
           ) {
-            <p class="text-red-700">
+            <p class="font-medium text-[#9b2247]">
               El correo electrónico es obligatorio.
             </p>
           } @else if (
             form.controls.email.touched &&
             form.controls.email.hasError('email')
           ) {
-            <p class="text-red-700">
+            <p class="font-medium text-[#9b2247]">
               Ingresa un correo electrónico válido.
             </p>
           }
@@ -75,7 +75,7 @@ import { AuthService } from './auth.service';
       <div>
         <label
           for="password"
-          class="block text-sm font-semibold text-slate-800"
+          class="block text-sm font-semibold text-[#161a1d]"
         >
           Contraseña
         </label>
@@ -85,7 +85,7 @@ import { AuthService } from './auth.service';
           type="password"
           formControlName="password"
           autocomplete="current-password"
-          class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
+          class="siga-focus mt-2 block w-full rounded-xl border border-[#98989a]/50 bg-white px-4 py-3 text-[#161a1d] shadow-sm outline-none transition placeholder:text-[#98989a] hover:border-[#a57f2c] focus:border-[#611232] focus:ring-4 focus:ring-[#611232]/10"
           placeholder="Ingresa tu contraseña"
           [attr.aria-invalid]="
             form.controls.password.invalid &&
@@ -102,7 +102,7 @@ import { AuthService } from './auth.service';
             form.controls.password.touched &&
             form.controls.password.hasError('required')
           ) {
-            <p class="text-red-700">
+            <p class="font-medium text-[#9b2247]">
               La contraseña es obligatoria.
             </p>
           }
@@ -113,7 +113,7 @@ import { AuthService } from './auth.service';
         <div
           role="alert"
           aria-live="polite"
-          class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800"
+          class="rounded-xl border border-[#9b2247]/25 bg-[#9b2247]/5 px-4 py-3 text-sm leading-6 text-[#611232]"
         >
           {{ errorMessage() }}
         </div>
@@ -122,7 +122,7 @@ import { AuthService } from './auth.service';
       <button
         type="submit"
         [disabled]="isSubmitting()"
-        class="flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-400"
+        class="siga-focus flex w-full items-center justify-center rounded-xl bg-[#611232] px-4 py-3.5 font-semibold text-white shadow-md transition hover:bg-[#9b2247] disabled:cursor-not-allowed disabled:bg-[#98989a]"
       >
         @if (isSubmitting()) {
           <span
@@ -136,8 +136,17 @@ import { AuthService } from './auth.service';
         }
       </button>
 
+      <div
+        class="flex items-center justify-center gap-3 pt-2"
+        aria-hidden="true"
+      >
+        <span class="h-px flex-1 bg-[#e6d194]"></span>
+        <span class="h-2 w-2 rotate-45 bg-[#a57f2c]"></span>
+        <span class="h-px flex-1 bg-[#e6d194]"></span>
+      </div>
+
       <p
-        class="text-center text-xs leading-5 text-slate-500"
+        class="text-center text-xs leading-5 text-[#6b6b6b]"
       >
         No compartas tus credenciales con otras personas.
       </p>
