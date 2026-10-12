@@ -8,6 +8,7 @@ import {
 import { TestBed } from '@angular/core/testing';
 
 import {
+  PersonDetail,
   PersonListResponse,
 } from './person.models';
 import { PersonService } from './person.service';
@@ -90,5 +91,51 @@ describe('PersonService', () => {
         total: 21,
       },
     });
+  });
+
+  it('obtiene una persona por id persona', () => {
+    const idPersona =
+      '0199b329-7600-7000-8000-000000000001';
+
+    const backendResponse: PersonDetail = {
+      id_persona: idPersona,
+      curp: null,
+      rfc: null,
+      num_expediente: '2026-00000001',
+      nombres: 'MARIA ELENA',
+      apellido_paterno: 'LOPEZ',
+      apellido_materno: 'GARCIA',
+      fecha_nacimiento: '1990-01-01',
+      sexo: 'FEMENINO',
+      estado_civil: 'SOLTERO',
+      correo_institucional: null,
+      correo_personal: null,
+      id_pais_origen: null,
+      id_pais_nacimiento: null,
+      id_territorio_nacimiento: null,
+      fecha_alta: '2026-10-12T12:00:00.000000Z',
+      fecha_baja: null,
+      estatus: 'ACTIVO',
+    };
+
+    let result: PersonDetail | undefined;
+
+    service
+      .find(idPersona)
+      .subscribe((person) => {
+        result = person;
+      });
+
+    const request = http.expectOne(
+      `/api/personas/${idPersona}`,
+    );
+
+    expect(request.request.method).toBe('GET');
+
+    request.flush(backendResponse);
+
+    expect(result).toEqual(
+      backendResponse,
+    );
   });
 });

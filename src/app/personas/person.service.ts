@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  PersonDetail,
   PersonListResponse,
 } from './person.models';
 
@@ -11,6 +12,14 @@ import {
 })
 export class PersonService {
   private readonly http = inject(HttpClient);
+
+  find(
+    idPersona: string,
+  ): Observable<PersonDetail> {
+    return this.http.get<PersonDetail>(
+      `/api/personas/${idPersona}`,
+    );
+  }
 
   list(
     page = 1,

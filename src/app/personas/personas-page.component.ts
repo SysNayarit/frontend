@@ -6,6 +6,7 @@ import {
 } from '@angular/core';
 
 import {
+  PersonDetail,
   PersonListItem,
   PersonListMeta,
 } from './person.models';
@@ -84,6 +85,111 @@ import { PersonService } from './person.service';
               Consulta de personas registradas en la Plataforma Integral SIGA.
             </p>
 
+            @if (detailErrorMessage()) {
+              <div
+                data-testid="persona-detail-error"
+                class="mt-8 rounded-xl border border-[#9b2247]/30 bg-[#9b2247]/5 px-6 py-8 text-center"
+                role="alert"
+              >
+                <p
+                  class="siga-title text-xl font-bold text-[#611232]"
+                >
+                  No fue posible cargar el detalle de la persona
+                </p>
+
+                <p
+                  class="mt-2 text-sm text-[#555555]"
+                >
+                  El registro pudo haber cambiado o no estar disponible.
+                </p>
+              </div>
+            } @else if (selectedPerson()) {
+              <section
+                data-testid="persona-detail"
+                class="mt-8 rounded-xl border border-[#a57f2c]/30 bg-[#f7f7f5] p-6"
+              >
+                <div
+                  class="flex flex-wrap items-start justify-between gap-4"
+                >
+                  <div>
+                    <p
+                      class="text-xs font-semibold uppercase tracking-[0.18em] text-[#9b2247]"
+                    >
+                      Detalle de Persona
+                    </p>
+
+                    <h3
+                      class="siga-title mt-2 text-2xl font-bold text-[#611232]"
+                    >
+                      {{ fullName(selectedPerson()!) }}
+                    </h3>
+                  </div>
+
+                  <span
+                    class="rounded-full border border-[#a57f2c]/30 bg-white px-3 py-1 text-sm font-semibold text-[#611232]"
+                  >
+                    {{ selectedPerson()!.estatus }}
+                  </span>
+                </div>
+
+                <dl
+                  class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                >
+                  <div>
+                    <dt
+                      class="text-xs font-semibold uppercase tracking-wide text-[#555555]"
+                    >
+                      Expediente
+                    </dt>
+                    <dd
+                      class="mt-1 font-semibold text-[#161a1d]"
+                    >
+                      {{ selectedPerson()!.num_expediente }}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt
+                      class="text-xs font-semibold uppercase tracking-wide text-[#555555]"
+                    >
+                      Sexo
+                    </dt>
+                    <dd
+                      class="mt-1 text-[#161a1d]"
+                    >
+                      {{ selectedPerson()!.sexo ?? 'No registrado' }}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt
+                      class="text-xs font-semibold uppercase tracking-wide text-[#555555]"
+                    >
+                      Estado civil
+                    </dt>
+                    <dd
+                      class="mt-1 text-[#161a1d]"
+                    >
+                      {{ selectedPerson()!.estado_civil ?? 'No registrado' }}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt
+                      class="text-xs font-semibold uppercase tracking-wide text-[#555555]"
+                    >
+                      Fecha de nacimiento
+                    </dt>
+                    <dd
+                      class="mt-1 text-[#161a1d]"
+                    >
+                      {{ selectedPerson()!.fecha_nacimiento ?? 'No registrada' }}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            }
+
             @if (errorMessage()) {
               <div
                 data-testid="personas-error-state"
@@ -147,6 +253,13 @@ import { PersonService } from './person.service';
                       >
                         Estatus
                       </th>
+
+                      <th
+                        scope="col"
+                        class="px-4 py-3 text-sm font-semibold"
+                      >
+                        Acciones
+                      </th>
                     </tr>
                   </thead>
 
@@ -174,6 +287,19 @@ import { PersonService } from './person.service';
                           class="whitespace-nowrap px-4 py-3 text-sm text-[#555555]"
                         >
                           {{ person.estatus }}
+                        </td>
+
+                        <td
+                          class="whitespace-nowrap px-4 py-3"
+                        >
+                          <button
+                            type="button"
+                            data-testid="persona-view-detail"
+                            (click)="viewDetail(person.id_persona)"
+                            class="siga-focus rounded-lg border border-[#611232] px-3 py-2 text-sm font-semibold text-[#611232] transition hover:bg-[#611232] hover:text-white"
+                          >
+                            Ver detalle
+                          </button>
                         </td>
                       </tr>
                     }
@@ -250,6 +376,14 @@ export class PersonasPageComponent implements OnInit {
     null,
   );
 
+  readonly selectedPerson = signal<PersonDetail | null>(
+    null,
+  );
+
+  readonly detailErrorMessage = signal<string | null>(
+    null,
+  );
+
   ngOnInit(): void {
     this.loadPage(1);
   }
@@ -269,6 +403,28 @@ export class PersonasPageComponent implements OnInit {
         error: () => {
           this.errorMessage.set(
             'No fue posible cargar el listado de personas',
+          );
+        },
+      });
+  }
+
+  viewDetail(
+    idPersona: string,
+  ): void {
+    this.selectedPerson.set(null);
+    this.detailErrorMessage.set(null);
+
+    this.personService
+      .find(idPersona)
+      .subscribe({
+        next: (person) => {
+          this.selectedPerson.set(person);
+        },
+        error: () => {
+          this.selectedPerson.set(null);
+
+          this.detailErrorMessage.set(
+            'No fue posible cargar el detalle de la persona',
           );
         },
       });
