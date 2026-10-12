@@ -34,29 +34,18 @@ import { AuthService } from './auth/auth.service';
           class="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8"
         >
           <div>
-            <div
-              class="flex items-center gap-3"
-            >
-              <span
-                class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#e6d194]/40 bg-white/10 text-lg font-bold text-[#e6d194]"
-                aria-hidden="true"
+            <div>
+              <p
+                class="text-xs font-semibold uppercase tracking-[0.18em] text-[#e6d194]"
               >
-                S
-              </span>
+                Plataforma Integral
+              </p>
 
-              <div>
-                <p
-                  class="text-xs font-semibold uppercase tracking-[0.18em] text-[#e6d194]"
-                >
-                  Plataforma Integral
-                </p>
-
-                <h1
-                  class="siga-title mt-1 text-2xl font-bold tracking-tight sm:text-3xl"
-                >
-                  SIGA
-                </h1>
-              </div>
+              <h1
+                class="siga-title mt-1 text-2xl font-bold tracking-tight sm:text-3xl"
+              >
+                SIGA
+              </h1>
             </div>
 
             <p
@@ -120,7 +109,7 @@ import { AuthService } from './auth/auth.service';
                 </p>
               </div>
 
-              <div class="p-3">
+              <div class="space-y-2 p-3">
                 <div
                   class="flex items-center gap-3 rounded-xl bg-[#611232] px-4 py-3 font-semibold text-white shadow-sm"
                   aria-current="page"
@@ -134,6 +123,24 @@ import { AuthService } from './auth/auth.service';
 
                   Inicio
                 </div>
+
+                @if (hasPermission('personas.ver')) {
+                  <button
+                    type="button"
+                    data-testid="personas-navigation"
+                    (click)="navigateToPersonas()"
+                    class="siga-focus flex w-full items-center gap-3 rounded-xl border border-[#98989a]/20 px-4 py-3 text-left font-semibold text-[#611232] transition hover:border-[#a57f2c]/40 hover:bg-[#e6d194]/15"
+                  >
+                    <span
+                      class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e6d194]/35 text-[#611232]"
+                      aria-hidden="true"
+                    >
+                      P
+                    </span>
+
+                    Personas
+                  </button>
+                }
               </div>
 
               <div
@@ -352,6 +359,18 @@ export class HomeComponent {
           part.trim().length > 0,
       )
       .join(' ');
+  }
+
+  hasPermission(
+    permission: string,
+  ): boolean {
+    return this.user()
+      ?.permissions
+      .includes(permission) ?? false;
+  }
+
+  navigateToPersonas(): void {
+    void this.router.navigateByUrl('/personas');
   }
 
   logout(): void {

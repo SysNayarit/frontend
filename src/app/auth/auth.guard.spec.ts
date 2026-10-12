@@ -28,6 +28,7 @@ class AuthServiceStub {
     created_at: '2026-10-09T00:00:00.000000Z',
     updated_at: '2026-10-09T00:00:00.000000Z',
     person: null,
+    permissions: [],
   });
 
   currentUser(): Observable<AuthenticatedUser> {

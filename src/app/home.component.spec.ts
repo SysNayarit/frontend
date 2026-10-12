@@ -20,6 +20,7 @@ class AuthServiceStub {
     created_at: '2026-10-09T00:00:00.000000Z',
     updated_at: '2026-10-09T00:00:00.000000Z',
     person: null,
+    permissions: [],
   };
 
   currentUser() {
@@ -166,5 +167,73 @@ describe('HomeComponent', () => {
     expect(
       router.navigatedTo,
     ).toBe('/acceso');
+  });
+
+  it('muestra el modulo personas cuando el usuario tiene permiso para consultarlo', () => {
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const personasNavigation = element.querySelector(
+      '[data-testid="personas-navigation"]',
+    );
+
+    expect(personasNavigation).not.toBeNull();
+
+    expect(
+      personasNavigation?.textContent,
+    ).toContain('Personas');
+  });
+
+  it('oculta el modulo personas cuando el usuario no tiene permiso para consultarlo', () => {
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const personasNavigation = element.querySelector(
+      '[data-testid="personas-navigation"]',
+    );
+
+    expect(personasNavigation).toBeNull();
+  });
+
+  it('navega al modulo personas cuando se selecciona la opcion autorizada', () => {
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const personasNavigation = element.querySelector(
+      '[data-testid="personas-navigation"]',
+    ) as HTMLElement;
+
+    expect(personasNavigation).not.toBeNull();
+
+    personasNavigation.click();
+
+    expect(
+      router.navigatedTo,
+    ).toBe('/personas');
   });
 });

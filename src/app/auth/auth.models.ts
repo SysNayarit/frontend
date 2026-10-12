@@ -19,4 +19,5 @@ export interface AuthenticatedUser {
   created_at: string;
   updated_at: string;
   person: AuthenticatedPerson | null;
+  permissions: string[];
 }
