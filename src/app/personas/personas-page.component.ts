@@ -1,4 +1,15 @@
-import { Component } from '@angular/core';
+import {
+  Component,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
+
+import {
+  PersonListItem,
+  PersonListMeta,
+} from './person.models';
+import { PersonService } from './person.service';
 
 @Component({
   selector: 'app-personas-page',
@@ -70,14 +81,242 @@ import { Component } from '@angular/core';
             <p
               class="mt-4 max-w-3xl leading-7 text-[#555555]"
             >
-              Este módulo utilizará exclusivamente las operaciones
-              autorizadas por los servicios de SIGA y los permisos
-              efectivos del usuario autenticado.
+              Consulta de personas registradas en la Plataforma Integral SIGA.
             </p>
+
+            @if (errorMessage()) {
+              <div
+                data-testid="personas-error-state"
+                class="mt-8 rounded-xl border border-[#9b2247]/30 bg-[#9b2247]/5 px-6 py-10 text-center"
+                role="alert"
+              >
+                <p
+                  class="siga-title text-xl font-bold text-[#611232]"
+                >
+                  No fue posible cargar el listado de personas
+                </p>
+
+                <p
+                  class="mt-2 text-sm text-[#555555]"
+                >
+                  Intenta nuevamente cuando la conexión con SIGA esté disponible.
+                </p>
+              </div>
+            } @else if (persons().length === 0) {
+              <div
+                data-testid="personas-empty-state"
+                class="mt-8 rounded-xl border border-dashed border-[#98989a]/40 bg-[#f7f7f5] px-6 py-10 text-center"
+              >
+                <p
+                  class="siga-title text-xl font-bold text-[#611232]"
+                >
+                  No hay personas registradas
+                </p>
+
+                <p
+                  class="mt-2 text-sm text-[#555555]"
+                >
+                  Cuando existan registros autorizados, se mostrarán en este listado.
+                </p>
+              </div>
+            } @else {
+              <div
+                class="mt-8 overflow-x-auto rounded-xl border border-[#98989a]/25"
+                data-testid="person-list"
+              >
+                <table class="min-w-full border-collapse text-left">
+                  <thead class="bg-[#611232] text-white">
+                    <tr>
+                      <th
+                        scope="col"
+                        class="px-4 py-3 text-sm font-semibold"
+                      >
+                        Expediente
+                      </th>
+
+                      <th
+                        scope="col"
+                        class="px-4 py-3 text-sm font-semibold"
+                      >
+                        Nombre
+                      </th>
+
+                      <th
+                        scope="col"
+                        class="px-4 py-3 text-sm font-semibold"
+                      >
+                        Estatus
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    @for (
+                      person of persons();
+                      track person.id_persona
+                    ) {
+                      <tr
+                        class="border-t border-[#98989a]/20"
+                      >
+                        <td
+                          class="whitespace-nowrap px-4 py-3 text-sm font-medium text-[#611232]"
+                        >
+                          {{ person.num_expediente }}
+                        </td>
+
+                        <td
+                          class="px-4 py-3 text-sm text-[#161a1d]"
+                        >
+                          {{ fullName(person) }}
+                        </td>
+
+                        <td
+                          class="whitespace-nowrap px-4 py-3 text-sm text-[#555555]"
+                        >
+                          {{ person.estatus }}
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+
+            @if (meta()) {
+              <div
+                class="mt-4 flex flex-wrap items-center justify-between gap-4"
+              >
+                <p
+                  class="text-sm text-[#555555]"
+                >
+                  Total de personas:
+                  <strong>{{ meta()!.total }}</strong>
+                </p>
+
+                <div
+                  class="flex items-center gap-3"
+                >
+                  <button
+                    type="button"
+                    data-testid="personas-previous-page"
+                    (click)="previousPage()"
+                    [disabled]="meta()!.current_page <= 1"
+                    class="siga-focus rounded-lg border border-[#611232] px-4 py-2 text-sm font-semibold text-[#611232] transition hover:bg-[#611232] hover:text-white disabled:cursor-not-allowed disabled:border-[#98989a]/40 disabled:text-[#98989a] disabled:hover:bg-transparent"
+                  >
+                    Anterior
+                  </button>
+
+                  <span
+                    class="text-sm text-[#555555]"
+                  >
+                    Página
+                    <strong>{{ meta()!.current_page }}</strong>
+                    de
+                    <strong>{{ meta()!.last_page }}</strong>
+                  </span>
+
+                  <button
+                    type="button"
+                    data-testid="personas-next-page"
+                    (click)="nextPage()"
+                    [disabled]="meta()!.current_page >= meta()!.last_page"
+                    class="siga-focus rounded-lg border border-[#611232] px-4 py-2 text-sm font-semibold text-[#611232] transition hover:bg-[#611232] hover:text-white disabled:cursor-not-allowed disabled:border-[#98989a]/40 disabled:text-[#98989a] disabled:hover:bg-transparent"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            }
           </div>
         </section>
       </div>
     </main>
   `,
 })
-export class PersonasPageComponent {}
+export class PersonasPageComponent implements OnInit {
+  private readonly personService = inject(
+    PersonService,
+  );
+
+  readonly persons = signal<PersonListItem[]>(
+    [],
+  );
+
+  readonly meta = signal<PersonListMeta | null>(
+    null,
+  );
+
+  readonly errorMessage = signal<string | null>(
+    null,
+  );
+
+  ngOnInit(): void {
+    this.loadPage(1);
+  }
+
+  loadPage(
+    page: number,
+  ): void {
+    this.errorMessage.set(null);
+
+    this.personService
+      .list(page)
+      .subscribe({
+        next: (response) => {
+          this.persons.set(response.data);
+          this.meta.set(response.meta);
+        },
+        error: () => {
+          this.errorMessage.set(
+            'No fue posible cargar el listado de personas',
+          );
+        },
+      });
+  }
+
+  previousPage(): void {
+    const pagination = this.meta();
+
+    if (
+      pagination === null ||
+      pagination.current_page <= 1
+    ) {
+      return;
+    }
+
+    this.loadPage(
+      pagination.current_page - 1,
+    );
+  }
+
+  nextPage(): void {
+    const pagination = this.meta();
+
+    if (
+      pagination === null ||
+      pagination.current_page >= pagination.last_page
+    ) {
+      return;
+    }
+
+    this.loadPage(
+      pagination.current_page + 1,
+    );
+  }
+
+  fullName(
+    person: PersonListItem,
+  ): string {
+    return [
+      person.nombres,
+      person.apellido_paterno,
+      person.apellido_materno,
+    ]
+      .filter(
+        (part): part is string =>
+          part !== null &&
+          part.trim() !== '',
+      )
+      .join(' ');
+  }
+}
