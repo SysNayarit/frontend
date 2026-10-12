@@ -97,7 +97,7 @@ export class HomeComponent {
   logout(): void {
     this.auth.logout().subscribe({
       next: () => {
-        void this.router.navigateByUrl('/login');
+        void this.router.navigateByUrl('/acceso');
       },
     });
   }

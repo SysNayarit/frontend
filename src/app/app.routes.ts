@@ -8,10 +8,10 @@ export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    redirectTo: 'login',
+    redirectTo: 'acceso',
   },
   {
-    path: 'login',
+    path: 'acceso',
     component: LoginPageComponent,
   },
   {
@@ -23,6 +23,6 @@ export const routes: Routes = [
   },
   {
     path: '**',
-    redirectTo: 'login',
+    redirectTo: 'acceso',
   },
 ];

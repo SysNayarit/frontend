@@ -36,7 +36,7 @@ describe('App', () => {
 
     const router = TestBed.inject(Router);
 
-    await router.navigateByUrl('/login');
+    await router.navigateByUrl('/acceso');
     await fixture.whenStable();
 
     fixture.detectChanges();

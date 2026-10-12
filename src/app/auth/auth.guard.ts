@@ -19,7 +19,7 @@ export const authGuard: CanActivateFn = () => {
     map(() => true),
     catchError(() =>
       of(
-        router.parseUrl('/login'),
+        router.parseUrl('/acceso'),
       ),
     ),
   );

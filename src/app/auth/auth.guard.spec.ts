@@ -93,6 +93,6 @@ describe('authGuard', () => {
       router.serializeUrl(
         result as UrlTree,
       ),
-    ).toBe('/login');
+    ).toBe('/acceso');
   });
 });
