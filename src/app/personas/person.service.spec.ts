@@ -138,4 +138,67 @@ describe('PersonService', () => {
       backendResponse,
     );
   });
+
+  it('registra una persona mediante POST /api/personas', () => {
+    const payload = {
+      nombres: 'ANA MARIA',
+      apellido_paterno: null,
+      apellido_materno: 'PEREZ',
+      fecha_nacimiento: '1995-04-10',
+      sexo: 'FEMENINO',
+      estado_civil: 'SOLTERO',
+    };
+
+    const backendResponse: PersonDetail = {
+      id_persona:
+        '0199b329-7600-7000-8000-000000000002',
+      curp: null,
+      rfc: null,
+      num_expediente: '2026-00000002',
+      nombres: 'ANA MARIA',
+      apellido_paterno: null,
+      apellido_materno: 'PEREZ',
+      fecha_nacimiento: '1995-04-10',
+      sexo: 'FEMENINO',
+      estado_civil: 'SOLTERO',
+      correo_institucional: null,
+      correo_personal: null,
+      id_pais_origen: null,
+      id_pais_nacimiento: null,
+      id_territorio_nacimiento: null,
+      fecha_alta: '2026-10-12T12:00:00.000000Z',
+      fecha_baja: null,
+      estatus: 'ACTIVO',
+    };
+
+    let result: PersonDetail | undefined;
+
+    service
+      .create(payload)
+      .subscribe((person) => {
+        result = person;
+      });
+
+    const request = http.expectOne(
+      '/api/personas',
+    );
+
+    expect(request.request.method).toBe('POST');
+
+    expect(
+      request.request.body,
+    ).toEqual(payload);
+
+    request.flush(
+      backendResponse,
+      {
+        status: 201,
+        statusText: 'Created',
+      },
+    );
+
+    expect(result).toEqual(
+      backendResponse,
+    );
+  });
 });

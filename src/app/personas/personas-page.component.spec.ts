@@ -8,6 +8,12 @@ import {
 } from 'rxjs';
 
 import {
+  AuthenticatedUser,
+} from '../auth/auth.models';
+import { AuthService } from '../auth/auth.service';
+
+import {
+  PersonCreateRequest,
   PersonDetail,
   PersonListResponse,
 } from './person.models';
@@ -16,10 +22,42 @@ import {
   PersonasPageComponent,
 } from './personas-page.component';
 
+class AuthServiceStub {
+  currentUserResult: AuthenticatedUser = {
+    id: 1,
+    id_persona: null,
+    name: 'usuario.personas',
+    email: 'usuario.personas@siga.test',
+    email_verified_at: null,
+    created_at: '2026-10-12T00:00:00.000000Z',
+    updated_at: '2026-10-12T00:00:00.000000Z',
+    person: null,
+    permissions: [
+      'personas.ver',
+      'personas.crear',
+    ],
+  };
+
+  currentUser() {
+    return of(
+      this.currentUserResult,
+    );
+  }
+}
 class PersonServiceStub {
   listCalls: number[] = [];
 
   findCalls: string[] = [];
+
+  createCalls: PersonCreateRequest[] = [];
+
+  createShouldFail = false;
+
+  createValidationShouldFail = false;
+
+  createSurnameValidationShouldFail = false;
+
+  createBirthDateValidationShouldFail = false;
 
   findShouldFail = false;
 
@@ -67,6 +105,70 @@ class PersonServiceStub {
     estatus: 'ACTIVO',
   };
 
+  create(
+    payload: PersonCreateRequest,
+  ) {
+    this.createCalls.push(payload);
+
+    if (this.createBirthDateValidationShouldFail) {
+      return throwError(
+        () => ({
+          status: 422,
+          error: {
+            message: 'The given data was invalid.',
+            errors: {
+              fecha_nacimiento: [
+                'La fecha de nacimiento fue rechazada por el servidor.',
+              ],
+            },
+          },
+        }),
+      );
+    }
+
+    if (this.createSurnameValidationShouldFail) {
+      return throwError(
+        () => ({
+          status: 422,
+          error: {
+            message: 'The given data was invalid.',
+            errors: {
+              apellido_paterno: [
+                'El apellido paterno fue rechazado por el servidor.',
+              ],
+            },
+          },
+        }),
+      );
+    }
+
+    if (this.createValidationShouldFail) {
+      return throwError(
+        () => ({
+          status: 422,
+          error: {
+            message: 'The given data was invalid.',
+            errors: {
+              nombres: [
+                'El nombre fue rechazado por el servidor.',
+              ],
+            },
+          },
+        }),
+      );
+    }
+
+    if (this.createShouldFail) {
+      return throwError(
+        () => new Error(
+          'No fue posible registrar la persona.',
+        ),
+      );
+    }
+
+    return of(this.detailResponse);
+  }
+
   find(
     idPersona: string,
   ) {
@@ -112,6 +214,10 @@ describe('PersonasPageComponent', () => {
         {
           provide: PersonService,
           useClass: PersonServiceStub,
+        },
+        {
+          provide: AuthService,
+          useClass: AuthServiceStub,
         },
       ],
     }).compileComponents();
@@ -364,5 +470,868 @@ describe('PersonasPageComponent', () => {
         '[data-testid="persona-detail"]',
       ),
     ).toBeNull();
+  });
+
+  it('muestra la accion de registro cuando el usuario tiene personas.crear', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    );
+
+    expect(registerButton).not.toBeNull();
+
+    expect(
+      registerButton?.textContent,
+    ).toContain('Registrar persona');
+  });
+
+  it('oculta la accion de registro cuando el usuario no tiene personas.crear', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    );
+
+    expect(registerButton).toBeNull();
+  });
+
+  it('abre el formulario de registro al seleccionar Registrar persona', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register-form"]',
+      ),
+    ).toBeNull();
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    expect(registerButton).not.toBeNull();
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const form = element.querySelector(
+      '[data-testid="persona-register-form"]',
+    );
+
+    expect(form).not.toBeNull();
+
+    expect(
+      form?.textContent,
+    ).toContain('Registrar persona');
+  });
+
+  it('muestra los campos basicos para registrar una persona', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-nombres"]',
+    );
+
+    const apellidoPaterno = element.querySelector(
+      '[data-testid="persona-apellido-paterno"]',
+    );
+
+    const apellidoMaterno = element.querySelector(
+      '[data-testid="persona-apellido-materno"]',
+    );
+
+    expect(nombres).not.toBeNull();
+    expect(apellidoPaterno).not.toBeNull();
+    expect(apellidoMaterno).not.toBeNull();
+  });
+
+  it('rechaza el registro cuando faltan nombres y ambos apellidos', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-register-submit"]',
+    ) as HTMLButtonElement | null;
+
+    expect(submitButton).not.toBeNull();
+
+    submitButton?.click();
+    fixture.detectChanges();
+
+    expect(
+      service.createCalls,
+    ).toEqual([]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-nombres-error"]',
+      )?.textContent,
+    ).toContain(
+      'Los nombres son obligatorios',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-apellidos-error"]',
+      )?.textContent,
+    ).toContain(
+      'Debe capturarse al menos un apellido',
+    );
+  });
+
+  it('registra una persona con nombres y solo apellido materno', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-nombres"]',
+    ) as HTMLInputElement;
+
+    const apellidoMaterno = element.querySelector(
+      '[data-testid="persona-apellido-materno"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'ANA MARIA';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoMaterno.value = 'PEREZ';
+    apellidoMaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-register-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.createCalls,
+    ).toEqual([
+      {
+        nombres: 'ANA MARIA',
+        apellido_paterno: null,
+        apellido_materno: 'PEREZ',
+      },
+    ]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-nombres-error"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-apellidos-error"]',
+      ),
+    ).toBeNull();
+  });
+
+  it('muestra fecha de nacimiento sexo y estado civil en el registro', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const fechaNacimiento = element.querySelector(
+      '[data-testid="persona-fecha-nacimiento"]',
+    );
+
+    const sexo = element.querySelector(
+      '[data-testid="persona-sexo"]',
+    );
+
+    const estadoCivil = element.querySelector(
+      '[data-testid="persona-estado-civil"]',
+    );
+
+    expect(fechaNacimiento).not.toBeNull();
+    expect(sexo).not.toBeNull();
+    expect(estadoCivil).not.toBeNull();
+  });
+
+  it('envia fecha de nacimiento sexo y estado civil al registrar', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-nombres"]',
+    ) as HTMLInputElement;
+
+    const apellidoPaterno = element.querySelector(
+      '[data-testid="persona-apellido-paterno"]',
+    ) as HTMLInputElement;
+
+    const fechaNacimiento = element.querySelector(
+      '[data-testid="persona-fecha-nacimiento"]',
+    ) as HTMLInputElement;
+
+    const sexo = element.querySelector(
+      '[data-testid="persona-sexo"]',
+    ) as HTMLSelectElement;
+
+    const estadoCivil = element.querySelector(
+      '[data-testid="persona-estado-civil"]',
+    ) as HTMLSelectElement;
+
+    nombres.value = 'JUAN CARLOS';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoPaterno.value = 'LOPEZ';
+    apellidoPaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    fechaNacimiento.value = '1990-05-20';
+    fechaNacimiento.dispatchEvent(
+      new Event('input'),
+    );
+
+    sexo.value = 'MASCULINO';
+    sexo.dispatchEvent(
+      new Event('change'),
+    );
+
+    estadoCivil.value = 'CASADO';
+    estadoCivil.dispatchEvent(
+      new Event('change'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-register-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.createCalls,
+    ).toEqual([
+      {
+        nombres: 'JUAN CARLOS',
+        apellido_paterno: 'LOPEZ',
+        apellido_materno: null,
+        fecha_nacimiento: '1990-05-20',
+        sexo: 'MASCULINO',
+        estado_civil: 'CASADO',
+      },
+    ]);
+  });
+
+  it('cierra el formulario confirma el registro y recarga el listado', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+    ]);
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-nombres"]',
+    ) as HTMLInputElement;
+
+    const apellidoPaterno = element.querySelector(
+      '[data-testid="persona-apellido-paterno"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'MARIA ELENA';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoPaterno.value = 'GARCIA';
+    apellidoPaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-register-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register-form"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register-success"]',
+      )?.textContent,
+    ).toContain(
+      'Persona registrada correctamente',
+    );
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+      1,
+    ]);
+  });
+
+  it('conserva el formulario y muestra un error cuando falla el registro', () => {
+    service.createShouldFail = true;
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+    ]);
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-nombres"]',
+    ) as HTMLInputElement;
+
+    const apellidoPaterno = element.querySelector(
+      '[data-testid="persona-apellido-paterno"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'PEDRO';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoPaterno.value = 'RAMIREZ';
+    apellidoPaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-register-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    const form = element.querySelector(
+      '[data-testid="persona-register-form"]',
+    );
+
+    expect(form).not.toBeNull();
+
+    expect(
+      (
+        element.querySelector(
+          '[data-testid="persona-nombres"]',
+        ) as HTMLInputElement
+      ).value,
+    ).toBe('PEDRO');
+
+    expect(
+      (
+        element.querySelector(
+          '[data-testid="persona-apellido-paterno"]',
+        ) as HTMLInputElement
+      ).value,
+    ).toBe('RAMIREZ');
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register-error"]',
+      )?.textContent,
+    ).toContain(
+      'No fue posible registrar la persona',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register-success"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+    ]);
+  });
+
+  it('rechaza una fecha de nacimiento futura', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-nombres"]',
+    ) as HTMLInputElement;
+
+    const apellidoPaterno = element.querySelector(
+      '[data-testid="persona-apellido-paterno"]',
+    ) as HTMLInputElement;
+
+    const fechaNacimiento = element.querySelector(
+      '[data-testid="persona-fecha-nacimiento"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'ANA';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoPaterno.value = 'PEREZ';
+    apellidoPaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    fechaNacimiento.value = '2999-12-31';
+    fechaNacimiento.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-register-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.createCalls,
+    ).toEqual([]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-fecha-nacimiento-error"]',
+      )?.textContent,
+    ).toContain(
+      'La fecha de nacimiento no puede ser futura',
+    );
+  });
+
+  it('usa America/Mexico_City para validar la fecha de nacimiento', () => {
+    const fixture = createFixture();
+
+    const component =
+      fixture.componentInstance;
+
+    expect(
+      component.birthDateValidationTimeZone,
+    ).toBe(
+      'America/Mexico_City',
+    );
+  });
+
+  it('muestra el error de nombres devuelto por el backend', () => {
+    service.createValidationShouldFail = true;
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-nombres"]',
+    ) as HTMLInputElement;
+
+    const apellidoPaterno = element.querySelector(
+      '[data-testid="persona-apellido-paterno"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'JUAN';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoPaterno.value = 'PEREZ';
+    apellidoPaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-register-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.createCalls,
+    ).toHaveLength(1);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-nombres-error"]',
+      )?.textContent,
+    ).toContain(
+      'El nombre fue rechazado por el servidor.',
+    );
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+    ]);
+  });
+
+  it('muestra el error de apellido devuelto por el backend', () => {
+    service.createSurnameValidationShouldFail = true;
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-nombres"]',
+    ) as HTMLInputElement;
+
+    const apellidoPaterno = element.querySelector(
+      '[data-testid="persona-apellido-paterno"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'JUAN';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoPaterno.value = 'PEREZ';
+    apellidoPaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-register-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.createCalls,
+    ).toHaveLength(1);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-apellidos-error"]',
+      )?.textContent,
+    ).toContain(
+      'El apellido paterno fue rechazado por el servidor.',
+    );
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+    ]);
+  });
+
+  it('muestra el error de fecha de nacimiento devuelto por el backend', () => {
+    service.createBirthDateValidationShouldFail = true;
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-nombres"]',
+    ) as HTMLInputElement;
+
+    const apellidoPaterno = element.querySelector(
+      '[data-testid="persona-apellido-paterno"]',
+    ) as HTMLInputElement;
+
+    const fechaNacimiento = element.querySelector(
+      '[data-testid="persona-fecha-nacimiento"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'JUAN';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoPaterno.value = 'PEREZ';
+    apellidoPaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    fechaNacimiento.value = '1990-05-20';
+    fechaNacimiento.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-register-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.createCalls,
+    ).toHaveLength(1);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-fecha-nacimiento-error"]',
+      )?.textContent,
+    ).toContain(
+      'La fecha de nacimiento fue rechazada por el servidor.',
+    );
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+    ]);
+  });
+
+  it('cancela el registro y cierra el formulario sin crear una persona', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register-form"]',
+      ),
+    ).not.toBeNull();
+
+    const cancelButton = element.querySelector(
+      '[data-testid="persona-register-cancel"]',
+    ) as HTMLButtonElement | null;
+
+    expect(cancelButton).not.toBeNull();
+
+    cancelButton?.click();
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register-form"]',
+      ),
+    ).toBeNull();
+
+    expect(service.createCalls).toEqual([]);
+  });
+
+  it('registra la persona al enviar el formulario', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const registerButton = element.querySelector(
+      '[data-testid="persona-register"]',
+    ) as HTMLButtonElement;
+
+    registerButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-nombres"]',
+    ) as HTMLInputElement;
+
+    const apellidoPaterno = element.querySelector(
+      '[data-testid="persona-apellido-paterno"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'JUAN';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoPaterno.value = 'PEREZ';
+    apellidoPaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const form = element.querySelector(
+      '[data-testid="persona-register-form"]',
+    ) as HTMLFormElement;
+
+    form.dispatchEvent(
+      new Event(
+        'submit',
+        {
+          bubbles: true,
+          cancelable: true,
+        },
+      ),
+    );
+
+    fixture.detectChanges();
+
+    expect(
+      service.createCalls,
+    ).toHaveLength(1);
+
+    expect(
+      service.createCalls[0],
+    ).toEqual({
+      nombres: 'JUAN',
+      apellido_paterno: 'PEREZ',
+      apellido_materno: null,
+    });
   });
 });

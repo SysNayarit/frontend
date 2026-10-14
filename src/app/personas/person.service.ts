@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  PersonCreateRequest,
   PersonDetail,
   PersonListResponse,
 } from './person.models';
@@ -13,6 +14,14 @@ import {
 export class PersonService {
   private readonly http = inject(HttpClient);
 
+  create(
+    payload: PersonCreateRequest,
+  ): Observable<PersonDetail> {
+    return this.http.post<PersonDetail>(
+      '/api/personas',
+      payload,
+    );
+  }
   find(
     idPersona: string,
   ): Observable<PersonDetail> {

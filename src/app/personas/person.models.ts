@@ -18,6 +18,14 @@ export interface PersonListResponse {
   data: PersonListItem[];
   meta: PersonListMeta;
 }
+export interface PersonCreateRequest {
+  nombres: string;
+  apellido_paterno?: string | null;
+  apellido_materno?: string | null;
+  fecha_nacimiento?: string | null;
+  sexo?: string | null;
+  estado_civil?: string | null;
+}
 export interface PersonDetail {
   id_persona: string;
   curp: string | null;
