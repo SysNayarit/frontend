@@ -15,6 +15,7 @@ import {
   PersonDetail,
   PersonListItem,
   PersonListMeta,
+  PersonUpdateRequest,
 } from './person.models';
 import { PersonService } from './person.service';
 
@@ -115,6 +116,15 @@ import { PersonService } from './person.service';
               </div>
             }
 
+            @if (editSuccessMessage()) {
+              <div
+                data-testid="persona-edit-success"
+                class="mt-6 rounded-lg border border-[#1e5b4f]/30 bg-white p-4 text-sm font-semibold text-[#1e5b4f]"
+                role="status"
+              >
+                {{ editSuccessMessage() }}
+              </div>
+            }
             @if (registerFormOpen()) {
               <form
                 data-testid="persona-register-form"
@@ -339,6 +349,222 @@ import { PersonService } from './person.service';
               </form>
             }
 
+            @if (editFormOpen()) {
+              <form
+                data-testid="persona-edit-form"
+                [formGroup]="editForm"
+                (ngSubmit)="submitEditForm()"
+                class="mt-8 rounded-xl border border-[#a57f2c]/30 bg-[#f7f7f5] p-6"
+              >
+                <p
+                  class="text-xs font-semibold uppercase tracking-[0.18em] text-[#9b2247]"
+                >
+                  Actualización de Persona
+                </p>
+
+                <h3
+                  class="siga-title mt-2 text-2xl font-bold text-[#611232]"
+                >
+                  Editar persona
+                </h3>
+
+                <p
+                  class="mt-3 text-sm leading-6 text-[#555555]"
+                >
+                  Modifica los datos actuales de la persona seleccionada.
+                </p>
+
+                <div
+                  class="mt-6 grid gap-5 md:grid-cols-3"
+                >
+                  <div>
+                    <label
+                      for="persona-edit-nombres"
+                      class="block text-sm font-semibold text-[#611232]"
+                    >
+                      Nombres
+                    </label>
+
+                    <input
+                      id="persona-edit-nombres"
+                      data-testid="persona-edit-nombres"
+                      formControlName="nombres"
+                      type="text"
+                      autocomplete="given-name"
+                      class="siga-focus mt-2 w-full rounded-lg border border-[#98989a]/40 bg-white px-4 py-3 text-[#161a1d]"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      for="persona-edit-apellido-paterno"
+                      class="block text-sm font-semibold text-[#611232]"
+                    >
+                      Apellido paterno
+                    </label>
+
+                    <input
+                      id="persona-edit-apellido-paterno"
+                      data-testid="persona-edit-apellido-paterno"
+                      formControlName="apellido_paterno"
+                      type="text"
+                      autocomplete="family-name"
+                      class="siga-focus mt-2 w-full rounded-lg border border-[#98989a]/40 bg-white px-4 py-3 text-[#161a1d]"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      for="persona-edit-apellido-materno"
+                      class="block text-sm font-semibold text-[#611232]"
+                    >
+                      Apellido materno
+                    </label>
+
+                    <input
+                      id="persona-edit-apellido-materno"
+                      data-testid="persona-edit-apellido-materno"
+                      formControlName="apellido_materno"
+                      type="text"
+                      class="siga-focus mt-2 w-full rounded-lg border border-[#98989a]/40 bg-white px-4 py-3 text-[#161a1d]"
+                    />
+                  </div>
+                </div>
+
+                <div
+                  class="mt-6 grid gap-5 md:grid-cols-3"
+                >
+                  <div>
+                    <label
+                      for="persona-edit-fecha-nacimiento"
+                      class="block text-sm font-semibold text-[#611232]"
+                    >
+                      Fecha de nacimiento
+                    </label>
+
+                    <input
+                      id="persona-edit-fecha-nacimiento"
+                      data-testid="persona-edit-fecha-nacimiento"
+                      formControlName="fecha_nacimiento"
+                      type="date"
+                      class="siga-focus mt-2 w-full rounded-lg border border-[#98989a]/40 bg-white px-4 py-3 text-[#161a1d]"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      for="persona-edit-sexo"
+                      class="block text-sm font-semibold text-[#611232]"
+                    >
+                      Sexo
+                    </label>
+
+                    <select
+                      id="persona-edit-sexo"
+                      data-testid="persona-edit-sexo"
+                      formControlName="sexo"
+                      class="siga-focus mt-2 w-full rounded-lg border border-[#98989a]/40 bg-white px-4 py-3 text-[#161a1d]"
+                    >
+                      <option value="">
+                        No especificado
+                      </option>
+                      <option value="MASCULINO">
+                        Masculino
+                      </option>
+                      <option value="FEMENINO">
+                        Femenino
+                      </option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      for="persona-edit-estado-civil"
+                      class="block text-sm font-semibold text-[#611232]"
+                    >
+                      Estado civil
+                    </label>
+
+                    <select
+                      id="persona-edit-estado-civil"
+                      data-testid="persona-edit-estado-civil"
+                      formControlName="estado_civil"
+                      class="siga-focus mt-2 w-full rounded-lg border border-[#98989a]/40 bg-white px-4 py-3 text-[#161a1d]"
+                    >
+                      <option value="">
+                        No especificado
+                      </option>
+                      <option value="SOLTERO">
+                        Soltero
+                      </option>
+                      <option value="CASADO">
+                        Casado
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                @if (editErrorMessage()) {
+                  <div
+                    data-testid="persona-edit-error"
+                    class="mt-6 rounded-lg border border-[#9b2247]/30 bg-white p-4 text-sm font-semibold text-[#9b2247]"
+                    role="alert"
+                  >
+                    {{ editErrorMessage() }}
+                  </div>
+                }
+
+                @if (editNombresError()) {
+                  <p
+                    data-testid="persona-edit-nombres-error"
+                    class="mt-4 text-sm font-semibold text-[#9b2247]"
+                    role="alert"
+                  >
+                    {{ editNombresError() }}
+                  </p>
+                }
+
+                @if (editApellidosError()) {
+                  <p
+                    data-testid="persona-edit-apellidos-error"
+                    class="mt-2 text-sm font-semibold text-[#9b2247]"
+                    role="alert"
+                  >
+                    {{ editApellidosError() }}
+                  </p>
+                }
+                @if (editFechaNacimientoError()) {
+                  <p
+                    data-testid="persona-edit-fecha-nacimiento-error"
+                    class="mt-2 text-sm font-semibold text-[#9b2247]"
+                    role="alert"
+                  >
+                    {{ editFechaNacimientoError() }}
+                  </p>
+                }
+
+                <div
+                  class="mt-6 flex flex-wrap gap-3"
+                >
+                  <button
+                    type="submit"
+                    data-testid="persona-edit-submit"
+                    class="siga-focus rounded-lg bg-[#611232] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#9b2247]"
+                  >
+                    Guardar cambios
+                  </button>
+
+                  <button
+                    type="button"
+                    data-testid="persona-edit-cancel"
+                    (click)="cancelEditForm()"
+                    class="siga-focus rounded-lg border border-[#611232]/30 bg-white px-5 py-3 text-sm font-semibold text-[#611232] transition hover:bg-[#611232]/5"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            }
+
             @if (detailErrorMessage()) {
               <div
                 data-testid="persona-detail-error"
@@ -546,14 +772,29 @@ import { PersonService } from './person.service';
                         <td
                           class="whitespace-nowrap px-4 py-3"
                         >
-                          <button
-                            type="button"
-                            data-testid="persona-view-detail"
-                            (click)="viewDetail(person.id_persona)"
-                            class="siga-focus rounded-lg border border-[#611232] px-3 py-2 text-sm font-semibold text-[#611232] transition hover:bg-[#611232] hover:text-white"
+                          <div
+                            class="flex flex-wrap gap-2"
                           >
-                            Ver detalle
-                          </button>
+                            <button
+                              type="button"
+                              data-testid="persona-view-detail"
+                              (click)="viewDetail(person.id_persona)"
+                              class="siga-focus rounded-lg border border-[#611232] px-3 py-2 text-sm font-semibold text-[#611232] transition hover:bg-[#611232] hover:text-white"
+                            >
+                              Ver detalle
+                            </button>
+
+                            @if (canUpdatePerson()) {
+                              <button
+                                type="button"
+                                data-testid="persona-edit"
+                                (click)="openEditForm(person.id_persona)"
+                                class="siga-focus rounded-lg border border-[#a57f2c] px-3 py-2 text-sm font-semibold text-[#611232] transition hover:bg-[#a57f2c]/10"
+                              >
+                                Editar
+                              </button>
+                            }
+                          </div>
                         </td>
                       </tr>
                     }
@@ -642,7 +883,15 @@ export class PersonasPageComponent implements OnInit {
 
   readonly canCreatePerson = signal(false);
 
+  readonly canUpdatePerson = signal(false);
+
   readonly registerFormOpen = signal(false);
+
+  readonly editFormOpen = signal(false);
+
+  readonly editingPersonId = signal<string | null>(
+    null,
+  );
 
   readonly birthDateValidationTimeZone =
     'America/Mexico_City';
@@ -667,6 +916,46 @@ export class PersonasPageComponent implements OnInit {
       nonNullable: true,
     }),
   });
+
+
+  readonly editForm = new FormGroup({
+    nombres: new FormControl('', {
+      nonNullable: true,
+    }),
+    apellido_paterno: new FormControl('', {
+      nonNullable: true,
+    }),
+    apellido_materno: new FormControl('', {
+      nonNullable: true,
+    }),
+    fecha_nacimiento: new FormControl('', {
+      nonNullable: true,
+    }),
+    sexo: new FormControl('', {
+      nonNullable: true,
+    }),
+    estado_civil: new FormControl('', {
+      nonNullable: true,
+    }),
+  });
+  readonly editSuccessMessage = signal<string | null>(
+    null,
+  );
+
+  readonly editErrorMessage = signal<string | null>(
+    null,
+  );
+  readonly editNombresError = signal<string | null>(
+    null,
+  );
+
+  readonly editApellidosError = signal<string | null>(
+    null,
+  );
+
+  readonly editFechaNacimientoError = signal<string | null>(
+    null,
+  );
 
   readonly registerNombresError = signal<string | null>(
     null,
@@ -701,9 +990,16 @@ export class PersonasPageComponent implements OnInit {
             'personas.crear',
           ),
         );
+
+        this.canUpdatePerson.set(
+          user.permissions.includes(
+            'personas.actualizar',
+          ),
+        );
       },
       error: () => {
         this.canCreatePerson.set(false);
+        this.canUpdatePerson.set(false);
       },
     });
   }
@@ -750,6 +1046,271 @@ export class PersonasPageComponent implements OnInit {
       });
   }
 
+  openEditForm(
+    idPersona: string,
+  ): void {
+    this.editSuccessMessage.set(null);
+    this.editErrorMessage.set(null);
+    this.editFormOpen.set(false);
+    this.editingPersonId.set(null);
+
+    this.personService
+      .find(idPersona)
+      .subscribe({
+        next: (person) => {
+          this.editingPersonId.set(
+            person.id_persona,
+          );
+
+          this.editForm.setValue({
+            nombres: person.nombres,
+            apellido_paterno:
+              person.apellido_paterno ?? '',
+            apellido_materno:
+              person.apellido_materno ?? '',
+            fecha_nacimiento:
+              person.fecha_nacimiento ?? '',
+            sexo:
+              person.sexo ?? '',
+            estado_civil:
+              person.estado_civil ?? '',
+          });
+
+          this.registerFormOpen.set(false);
+          this.editFormOpen.set(true);
+        },
+        error: () => {
+          this.editFormOpen.set(false);
+          this.editingPersonId.set(null);
+        },
+      });
+  }
+  cancelEditForm(): void {
+    this.editForm.reset();
+
+    this.editNombresError.set(null);
+    this.editApellidosError.set(null);
+    this.editFechaNacimientoError.set(null);
+    this.editErrorMessage.set(null);
+
+    this.editFormOpen.set(false);
+    this.editingPersonId.set(null);
+  }
+  submitEditForm(): void {
+    const idPersona = this.editingPersonId();
+
+    if (idPersona === null) {
+      return;
+    }
+
+    this.editErrorMessage.set(null);
+
+    const values = this.editForm.getRawValue();
+
+    const nombres = values.nombres.trim();
+    const apellidoPaterno =
+      values.apellido_paterno.trim();
+    const apellidoMaterno =
+      values.apellido_materno.trim();
+
+    const fechaNacimiento =
+      values.fecha_nacimiento.trim();
+
+    const fechaActualParts = new Intl.DateTimeFormat(
+      'en-US',
+      {
+        timeZone:
+          this.birthDateValidationTimeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      },
+    ).formatToParts(
+      new Date(),
+    );
+
+    const getDatePart = (
+      type: 'year' | 'month' | 'day',
+    ): string =>
+      fechaActualParts.find(
+        (part) => part.type === type,
+      )?.value ?? '';
+
+    const fechaActual = [
+      getDatePart('year'),
+      getDatePart('month'),
+      getDatePart('day'),
+    ].join('-');
+
+    const fechaNacimientoEsFutura =
+      fechaNacimiento !== '' &&
+      fechaNacimiento > fechaActual;
+
+    this.editNombresError.set(null);
+    this.editApellidosError.set(null);
+    this.editFechaNacimientoError.set(null);
+
+    if (nombres === '') {
+      this.editNombresError.set(
+        'Los nombres son obligatorios',
+      );
+    }
+
+    if (
+      apellidoPaterno === ''
+      && apellidoMaterno === ''
+    ) {
+      this.editApellidosError.set(
+        'La Persona debe conservar al menos un apellido',
+      );
+    }
+
+    if (fechaNacimientoEsFutura) {
+      this.editFechaNacimientoError.set(
+        'La fecha de nacimiento no puede ser futura',
+      );
+    }
+
+    if (
+      this.editNombresError() !== null
+      || this.editApellidosError() !== null
+      || this.editFechaNacimientoError() !== null
+    ) {
+      return;
+    }
+
+    const payload: PersonUpdateRequest = {
+      nombres,
+      apellido_paterno:
+        apellidoPaterno === ''
+          ? null
+          : apellidoPaterno,
+      apellido_materno:
+        apellidoMaterno === ''
+          ? null
+          : apellidoMaterno,
+      fecha_nacimiento:
+        fechaNacimiento === ''
+          ? null
+          : fechaNacimiento,
+      sexo:
+        values.sexo === ''
+          ? null
+          : values.sexo,
+      estado_civil:
+        values.estado_civil === ''
+          ? null
+          : values.estado_civil,
+    };
+
+    this.personService
+      .update(
+        idPersona,
+        payload,
+      )
+      .subscribe({
+        next: () => {
+          const currentPage =
+            this.meta()?.current_page ?? 1;
+
+          this.editForm.reset();
+
+          this.editNombresError.set(null);
+          this.editApellidosError.set(null);
+          this.editFechaNacimientoError.set(null);
+
+          this.editFormOpen.set(false);
+          this.editingPersonId.set(null);
+
+          this.editSuccessMessage.set(
+            'Persona actualizada correctamente',
+          );
+
+          this.loadPage(currentPage);
+        },
+        error: (error: unknown) => {
+          const response = error as {
+            status?: number;
+            error?: {
+              errors?: Record<
+                string,
+                string[]
+              >;
+            };
+          };
+
+          const nombresErrors =
+            response.error?.errors?.[
+              'nombres'
+            ];
+
+          const apellidoPaternoErrors =
+            response.error?.errors?.[
+              'apellido_paterno'
+            ];
+
+          const apellidoMaternoErrors =
+            response.error?.errors?.[
+              'apellido_materno'
+            ];
+
+          const fechaNacimientoErrors =
+            response.error?.errors?.[
+              'fecha_nacimiento'
+            ];
+
+          if (
+            response.status === 422 &&
+            nombresErrors?.length
+          ) {
+            this.editNombresError.set(
+              nombresErrors[0] ??
+                'Los nombres no son válidos.',
+            );
+
+            this.editErrorMessage.set(null);
+
+            return;
+          }
+
+          if (
+            response.status === 422 &&
+            (
+              apellidoPaternoErrors?.length ||
+              apellidoMaternoErrors?.length
+            )
+          ) {
+            this.editApellidosError.set(
+              apellidoPaternoErrors?.[0] ??
+                apellidoMaternoErrors?.[0] ??
+                'Los apellidos no son válidos.',
+            );
+
+            this.editErrorMessage.set(null);
+
+            return;
+          }
+
+          if (
+            response.status === 422 &&
+            fechaNacimientoErrors?.length
+          ) {
+            this.editFechaNacimientoError.set(
+              fechaNacimientoErrors[0] ??
+                'La fecha de nacimiento no es válida.',
+            );
+
+            this.editErrorMessage.set(null);
+
+            return;
+          }
+
+          this.editErrorMessage.set(
+            'No fue posible actualizar la persona.',
+          );
+        },
+      });
+  }
   openRegisterForm(): void {
     this.registerSuccessMessage.set(null);
     this.registerErrorMessage.set(null);

@@ -201,4 +201,61 @@ describe('PersonService', () => {
       backendResponse,
     );
   });
+
+  it('actualiza una persona mediante PATCH', () => {
+    const idPersona =
+      '01a13ae1-546d-71b8-bbbf-18e7bccc1d45';
+
+    const payload = {
+      nombres: 'MARCO ANTONIO',
+      apellido_paterno: 'GARDU',
+      apellido_materno: 'GARDU',
+      fecha_nacimiento: '1990-05-20',
+      sexo: 'MASCULINO',
+      estado_civil: 'CASADO',
+    };
+
+    const backendResponse: PersonDetail = {
+      id_persona: idPersona,
+      curp: null,
+      rfc: null,
+      num_expediente: '2026-00000001',
+      nombres: 'MARCO ANTONIO',
+      apellido_paterno: 'GARDU',
+      apellido_materno: 'GARDU',
+      fecha_nacimiento: '1990-05-20',
+      sexo: 'MASCULINO',
+      estado_civil: 'CASADO',
+      correo_institucional: null,
+      correo_personal: null,
+      id_pais_origen: null,
+      id_pais_nacimiento: null,
+      id_territorio_nacimiento: null,
+      fecha_alta: '2026-10-14T14:47:00.000000Z',
+      fecha_baja: null,
+      estatus: 'ACTIVO',
+    };
+
+    let result: PersonDetail | undefined;
+
+    service
+      .update(
+        idPersona,
+        payload,
+      )
+      .subscribe((person) => {
+        result = person;
+      });
+
+    const request = http.expectOne(
+      `/api/personas/${idPersona}`,
+    );
+
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.body).toEqual(payload);
+
+    request.flush(backendResponse);
+
+    expect(result).toEqual(backendResponse);
+  });
 });

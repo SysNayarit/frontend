@@ -6,6 +6,7 @@ import {
   PersonCreateRequest,
   PersonDetail,
   PersonListResponse,
+  PersonUpdateRequest,
 } from './person.models';
 
 @Injectable({
@@ -22,6 +23,16 @@ export class PersonService {
       payload,
     );
   }
+  update(
+    idPersona: string,
+    payload: PersonUpdateRequest,
+  ): Observable<PersonDetail> {
+    return this.http.patch<PersonDetail>(
+      `/api/personas/${idPersona}`,
+      payload,
+    );
+  }
+
   find(
     idPersona: string,
   ): Observable<PersonDetail> {

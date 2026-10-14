@@ -16,6 +16,7 @@ import {
   PersonCreateRequest,
   PersonDetail,
   PersonListResponse,
+  PersonUpdateRequest,
 } from './person.models';
 import { PersonService } from './person.service';
 import {
@@ -50,6 +51,19 @@ class PersonServiceStub {
   findCalls: string[] = [];
 
   createCalls: PersonCreateRequest[] = [];
+
+  updateCalls: Array<{
+    idPersona: string;
+    payload: PersonUpdateRequest;
+  }> = [];
+
+  updateShouldFail = false;
+
+  updateValidationShouldFail = false;
+
+  updateSurnameValidationShouldFail = false;
+
+  updateBirthDateValidationShouldFail = false;
 
   createShouldFail = false;
 
@@ -169,6 +183,76 @@ class PersonServiceStub {
     return of(this.detailResponse);
   }
 
+  update(
+    idPersona: string,
+    payload: PersonUpdateRequest,
+  ) {
+    this.updateCalls.push({
+      idPersona,
+      payload,
+    });
+
+    if (this.updateBirthDateValidationShouldFail) {
+      return throwError(
+        () => ({
+          status: 422,
+          error: {
+            message: 'The given data was invalid.',
+            errors: {
+              fecha_nacimiento: [
+                'La fecha de nacimiento fue rechazada por el servidor.',
+              ],
+            },
+          },
+        }),
+      );
+    }
+
+    if (this.updateSurnameValidationShouldFail) {
+      return throwError(
+        () => ({
+          status: 422,
+          error: {
+            message: 'The given data was invalid.',
+            errors: {
+              apellido_paterno: [
+                'El apellido paterno fue rechazado por el servidor.',
+              ],
+            },
+          },
+        }),
+      );
+    }
+
+    if (this.updateValidationShouldFail) {
+      return throwError(
+        () => ({
+          status: 422,
+          error: {
+            message: 'The given data was invalid.',
+            errors: {
+              nombres: [
+                'El nombre fue rechazado por el servidor.',
+              ],
+            },
+          },
+        }),
+      );
+    }
+
+    if (this.updateShouldFail) {
+      return throwError(
+        () => new Error(
+          'No fue posible actualizar la persona.',
+        ),
+      );
+    }
+
+    return of({
+      ...this.detailResponse,
+      ...payload,
+    });
+  }
   find(
     idPersona: string,
   ) {
@@ -513,6 +597,791 @@ describe('PersonasPageComponent', () => {
     expect(registerButton).toBeNull();
   });
 
+  it('muestra la accion de edicion cuando el usuario tiene personas.actualizar', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+        'personas.actualizar',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    );
+
+    expect(editButton).not.toBeNull();
+
+    expect(
+      editButton?.textContent,
+    ).toContain('Editar');
+  });
+
+  it('oculta la accion de edicion cuando el usuario no tiene personas.actualizar', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    );
+
+    expect(editButton).toBeNull();
+  });
+  it('consulta la persona y abre el formulario de edicion precargado', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+        'personas.actualizar',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    ) as HTMLButtonElement;
+
+    editButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.findCalls,
+    ).toEqual([
+      '0199b329-7600-7000-8000-000000000001',
+    ]);
+
+    const form = element.querySelector(
+      '[data-testid="persona-edit-form"]',
+    );
+
+    expect(form).not.toBeNull();
+
+    expect(
+      (
+        element.querySelector(
+          '[data-testid="persona-edit-nombres"]',
+        ) as HTMLInputElement
+      ).value,
+    ).toBe('MARIA ELENA');
+
+    expect(
+      (
+        element.querySelector(
+          '[data-testid="persona-edit-apellido-paterno"]',
+        ) as HTMLInputElement
+      ).value,
+    ).toBe('LOPEZ');
+
+    expect(
+      (
+        element.querySelector(
+          '[data-testid="persona-edit-apellido-materno"]',
+        ) as HTMLInputElement
+      ).value,
+    ).toBe('GARCIA');
+
+    expect(
+      (
+        element.querySelector(
+          '[data-testid="persona-edit-fecha-nacimiento"]',
+        ) as HTMLInputElement
+      ).value,
+    ).toBe('1990-01-01');
+
+    expect(
+      (
+        element.querySelector(
+          '[data-testid="persona-edit-sexo"]',
+        ) as HTMLSelectElement
+      ).value,
+    ).toBe('FEMENINO');
+
+    expect(
+      (
+        element.querySelector(
+          '[data-testid="persona-edit-estado-civil"]',
+        ) as HTMLSelectElement
+      ).value,
+    ).toBe('SOLTERO');
+  });
+  it('rechaza la edicion cuando faltan nombres y ambos apellidos', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+        'personas.actualizar',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    ) as HTMLButtonElement;
+
+    editButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-edit-nombres"]',
+    ) as HTMLInputElement;
+
+    const apellidoPaterno = element.querySelector(
+      '[data-testid="persona-edit-apellido-paterno"]',
+    ) as HTMLInputElement;
+
+    const apellidoMaterno = element.querySelector(
+      '[data-testid="persona-edit-apellido-materno"]',
+    ) as HTMLInputElement;
+
+    nombres.value = '';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoPaterno.value = '';
+    apellidoPaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoMaterno.value = '';
+    apellidoMaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-edit-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.updateCalls,
+    ).toEqual([]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-nombres-error"]',
+      )?.textContent,
+    ).toContain(
+      'Los nombres son obligatorios',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-apellidos-error"]',
+      )?.textContent,
+    ).toContain(
+      'La Persona debe conservar al menos un apellido',
+    );
+  });
+  it('rechaza una fecha de nacimiento futura al editar', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+        'personas.actualizar',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    ) as HTMLButtonElement;
+
+    editButton.click();
+    fixture.detectChanges();
+
+    const fechaNacimiento = element.querySelector(
+      '[data-testid="persona-edit-fecha-nacimiento"]',
+    ) as HTMLInputElement;
+
+    fechaNacimiento.value = '2999-12-31';
+    fechaNacimiento.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-edit-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.updateCalls,
+    ).toEqual([]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-fecha-nacimiento-error"]',
+      )?.textContent,
+    ).toContain(
+      'La fecha de nacimiento no puede ser futura',
+    );
+  });
+  it('cancela la edicion y cierra el formulario sin actualizar la persona', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+        'personas.actualizar',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    ) as HTMLButtonElement;
+
+    editButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-edit-nombres"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'CAMBIO QUE NO DEBE GUARDARSE';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const cancelButton = element.querySelector(
+      '[data-testid="persona-edit-cancel"]',
+    ) as HTMLButtonElement | null;
+
+    expect(cancelButton).not.toBeNull();
+
+    cancelButton?.click();
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-form"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      service.updateCalls,
+    ).toEqual([]);
+  });
+  it('actualiza la persona al enviar el formulario de edicion', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+        'personas.actualizar',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    ) as HTMLButtonElement;
+
+    editButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-edit-nombres"]',
+    ) as HTMLInputElement;
+
+    const apellidoPaterno = element.querySelector(
+      '[data-testid="persona-edit-apellido-paterno"]',
+    ) as HTMLInputElement;
+
+    const apellidoMaterno = element.querySelector(
+      '[data-testid="persona-edit-apellido-materno"]',
+    ) as HTMLInputElement;
+
+    const fechaNacimiento = element.querySelector(
+      '[data-testid="persona-edit-fecha-nacimiento"]',
+    ) as HTMLInputElement;
+
+    const sexo = element.querySelector(
+      '[data-testid="persona-edit-sexo"]',
+    ) as HTMLSelectElement;
+
+    const estadoCivil = element.querySelector(
+      '[data-testid="persona-edit-estado-civil"]',
+    ) as HTMLSelectElement;
+
+    nombres.value = 'MARIA ELENA ACTUALIZADA';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoPaterno.value = 'LOPEZ';
+    apellidoPaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    apellidoMaterno.value = '';
+    apellidoMaterno.dispatchEvent(
+      new Event('input'),
+    );
+
+    fechaNacimiento.value = '1991-02-03';
+    fechaNacimiento.dispatchEvent(
+      new Event('input'),
+    );
+
+    sexo.value = 'FEMENINO';
+    sexo.dispatchEvent(
+      new Event('change'),
+    );
+
+    estadoCivil.value = 'CASADO';
+    estadoCivil.dispatchEvent(
+      new Event('change'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-edit-submit"]',
+    ) as HTMLButtonElement | null;
+
+    expect(submitButton).not.toBeNull();
+
+    submitButton?.click();
+    fixture.detectChanges();
+
+    expect(
+      service.updateCalls,
+    ).toEqual([
+      {
+        idPersona:
+          '0199b329-7600-7000-8000-000000000001',
+        payload: {
+          nombres: 'MARIA ELENA ACTUALIZADA',
+          apellido_paterno: 'LOPEZ',
+          apellido_materno: null,
+          fecha_nacimiento: '1991-02-03',
+          sexo: 'FEMENINO',
+          estado_civil: 'CASADO',
+        },
+      },
+    ]);
+  });
+  it('muestra el error de fecha de nacimiento devuelto por el backend al editar', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+        'personas.actualizar',
+      ],
+    };
+
+    service.updateBirthDateValidationShouldFail = true;
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    ) as HTMLButtonElement;
+
+    editButton.click();
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-edit-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.updateCalls,
+    ).toHaveLength(1);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-fecha-nacimiento-error"]',
+      )?.textContent,
+    ).toContain(
+      'La fecha de nacimiento fue rechazada por el servidor.',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-error"]',
+      ),
+    ).toBeNull();
+  });
+  it('muestra el error de apellido devuelto por el backend al editar', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+        'personas.actualizar',
+      ],
+    };
+
+    service.updateSurnameValidationShouldFail = true;
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    ) as HTMLButtonElement;
+
+    editButton.click();
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-edit-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.updateCalls,
+    ).toHaveLength(1);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-apellidos-error"]',
+      )?.textContent,
+    ).toContain(
+      'El apellido paterno fue rechazado por el servidor.',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-error"]',
+      ),
+    ).toBeNull();
+  });
+  it('muestra el error de nombres devuelto por el backend al editar', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+        'personas.actualizar',
+      ],
+    };
+
+    service.updateValidationShouldFail = true;
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    ) as HTMLButtonElement;
+
+    editButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-edit-nombres"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'MARIA ELENA';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-edit-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.updateCalls,
+    ).toHaveLength(1);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-nombres-error"]',
+      )?.textContent,
+    ).toContain(
+      'El nombre fue rechazado por el servidor.',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-error"]',
+      ),
+    ).toBeNull();
+  });
+  it('conserva la edicion y muestra un error cuando falla la actualizacion', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+        'personas.actualizar',
+      ],
+    };
+
+    service.updateShouldFail = true;
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+    ]);
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    ) as HTMLButtonElement;
+
+    editButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-edit-nombres"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'MARIA ELENA MODIFICADA';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-edit-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.updateCalls,
+    ).toHaveLength(1);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      (
+        element.querySelector(
+          '[data-testid="persona-edit-nombres"]',
+        ) as HTMLInputElement
+      ).value,
+    ).toBe(
+      'MARIA ELENA MODIFICADA',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-error"]',
+      )?.textContent,
+    ).toContain(
+      'No fue posible actualizar la persona',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-success"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+    ]);
+  });
+  it('cierra la edicion confirma la actualizacion y recarga el listado', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+        'personas.actualizar',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+    ]);
+
+    const editButton = element.querySelector(
+      '[data-testid="persona-edit"]',
+    ) as HTMLButtonElement;
+
+    editButton.click();
+    fixture.detectChanges();
+
+    const nombres = element.querySelector(
+      '[data-testid="persona-edit-nombres"]',
+    ) as HTMLInputElement;
+
+    nombres.value = 'MARIA ELENA ACTUALIZADA';
+    nombres.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-edit-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      service.updateCalls,
+    ).toHaveLength(1);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-form"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-edit-success"]',
+      )?.textContent,
+    ).toContain(
+      'Persona actualizada correctamente',
+    );
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+      1,
+    ]);
+  });
   it('abre el formulario de registro al seleccionar Registrar persona', () => {
     const fixture = createFixture();
 
