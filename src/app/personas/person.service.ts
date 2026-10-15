@@ -33,6 +33,14 @@ export class PersonService {
     );
   }
 
+  withdraw(
+    idPersona: string,
+  ): Observable<PersonDetail> {
+    return this.http.post<PersonDetail>(
+      `/api/personas/${idPersona}/baja`,
+      {},
+    );
+  }
   find(
     idPersona: string,
   ): Observable<PersonDetail> {

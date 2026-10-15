@@ -24,6 +24,10 @@ import {
 } from './personas-page.component';
 
 class AuthServiceStub {
+  reauthenticateCalls: string[] = [];
+
+  reauthenticateShouldFail = false;
+
   currentUserResult: AuthenticatedUser = {
     id: 1,
     id_persona: null,
@@ -44,6 +48,30 @@ class AuthServiceStub {
       this.currentUserResult,
     );
   }
+
+  reauthenticate(
+    password: string,
+  ) {
+    this.reauthenticateCalls.push(password);
+
+    if (this.reauthenticateShouldFail) {
+      return throwError(
+        () => ({
+          status: 422,
+          error: {
+            message: 'The given data was invalid.',
+            errors: {
+              password: [
+                'La contraseña proporcionada no es válida.',
+              ],
+            },
+          },
+        }),
+      );
+    }
+
+    return of(void 0);
+  }
 }
 class PersonServiceStub {
   listCalls: number[] = [];
@@ -56,6 +84,12 @@ class PersonServiceStub {
     idPersona: string;
     payload: PersonUpdateRequest;
   }> = [];
+
+  withdrawCalls: string[] = [];
+
+  withdrawShouldFail = false;
+
+  withdrawRequiresReauthentication = false;
 
   updateShouldFail = false;
 
@@ -251,6 +285,39 @@ class PersonServiceStub {
     return of({
       ...this.detailResponse,
       ...payload,
+    });
+  }
+  withdraw(
+    idPersona: string,
+  ) {
+    this.withdrawCalls.push(idPersona);
+
+    if (this.withdrawRequiresReauthentication) {
+      return throwError(
+        () => ({
+          status: 423,
+          error: {
+            message: 'Reauthentication required.',
+          },
+        }),
+      );
+    }
+
+    if (this.withdrawShouldFail) {
+      return throwError(
+        () => ({
+          status: 500,
+          error: {
+            message: 'Internal Server Error',
+          },
+        }),
+      );
+    }
+
+    return of({
+      ...this.detailResponse,
+      estatus: 'BAJA',
+      fecha_baja: '2026-10-14T20:00:00.000000Z',
     });
   }
   find(
@@ -597,6 +664,691 @@ describe('PersonasPageComponent', () => {
     expect(registerButton).toBeNull();
   });
 
+  it('muestra la accion de baja cuando el usuario tiene personas.baja', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.baja',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const withdrawButton = element.querySelector(
+      '[data-testid="persona-withdraw"]',
+    );
+
+    expect(withdrawButton).not.toBeNull();
+
+    expect(
+      withdrawButton?.textContent,
+    ).toContain('Dar de baja');
+  });
+  it('oculta la accion de baja cuando el usuario no tiene personas.baja', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const withdrawButton = element.querySelector(
+      '[data-testid="persona-withdraw"]',
+    );
+
+    expect(withdrawButton).toBeNull();
+  });
+  it('oculta la accion de baja cuando la persona ya esta en BAJA', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.baja',
+      ],
+    };
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.textContent,
+    ).toContain('BAJA');
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw"]',
+      ),
+    ).toBeNull();
+  });
+  it('abre la confirmacion de baja para la persona seleccionada', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.baja',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const withdrawButton = element.querySelector(
+      '[data-testid="persona-withdraw"]',
+    ) as HTMLButtonElement;
+
+    withdrawButton.click();
+    fixture.detectChanges();
+
+    const withdrawForm = element.querySelector(
+      '[data-testid="persona-withdraw-form"]',
+    );
+
+    expect(withdrawForm).not.toBeNull();
+
+    expect(
+      withdrawForm?.textContent,
+    ).toContain(
+      'MARIA ELENA LOPEZ GARCIA',
+    );
+
+    expect(
+      withdrawForm?.textContent,
+    ).toContain(
+      '2026-00000001',
+    );
+
+    const password = element.querySelector(
+      '[data-testid="persona-withdraw-password"]',
+    ) as HTMLInputElement | null;
+
+    expect(password).not.toBeNull();
+    expect(password?.type).toBe('password');
+  });
+  it('cancela la baja y cierra la confirmacion sin modificar la persona', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.baja',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const withdrawButton = element.querySelector(
+      '[data-testid="persona-withdraw"]',
+    ) as HTMLButtonElement;
+
+    withdrawButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-withdraw-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const cancelButton = element.querySelector(
+      '[data-testid="persona-withdraw-cancel"]',
+    ) as HTMLButtonElement | null;
+
+    expect(cancelButton).not.toBeNull();
+
+    cancelButton?.click();
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw-form"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      service.withdrawCalls,
+    ).toEqual([]);
+  });
+  it('reautentica al usuario antes de dar de baja a la persona', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.baja',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const withdrawButton = element.querySelector(
+      '[data-testid="persona-withdraw"]',
+    ) as HTMLButtonElement;
+
+    withdrawButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-withdraw-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-withdraw-submit"]',
+    ) as HTMLButtonElement | null;
+
+    expect(submitButton).not.toBeNull();
+
+    submitButton?.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([
+      'contraseña-de-prueba',
+    ]);
+
+    expect(
+      service.withdrawCalls,
+    ).toEqual([
+      '0199b329-7600-7000-8000-000000000001',
+    ]);
+  });
+  it('no da de baja a la persona cuando falla la reautenticacion', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.baja',
+      ],
+    };
+
+    auth.reauthenticateShouldFail = true;
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const withdrawButton = element.querySelector(
+      '[data-testid="persona-withdraw"]',
+    ) as HTMLButtonElement;
+
+    withdrawButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-withdraw-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-incorrecta';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-withdraw-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([
+      'contraseña-incorrecta',
+    ]);
+
+    expect(
+      service.withdrawCalls,
+    ).toEqual([]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw-password-error"]',
+      )?.textContent,
+    ).toContain(
+      'La contraseña proporcionada no es válida.',
+    );
+  });
+  it('conserva la confirmacion y muestra un error cuando falla la baja', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.baja',
+      ],
+    };
+
+    service.withdrawShouldFail = true;
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const withdrawButton = element.querySelector(
+      '[data-testid="persona-withdraw"]',
+    ) as HTMLButtonElement;
+
+    withdrawButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-withdraw-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-withdraw-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([
+      'contraseña-de-prueba',
+    ]);
+
+    expect(
+      service.withdrawCalls,
+    ).toEqual([
+      '0199b329-7600-7000-8000-000000000001',
+    ]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw-error"]',
+      )?.textContent,
+    ).toContain(
+      'No fue posible dar de baja a la persona.',
+    );
+
+    expect(
+      fixture.componentInstance.withdrawForm.controls.password.value,
+    ).toBe('');
+  });
+  it('solicita nueva reautenticacion cuando la baja responde 423', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.baja',
+      ],
+    };
+
+    service.withdrawRequiresReauthentication = true;
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const withdrawButton = element.querySelector(
+      '[data-testid="persona-withdraw"]',
+    ) as HTMLButtonElement;
+
+    withdrawButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-withdraw-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-withdraw-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([
+      'contraseña-de-prueba',
+    ]);
+
+    expect(
+      service.withdrawCalls,
+    ).toEqual([
+      '0199b329-7600-7000-8000-000000000001',
+    ]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw-error"]',
+      )?.textContent,
+    ).toContain(
+      'Se requiere una reautenticación reciente.',
+    );
+
+    const passwordAfterError = element.querySelector(
+      '[data-testid="persona-withdraw-password"]',
+    ) as HTMLInputElement;
+
+    expect(
+      passwordAfterError.value,
+    ).toBe('');
+  });
+  it('cierra la confirmacion confirma la baja y recarga el listado', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.baja',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+    ]);
+
+    const withdrawButton = element.querySelector(
+      '[data-testid="persona-withdraw"]',
+    ) as HTMLButtonElement;
+
+    withdrawButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-withdraw-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-withdraw-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([
+      'contraseña-de-prueba',
+    ]);
+
+    expect(
+      service.withdrawCalls,
+    ).toEqual([
+      '0199b329-7600-7000-8000-000000000001',
+    ]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw-form"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw-success"]',
+      )?.textContent,
+    ).toContain(
+      'Persona dada de baja correctamente',
+    );
+
+    expect(
+      fixture.componentInstance.withdrawForm.controls.password.value,
+    ).toBe('');
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+      1,
+    ]);
+  });
+  it('actualiza el detalle abierto cuando la persona es dada de baja', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.baja',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const detailButton = element.querySelector(
+      '[data-testid="persona-view-detail"]',
+    ) as HTMLButtonElement;
+
+    detailButton.click();
+    fixture.detectChanges();
+
+    expect(
+      fixture.componentInstance.selectedPerson()?.estatus,
+    ).toBe(
+      'ACTIVO',
+    );
+
+    const withdrawButton = element.querySelector(
+      '[data-testid="persona-withdraw"]',
+    ) as HTMLButtonElement;
+
+    withdrawButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-withdraw-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-withdraw-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      fixture.componentInstance.selectedPerson()?.estatus,
+    ).toBe(
+      'BAJA',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-detail"]',
+      )?.textContent,
+    ).toContain(
+      'BAJA',
+    );
+  });
+  it('rechaza la baja cuando no se proporciona la contraseña', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.baja',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const withdrawButton = element.querySelector(
+      '[data-testid="persona-withdraw"]',
+    ) as HTMLButtonElement;
+
+    withdrawButton.click();
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-withdraw-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([]);
+
+    expect(
+      service.withdrawCalls,
+    ).toEqual([]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw-password-error"]',
+      )?.textContent,
+    ).toContain(
+      'La contraseña es obligatoria.',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-withdraw-form"]',
+      ),
+    ).not.toBeNull();
+  });
   it('muestra la accion de edicion cuando el usuario tiene personas.actualizar', () => {
     const auth = TestBed.inject(
       AuthService,
