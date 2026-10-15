@@ -49,7 +49,7 @@ import {
       class="siga-texture min-h-screen bg-[#f7f7f5] text-[#161a1d]"
     >
       <header
-        class="w-full overflow-hidden border-b border-[#a57f2c]/30 bg-white shadow-sm"
+        class="w-full overflow-hidden border-b border-[#a57f2c]/25 bg-white"
       >
         <img
           src="/branding/sesnsp-2026-banner.jpg"
