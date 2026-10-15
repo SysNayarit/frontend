@@ -9,16 +9,16 @@ import {
 
 import {
   AuthenticatedUser,
-} from '../auth/auth.models';
-import { AuthService } from '../auth/auth.service';
+} from '../../../../auth/auth.models';
+import { AuthService } from '../../../../auth/auth.service';
 
 import {
   PersonCreateRequest,
   PersonDetail,
   PersonListResponse,
   PersonUpdateRequest,
-} from './person.models';
-import { PersonService } from './person.service';
+} from '../../../person.models';
+import { PersonService } from '../../../person.service';
 import {
   PersonasPageComponent,
 } from './personas-page.component';
@@ -87,6 +87,12 @@ class PersonServiceStub {
 
   withdrawCalls: string[] = [];
 
+  reinstateCalls: string[] = [];
+
+  reinstateShouldFail = false;
+
+  reinstateRequiresReauthentication = false;
+
   withdrawShouldFail = false;
 
   withdrawRequiresReauthentication = false;
@@ -140,7 +146,7 @@ class PersonServiceStub {
     nombres: 'MARIA ELENA',
     apellido_paterno: 'LOPEZ',
     apellido_materno: 'GARCIA',
-    fecha_nacimiento: '1990-01-01',
+    fecha_nacimiento: '1990-01-01T00:00:00.000000Z',
     sexo: 'FEMENINO',
     estado_civil: 'SOLTERO',
     correo_institucional: null,
@@ -318,6 +324,39 @@ class PersonServiceStub {
       ...this.detailResponse,
       estatus: 'BAJA',
       fecha_baja: '2026-10-14T20:00:00.000000Z',
+    });
+  }
+  reinstate(
+    idPersona: string,
+  ) {
+    this.reinstateCalls.push(idPersona);
+
+    if (this.reinstateRequiresReauthentication) {
+      return throwError(
+        () => ({
+          status: 423,
+          error: {
+            message: 'Reauthentication required.',
+          },
+        }),
+      );
+    }
+
+    if (this.reinstateShouldFail) {
+      return throwError(
+        () => ({
+          status: 500,
+          error: {
+            message: 'Internal Server Error',
+          },
+        }),
+      );
+    }
+
+    return of({
+      ...this.detailResponse,
+      estatus: 'ACTIVO',
+      fecha_baja: null,
     });
   }
   find(
@@ -582,6 +621,52 @@ describe('PersonasPageComponent', () => {
     ).toContain('SOLTERO');
   });
 
+  it('cierra el detalle sin volver a consultar la persona', () => {
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const detailButton = element.querySelector(
+      '[data-testid="persona-view-detail"]',
+    ) as HTMLButtonElement | null;
+
+    expect(detailButton).not.toBeNull();
+
+    detailButton?.click();
+
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-detail"]',
+      ),
+    ).not.toBeNull();
+
+    const findCallsBeforeClose = [
+      ...service.findCalls,
+    ];
+
+    const closeButton = element.querySelector(
+      '[data-testid="persona-detail-close"]',
+    ) as HTMLButtonElement | null;
+
+    expect(closeButton).not.toBeNull();
+
+    closeButton?.click();
+
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-detail"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      service.findCalls,
+    ).toEqual(findCallsBeforeClose);
+  });
   it('muestra un error cuando no puede consultar el detalle', () => {
     service.findShouldFail = true;
 
@@ -2954,5 +3039,826 @@ describe('PersonasPageComponent', () => {
       apellido_paterno: 'PEREZ',
       apellido_materno: null,
     });
+  });
+
+  it('muestra la accion de reingreso cuando la persona esta en BAJA y el usuario tiene personas.reingreso', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.reingreso',
+      ],
+    };
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.textContent,
+    ).toContain('BAJA');
+
+    const reinstateButton = element.querySelector(
+      '[data-testid="persona-reinstate"]',
+    );
+
+    expect(reinstateButton).not.toBeNull();
+
+    expect(
+      reinstateButton?.textContent,
+    ).toContain('Reingresar');
+  });
+
+  it('oculta la accion de reingreso cuando el usuario no tiene personas.reingreso', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+      ],
+    };
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.textContent,
+    ).toContain('BAJA');
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate"]',
+      ),
+    ).toBeNull();
+  });
+
+  it('oculta la accion de reingreso cuando la persona no esta en BAJA', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.reingreso',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.textContent,
+    ).toContain('ACTIVO');
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate"]',
+      ),
+    ).toBeNull();
+  });
+
+  it('abre la confirmacion de reingreso para la persona seleccionada', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.reingreso',
+      ],
+    };
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const reinstateButton = element.querySelector(
+      '[data-testid="persona-reinstate"]',
+    ) as HTMLButtonElement;
+
+    reinstateButton.click();
+    fixture.detectChanges();
+
+    const reinstateForm = element.querySelector(
+      '[data-testid="persona-reinstate-form"]',
+    );
+
+    expect(reinstateForm).not.toBeNull();
+
+    expect(
+      reinstateForm?.textContent,
+    ).toContain(
+      'MARIA ELENA LOPEZ GARCIA',
+    );
+
+    expect(
+      reinstateForm?.textContent,
+    ).toContain(
+      '2026-00000001',
+    );
+
+    const password = element.querySelector(
+      '[data-testid="persona-reinstate-password"]',
+    ) as HTMLInputElement | null;
+
+    expect(password).not.toBeNull();
+    expect(password?.type).toBe('password');
+  });
+
+  it('cancela el reingreso y elimina la contraseña capturada', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.reingreso',
+      ],
+    };
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const reinstateButton = element.querySelector(
+      '[data-testid="persona-reinstate"]',
+    ) as HTMLButtonElement;
+
+    reinstateButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-reinstate-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    expect(
+      fixture.componentInstance.reinstateForm.controls.password.value,
+    ).toBe(
+      'contraseña-de-prueba',
+    );
+
+    const cancelButton = element.querySelector(
+      '[data-testid="persona-reinstate-cancel"]',
+    ) as HTMLButtonElement | null;
+
+    expect(cancelButton).not.toBeNull();
+
+    cancelButton?.click();
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate-form"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      fixture.componentInstance.reinstateForm.controls.password.value,
+    ).toBe('');
+
+    expect(
+      fixture.componentInstance.reinstatingPerson(),
+    ).toBeNull();
+  });
+
+
+  it('rechaza el reingreso cuando no se proporciona la contraseña', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.reingreso',
+      ],
+    };
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const reinstateButton = element.querySelector(
+      '[data-testid="persona-reinstate"]',
+    ) as HTMLButtonElement;
+
+    reinstateButton.click();
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-reinstate-submit"]',
+    ) as HTMLButtonElement | null;
+
+    expect(submitButton).not.toBeNull();
+
+    submitButton?.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate-password-error"]',
+      )?.textContent,
+    ).toContain(
+      'La contraseña es obligatoria.',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate-form"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it('reautentica al usuario antes de reingresar a la persona', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.reingreso',
+      ],
+    };
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const reinstateButton = element.querySelector(
+      '[data-testid="persona-reinstate"]',
+    ) as HTMLButtonElement;
+
+    reinstateButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-reinstate-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-reinstate-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([
+      'contraseña-de-prueba',
+    ]);
+
+    expect(
+      service.reinstateCalls,
+    ).toEqual([
+      '0199b329-7600-7000-8000-000000000001',
+    ]);
+  });
+
+  it('no reingresa a la persona cuando falla la reautenticacion', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.reingreso',
+      ],
+    };
+
+    auth.reauthenticateShouldFail = true;
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const reinstateButton = element.querySelector(
+      '[data-testid="persona-reinstate"]',
+    ) as HTMLButtonElement;
+
+    reinstateButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-reinstate-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-incorrecta';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-reinstate-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([
+      'contraseña-incorrecta',
+    ]);
+
+    expect(
+      service.reinstateCalls,
+    ).toEqual([]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate-password-error"]',
+      )?.textContent,
+    ).toContain(
+      'La contraseña proporcionada no es válida.',
+    );
+  });
+
+  it('conserva la confirmacion y muestra un error cuando falla el reingreso', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.reingreso',
+      ],
+    };
+
+    service.reinstateShouldFail = true;
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const reinstateButton = element.querySelector(
+      '[data-testid="persona-reinstate"]',
+    ) as HTMLButtonElement;
+
+    reinstateButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-reinstate-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-reinstate-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([
+      'contraseña-de-prueba',
+    ]);
+
+    expect(
+      service.reinstateCalls,
+    ).toEqual([
+      '0199b329-7600-7000-8000-000000000001',
+    ]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate-error"]',
+      )?.textContent,
+    ).toContain(
+      'No fue posible reingresar a la persona.',
+    );
+
+    expect(
+      fixture.componentInstance.reinstateForm.controls.password.value,
+    ).toBe('');
+  });
+
+  it('solicita nueva reautenticacion cuando el reingreso responde 423', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.reingreso',
+      ],
+    };
+
+    service.reinstateRequiresReauthentication = true;
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const reinstateButton = element.querySelector(
+      '[data-testid="persona-reinstate"]',
+    ) as HTMLButtonElement;
+
+    reinstateButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-reinstate-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-reinstate-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([
+      'contraseña-de-prueba',
+    ]);
+
+    expect(
+      service.reinstateCalls,
+    ).toEqual([
+      '0199b329-7600-7000-8000-000000000001',
+    ]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate-error"]',
+      )?.textContent,
+    ).toContain(
+      'Se requiere una reautenticación reciente.',
+    );
+
+    expect(
+      fixture.componentInstance.reinstateForm.controls.password.value,
+    ).toBe('');
+  });
+
+  it('cierra la confirmacion confirma el reingreso y recarga el listado', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.reingreso',
+      ],
+    };
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+    ]);
+
+    const reinstateButton = element.querySelector(
+      '[data-testid="persona-reinstate"]',
+    ) as HTMLButtonElement;
+
+    reinstateButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-reinstate-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-reinstate-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      auth.reauthenticateCalls,
+    ).toEqual([
+      'contraseña-de-prueba',
+    ]);
+
+    expect(
+      service.reinstateCalls,
+    ).toEqual([
+      '0199b329-7600-7000-8000-000000000001',
+    ]);
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate-form"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-reinstate-success"]',
+      )?.textContent,
+    ).toContain(
+      'Persona reingresada correctamente',
+    );
+
+    expect(
+      fixture.componentInstance.reinstateForm.controls.password.value,
+    ).toBe('');
+
+    expect(
+      fixture.componentInstance.reinstatingPerson(),
+    ).toBeNull();
+
+    expect(
+      service.listCalls,
+    ).toEqual([
+      1,
+      1,
+    ]);
+  });
+
+  it('actualiza el detalle abierto cuando la persona es reingresada', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.reingreso',
+      ],
+    };
+
+    service.response = {
+      ...service.response,
+      data: service.response.data.map(
+        (person) => ({
+          ...person,
+          estatus: 'BAJA',
+        }),
+      ),
+    };
+
+    service.detailResponse = {
+      ...service.detailResponse,
+      estatus: 'BAJA',
+      fecha_baja: '2026-10-14T20:00:00.000000Z',
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const detailButton = element.querySelector(
+      '[data-testid="persona-view-detail"]',
+    ) as HTMLButtonElement;
+
+    detailButton.click();
+    fixture.detectChanges();
+
+    expect(
+      fixture.componentInstance.selectedPerson()?.estatus,
+    ).toBe('BAJA');
+
+    expect(
+      fixture.componentInstance.selectedPerson()?.fecha_baja,
+    ).toBe(
+      '2026-10-14T20:00:00.000000Z',
+    );
+
+    const reinstateButton = element.querySelector(
+      '[data-testid="persona-reinstate"]',
+    ) as HTMLButtonElement;
+
+    reinstateButton.click();
+    fixture.detectChanges();
+
+    const password = element.querySelector(
+      '[data-testid="persona-reinstate-password"]',
+    ) as HTMLInputElement;
+
+    password.value = 'contraseña-de-prueba';
+    password.dispatchEvent(
+      new Event('input'),
+    );
+
+    fixture.detectChanges();
+
+    const submitButton = element.querySelector(
+      '[data-testid="persona-reinstate-submit"]',
+    ) as HTMLButtonElement;
+
+    submitButton.click();
+    fixture.detectChanges();
+
+    expect(
+      fixture.componentInstance.selectedPerson()?.estatus,
+    ).toBe('ACTIVO');
+
+    expect(
+      fixture.componentInstance.selectedPerson()?.fecha_baja,
+    ).toBeNull();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-detail"]',
+      )?.textContent,
+    ).toContain('ACTIVO');
   });
 });

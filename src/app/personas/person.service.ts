@@ -41,6 +41,16 @@ export class PersonService {
       {},
     );
   }
+
+  reinstate(
+    idPersona: string,
+  ): Observable<PersonDetail> {
+    return this.http.post<PersonDetail>(
+      `/api/personas/${idPersona}/reingreso`,
+      {},
+    );
+  }
+
   find(
     idPersona: string,
   ): Observable<PersonDetail> {

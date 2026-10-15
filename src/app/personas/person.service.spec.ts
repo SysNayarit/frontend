@@ -303,4 +303,49 @@ describe('PersonService', () => {
 
     expect(result).toEqual(backendResponse);
   });
+
+  it('reingresa una persona mediante POST', () => {
+    const idPersona =
+      '01a13ae1-546d-71b8-bbbf-18e7bccc1d45';
+
+    const backendResponse: PersonDetail = {
+      id_persona: idPersona,
+      curp: null,
+      rfc: null,
+      num_expediente: '2026-00000001',
+      nombres: 'MARCO',
+      apellido_paterno: 'GARDU',
+      apellido_materno: 'GARDU',
+      fecha_nacimiento: null,
+      sexo: null,
+      estado_civil: null,
+      correo_institucional: null,
+      correo_personal: null,
+      id_pais_origen: null,
+      id_pais_nacimiento: null,
+      id_territorio_nacimiento: null,
+      fecha_alta: '2026-10-14T14:47:00.000000Z',
+      fecha_baja: null,
+      estatus: 'ACTIVO',
+    };
+
+    let result: PersonDetail | undefined;
+
+    service
+      .reinstate(idPersona)
+      .subscribe((person) => {
+        result = person;
+      });
+
+    const request = http.expectOne(
+      `/api/personas/${idPersona}/reingreso`,
+    );
+
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+
+    request.flush(backendResponse);
+
+    expect(result).toEqual(backendResponse);
+  });
 });
