@@ -28,27 +28,55 @@ interface ProfileSelectionGroup {
       </p>
 
       @if (profiles.length > 0) {
-        <label for="profile-selector" class="sr-only">
-          Seleccionar perfil de trabajo
+        <label for="profile-search" class="sr-only">
+          Buscar perfil de trabajo
         </label>
 
-        <select
-          id="profile-selector"
-          data-testid="profile-selector"
+        <input
+          id="profile-search"
+          data-testid="profile-search"
+          type="search"
+          autocomplete="off"
+          placeholder="Buscar por perfil o grupo"
           [disabled]="disabled"
-          (change)="onProfileChange($event)"
-          class="siga-focus w-full rounded-xl border border-[#98989a]/30 bg-white px-4 py-3 text-sm font-semibold text-[#611232] disabled:cursor-wait disabled:opacity-60"
-        >
-          @for (group of groupedProfiles; track group.id) {
-            <optgroup [label]="group.name">
-              @for (profile of group.profiles; track profile.id) {
-                <option [value]="profile.id" [selected]="profile.is_default">
-                  {{ profile.name }}
-                </option>
-              }
-            </optgroup>
-          }
-        </select>
+          (input)="onSearch($event)"
+          class="siga-focus w-full rounded-xl border border-[#98989a]/30 bg-white px-4 py-3 text-sm text-[#555555] placeholder:text-[#98989a] disabled:cursor-wait disabled:opacity-60"
+        />
+
+        @if (groupedProfiles.length > 0) {
+          <label for="profile-selector" class="sr-only">
+            Seleccionar perfil de trabajo
+          </label>
+
+          <select
+            id="profile-selector"
+            data-testid="profile-selector"
+            [disabled]="disabled"
+            (change)="onProfileChange($event)"
+            class="siga-focus w-full rounded-xl border border-[#98989a]/30 bg-white px-4 py-3 text-sm font-semibold text-[#611232] disabled:cursor-wait disabled:opacity-60"
+          >
+            @if (!confirmedProfileVisible) {
+              <option value="" selected>Seleccionar perfil</option>
+            }
+
+            @for (group of groupedProfiles; track group.id) {
+              <optgroup [label]="group.name">
+                @for (profile of group.profiles; track profile.id) {
+                  <option [value]="profile.id" [selected]="profile.is_default">
+                    {{ profile.name }}
+                  </option>
+                }
+              </optgroup>
+            }
+          </select>
+        } @else {
+          <p
+            data-testid="profile-search-empty-state"
+            class="rounded-xl border border-[#98989a]/20 bg-[#f9f9f8] px-4 py-3 text-sm text-[#555555]"
+          >
+            No se encontraron perfiles que coincidan con la búsqueda.
+          </p>
+        }
       } @else {
         <p
           data-testid="profiles-empty-state"
@@ -70,10 +98,25 @@ export class ProfileSelectorComponent {
   @Output()
   readonly profileSelected = new EventEmitter<number>();
 
+  searchTerm = "";
+
   get groupedProfiles(): ProfileSelectionGroup[] {
     const groups = new Map<number, ProfileSelectionGroup>();
+    const search = this.normalizeSearch(this.searchTerm);
 
     for (const profile of this.profiles) {
+      const groupMatches =
+        search.length === 0 ||
+        this.normalizeSearch(profile.group.name).includes(search);
+
+      const profileMatches =
+        search.length === 0 ||
+        this.normalizeSearch(profile.name).includes(search);
+
+      if (!groupMatches && !profileMatches) {
+        continue;
+      }
+
       const existingGroup = groups.get(profile.group.id);
 
       if (existingGroup) {
@@ -97,18 +140,49 @@ export class ProfileSelectorComponent {
     );
   }
 
-  onProfileChange(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    const selectedProfileId = Number(select.value);
+  get confirmedProfileVisible(): boolean {
+    return this.groupedProfiles.some((group) =>
+      group.profiles.some((profile) => profile.is_default),
+    );
+  }
 
-    this.profileSelected.emit(selectedProfileId);
-
+  get confirmedProfileValue(): string {
     const confirmedProfile = this.profiles.find(
       (profile) => profile.is_default,
     );
 
-    if (confirmedProfile) {
-      select.value = String(confirmedProfile.id);
+    if (!confirmedProfile || !this.confirmedProfileVisible) {
+      return "";
     }
+
+    return String(confirmedProfile.id);
+  }
+
+  onSearch(event: Event): void {
+    const input = event.target as HTMLInputElement;
+
+    this.searchTerm = input.value;
+  }
+
+  onProfileChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+
+    if (select.value === "") {
+      return;
+    }
+
+    const selectedProfileId = Number(select.value);
+
+    this.profileSelected.emit(selectedProfileId);
+
+    select.value = this.confirmedProfileValue;
+  }
+
+  private normalizeSearch(value: string): string {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("es-MX")
+      .trim();
   }
 }
