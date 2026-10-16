@@ -8,3 +8,7 @@ export interface Profile {
 export interface ProfileListResponse {
   data: Profile[];
 }
+
+export interface ProfileResponse {
+  data: Profile;
+}

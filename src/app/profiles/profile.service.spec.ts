@@ -57,4 +57,23 @@ describe("ProfileService", () => {
 
     expect(result).toEqual(backendResponse);
   });
+  it("establece un perfil asignado como predeterminado", () => {
+    const backendResponse = {
+      data: {
+        id: 2,
+        name: "Auditoria",
+        code: "PERFIL_AUDITORIA",
+        is_default: true,
+      },
+    };
+
+    service.setDefaultProfile(2).subscribe();
+
+    const request = http.expectOne("/api/user/profiles/2/default");
+
+    expect(request.request.method).toBe("PUT");
+    expect(request.request.body).toEqual({});
+
+    request.flush(backendResponse);
+  });
 });

@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { inject, Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 
-import { ProfileListResponse } from "./profile.models";
+import { ProfileListResponse, ProfileResponse } from "./profile.models";
 
 @Injectable({
   providedIn: "root",
@@ -12,5 +12,12 @@ export class ProfileService {
 
   getProfiles(): Observable<ProfileListResponse> {
     return this.http.get<ProfileListResponse>("/api/user/profiles");
+  }
+
+  setDefaultProfile(profileId: number): Observable<ProfileResponse> {
+    return this.http.put<ProfileResponse>(
+      `/api/user/profiles/${profileId}/default`,
+      {},
+    );
   }
 }
