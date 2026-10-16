@@ -427,3 +427,19 @@ Reglas:
 - logout limpia explícitamente el contexto;
 - los permisos contenidos en el contexto sirven para experiencia de usuario y navegación, no sustituyen la autorización del Backend;
 - no se mantiene una caché indefinida del usuario autenticado como autoridad de seguridad.
+
+## 25. DT-022 — Orquestación de operaciones sensibles de Persona en Frontend
+
+**Estado:** IMPLEMENTADA
+
+Las operaciones de BAJA y REINGRESO comparten una secuencia de aplicación que combina reautenticación y modificación del ciclo de vida de Persona.
+
+Reglas:
+
+- PersonLifecycleService concentra la secuencia reautenticar -> ejecutar BAJA o REINGRESO;
+- los métodos withdraw() y einstate() permanecen explícitos y conservan la semántica propia de cada operación;
+- los fallos distinguen entre etapa de reautenticación y etapa de operación para que la presentación pueda responder correctamente;
+- PersonasPage conserva estado visual, formularios, mensajes, selección y recarga de listado, pero no coordina directamente AuthService.reauthenticate();
+- PersonLifecycleService no concede permisos ni sustituye autorización;
+- el Backend continúa siendo la autoridad final para permisos y para la exigencia de reautenticación reciente;
+- no se introduce un ejecutor genérico configurable cuando una abstracción explícita resulta más clara y mantenible.

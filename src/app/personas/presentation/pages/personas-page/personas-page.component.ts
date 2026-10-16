@@ -6,12 +6,15 @@ import {
 } from '@angular/core';
 
 import { AuthContextService } from '../../../../auth/auth-context.service';
-import { AuthService } from '../../../../auth/auth.service';
 import {
   PersonDetail,
   PersonListItem,
   PersonListMeta,
 } from '../../../person.models';
+import {
+  PersonLifecycleError,
+  PersonLifecycleService,
+} from '../../../person-lifecycle.service';
 import { PersonService } from '../../../person.service';
 import { createPersonReauthenticationForm } from '../../forms/person-reauthentication-form';
 import {
@@ -102,8 +105,9 @@ import { PersonasManagementTemplateComponent } from '../../templates/personas-ma
   `,
 })
 export class PersonasPageComponent implements OnInit {
-  private readonly auth = inject(AuthService);
-
+  private readonly personLifecycle = inject(
+    PersonLifecycleService,
+  );
   private readonly authContext = inject(AuthContextService);
 
   private readonly personService = inject(
@@ -538,96 +542,71 @@ export class PersonasPageComponent implements OnInit {
       return;
     }
 
-    this.auth
-      .reauthenticate(password)
+    this.personLifecycle
+      .withdraw(
+        person.id_persona,
+        password,
+      )
       .subscribe({
-        next: () => {
-          this.withdrawErrorMessage.set(null);
+        next: (withdrawnPerson) => {
+          const currentPage =
+            this.meta()?.current_page ?? 1;
 
-          this.personService
-            .withdraw(person.id_persona)
-            .subscribe({
-              next: (withdrawnPerson) => {
-                const currentPage =
-                  this.meta()?.current_page ?? 1;
-
-                const selectedPerson =
-                  this.selectedPerson();
-
-                if (
-                  selectedPerson?.id_persona ===
-                  withdrawnPerson.id_persona
-                ) {
-                  this.selectedPerson.set(
-                    withdrawnPerson,
-                  );
-                }
-
-                this.withdrawForm.reset();
-
-                this.withdrawPasswordError.set(null);
-                this.withdrawErrorMessage.set(null);
-
-                this.withdrawingPerson.set(null);
-                this.withdrawFormOpen.set(false);
-
-                this.withdrawSuccessMessage.set(
-                  'Persona dada de baja correctamente',
-                );
-
-                this.loadPage(currentPage);
-              },
-              error: (error: unknown) => {
-                const response = error as {
-                  status?: number;
-                };
-
-                this.withdrawForm.controls.password.reset();
-
-                if (response.status === 423) {
-                  this.withdrawErrorMessage.set(
-                    'Se requiere una reautenticación reciente.',
-                  );
-
-                  return;
-                }
-
-                this.withdrawErrorMessage.set(
-                  'No fue posible dar de baja a la persona.',
-                );
-              },
-            });
-        },
-        error: (error: unknown) => {
-          const response = error as {
-            status?: number;
-            error?: {
-              errors?: Record<
-                string,
-                string[]
-              >;
-            };
-          };
-
-          const passwordErrors =
-            response.error?.errors?.[
-              'password'
-            ];
+          const selectedPerson =
+            this.selectedPerson();
 
           if (
-            response.status === 422 &&
-            passwordErrors?.length
+            selectedPerson?.id_persona ===
+            withdrawnPerson.id_persona
+          ) {
+            this.selectedPerson.set(
+              withdrawnPerson,
+            );
+          }
+
+          this.withdrawForm.reset();
+          this.withdrawPasswordError.set(null);
+          this.withdrawErrorMessage.set(null);
+          this.withdrawingPerson.set(null);
+          this.withdrawFormOpen.set(false);
+
+          this.withdrawSuccessMessage.set(
+            'Persona dada de baja correctamente',
+          );
+
+          this.loadPage(currentPage);
+        },
+        error: (error: unknown) => {
+          if (
+            error instanceof PersonLifecycleError &&
+            error.stage === 'reauthentication'
           ) {
             this.withdrawPasswordError.set(
-              passwordErrors[0] ??
-                'La contraseña no es válida.',
+              this.reauthenticationPasswordMessage(
+                error,
+              ),
             );
 
             return;
           }
 
-          this.withdrawPasswordError.set(
-            'No fue posible reautenticar al usuario.',
+          const response =
+            this.lifecycleErrorSource(error) as {
+              status?: number;
+            };
+
+          this.withdrawForm.controls.password.reset();
+
+          if (response.status === 423) {
+            this.withdrawErrorMessage.set(
+              'Se requiere una reautenticación reciente.',
+            );
+
+            return;
+          }
+
+          this.withdrawErrorMessage.set(
+            'No fue posible dar de baja a la persona.',
           );
         },
       });
@@ -676,94 +655,71 @@ export class PersonasPageComponent implements OnInit {
       return;
     }
 
-    this.auth
-      .reauthenticate(password)
+    this.personLifecycle
+      .reinstate(
+        person.id_persona,
+        password,
+      )
       .subscribe({
-        next: () => {
-          this.personService
-            .reinstate(person.id_persona)
-            .subscribe({
-              next: (reinstatedPerson) => {
-                const currentPage =
-                  this.meta()?.current_page ?? 1;
+        next: (reinstatedPerson) => {
+          const currentPage =
+            this.meta()?.current_page ?? 1;
 
-                const selectedPerson =
-                  this.selectedPerson();
-
-                if (
-                  selectedPerson?.id_persona ===
-                  reinstatedPerson.id_persona
-                ) {
-                  this.selectedPerson.set(
-                    reinstatedPerson,
-                  );
-                }
-
-                this.reinstateForm.reset();
-
-                this.reinstatePasswordError.set(null);
-                this.reinstateErrorMessage.set(null);
-
-                this.reinstatingPerson.set(null);
-                this.reinstateFormOpen.set(false);
-
-                this.reinstateSuccessMessage.set(
-                  'Persona reingresada correctamente',
-                );
-
-                this.loadPage(currentPage);
-              },
-              error: (error: unknown) => {
-                const response = error as {
-                  status?: number;
-                };
-
-                this.reinstateForm.controls.password.reset();
-
-                if (response.status === 423) {
-                  this.reinstateErrorMessage.set(
-                    'Se requiere una reautenticación reciente.',
-                  );
-
-                  return;
-                }
-
-                this.reinstateErrorMessage.set(
-                  'No fue posible reingresar a la persona.',
-                );
-              },
-            });
-        },
-        error: (error: unknown) => {
-          const response = error as {
-            status?: number;
-            error?: {
-              errors?: Record<
-                string,
-                string[]
-              >;
-            };
-          };
-
-          const passwordErrors =
-            response.error?.errors?.[
-              'password'
-            ];
+          const selectedPerson =
+            this.selectedPerson();
 
           if (
-            response.status === 422 &&
-            passwordErrors?.length
+            selectedPerson?.id_persona ===
+            reinstatedPerson.id_persona
+          ) {
+            this.selectedPerson.set(
+              reinstatedPerson,
+            );
+          }
+
+          this.reinstateForm.reset();
+          this.reinstatePasswordError.set(null);
+          this.reinstateErrorMessage.set(null);
+          this.reinstatingPerson.set(null);
+          this.reinstateFormOpen.set(false);
+
+          this.reinstateSuccessMessage.set(
+            'Persona reingresada correctamente',
+          );
+
+          this.loadPage(currentPage);
+        },
+        error: (error: unknown) => {
+          if (
+            error instanceof PersonLifecycleError &&
+            error.stage === 'reauthentication'
           ) {
             this.reinstatePasswordError.set(
-              passwordErrors[0] ??
-                'La contraseña no es válida.',
+              this.reauthenticationPasswordMessage(
+                error,
+              ),
             );
 
             return;
           }
 
-          this.reinstatePasswordError.set(
-            'No fue posible reautenticar al usuario.',
+          const response =
+            this.lifecycleErrorSource(error) as {
+              status?: number;
+            };
+
+          this.reinstateForm.controls.password.reset();
+
+          if (response.status === 423) {
+            this.reinstateErrorMessage.set(
+              'Se requiere una reautenticación reciente.',
+            );
+
+            return;
+          }
+
+          this.reinstateErrorMessage.set(
+            'No fue posible reingresar a la persona.',
           );
         },
       });
@@ -914,6 +870,41 @@ export class PersonasPageComponent implements OnInit {
           );
         },
       });
+  }
+
+  private lifecycleErrorSource(
+    error: unknown,
+  ): unknown {
+    return error instanceof PersonLifecycleError
+      ? error.originalError
+      : error;
+  }
+
+  private reauthenticationPasswordMessage(
+    error: unknown,
+  ): string {
+    const response =
+      this.lifecycleErrorSource(error) as {
+        status?: number;
+        error?: {
+          errors?: Record<string, string[]>;
+        };
+      };
+
+    const passwordErrors =
+      response.error?.errors?.['password'];
+
+    if (
+      response.status === 422 &&
+      passwordErrors?.length
+    ) {
+      return (
+        passwordErrors[0] ??
+        'La contraseña no es válida.'
+      );
+    }
+
+    return 'No fue posible reautenticar al usuario.';
   }
 
   previousPage(): void {
