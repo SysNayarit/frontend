@@ -12,7 +12,7 @@ import {
 } from '../../../person.models';
 import { PersonActionsComponent } from '../../molecules/person-actions/person-actions.component';
 import { PersonasPaginationComponent } from '../../molecules/personas-pagination/personas-pagination.component';
-import { personDisplayName } from '../../utils/person-display-name';
+import { personDisplayName } from '../../../../shared/utils/person-display-name';
 
 @Component({
   selector: 'app-personas-list',

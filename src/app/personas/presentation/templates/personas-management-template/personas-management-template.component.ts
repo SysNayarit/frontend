@@ -45,20 +45,7 @@ import {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <main
-      class="siga-texture min-h-screen bg-[#f7f7f5] text-[#161a1d]"
-    >
-      <header
-        class="w-full overflow-hidden border-b border-[#a57f2c]/25 bg-white"
-      >
-        <img
-          src="/branding/sesnsp-2026-banner.jpg"
-          alt="Identidad institucional de la Secretaría de Seguridad y del Secretariado Ejecutivo del Sistema Nacional de Seguridad Pública"
-          class="block h-auto w-full"
-        />
-      </header>
-
-      <section
+<section
         class="border-b border-[#a57f2c]/20 bg-[#611232] text-white shadow-md"
       >
         <div
@@ -67,7 +54,7 @@ import {
           <p
             class="text-xs font-semibold uppercase tracking-[0.18em] text-[#e6d194]"
           >
-            Plataforma Integral
+            Módulo Personas
           </p>
 
           <h1
@@ -113,7 +100,7 @@ import {
             <p
               class="mt-4 max-w-3xl leading-7 text-[#555555]"
             >
-              Consulta de personas registradas en la Plataforma Integral SIGA.
+              Consulta de personas registradas en la Módulo Personas SIGA.
             </p>
 
             @if (canCreatePerson) {
@@ -240,7 +227,7 @@ import {
           </div>
         </section>
       </div>
-    </main>
+
   `,
 })
 export class PersonasManagementTemplateComponent {

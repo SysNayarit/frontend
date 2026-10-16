@@ -2,6 +2,7 @@ import {
   ComponentFixture,
   TestBed,
 } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { ModuleNavigationComponent } from './module-navigation.component';
 
@@ -13,6 +14,9 @@ describe('ModuleNavigationComponent', () => {
     await TestBed.configureTestingModule({
       imports: [
         ModuleNavigationComponent,
+      ],
+      providers: [
+        provideRouter([]),
       ],
     }).compileComponents();
 

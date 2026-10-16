@@ -9,7 +9,7 @@ import {
 import { PersonDetail } from '../../../person.models';
 import { PersonStatusBadgeComponent } from '../../atoms/person-status-badge/person-status-badge.component';
 import { formatPersonDateLong } from '../../utils/person-date';
-import { personDisplayName } from '../../utils/person-display-name';
+import { personDisplayName } from '../../../../shared/utils/person-display-name';
 
 @Component({
   selector: 'app-persona-detail',

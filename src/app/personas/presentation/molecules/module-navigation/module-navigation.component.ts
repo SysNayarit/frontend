@@ -3,10 +3,14 @@ import {
   Component,
   Input,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-module-navigation',
   standalone: true,
+  imports: [
+    RouterLink,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nav
@@ -31,7 +35,7 @@ import {
         </span>
 
         <a
-          href="/inicio"
+          routerLink="/inicio"
           data-testid="module-navigation-home"
           class="siga-focus rounded-sm font-semibold text-[#611232] underline-offset-4 transition hover:underline"
         >

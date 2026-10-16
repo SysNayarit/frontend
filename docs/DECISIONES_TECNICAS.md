@@ -1,6 +1,6 @@
 # SIGA — Decisiones técnicas y funcionales
 
-Última actualización: 2026-10-09
+Última actualización: 2026-10-16
 
 ## 1. Propósito
 
@@ -376,3 +376,54 @@ Tecnologías vigentes de esta decisión:
 - Frontend: Angular 22.2.2;
 - interfaz y estilos: Tailwind CSS 4.3.3;
 - cartografía: Leaflet, con integración funcional pendiente.
+
+## 23. DT-020 — Arquitectura modular feature-first y Atomic Design en Frontend
+
+**Estado:** IMPLEMENTADA COMO REGLA
+
+El Frontend de SIGA se organiza principalmente por dominio o feature.
+
+Cada feature conserva dentro de su ámbito los modelos, servicios, utilidades y presentación que le pertenecen.
+
+La presentación aplica Atomic Design únicamente cuando existe una necesidad real de composición:
+
+```text
+atoms
+  -> molecules
+     -> organisms
+        -> templates
+           -> pages
+```
+
+Reglas:
+
+- no se crean carpetas Atomic vacías ni componentes ceremoniales;
+- las capas inferiores no dependen de páginas o capas superiores;
+- las páginas coordinan casos de uso y estado, pero no deben acumular indefinidamente responsabilidades;
+- los templates componen presentación y no concentran reglas de aplicación;
+- el shell contiene responsabilidades transversales de la aplicación autenticada y no reglas específicas de un dominio funcional;
+- los servicios y utilidades específicos permanecen dentro de su feature;
+- un elemento se promueve a `shared` únicamente cuando existe reutilización real entre ámbitos;
+- se evita duplicar lógica, presentación y formularios cuando existe una responsabilidad común verificable;
+- antes de ampliar un componente existente se revisan responsabilidad, dependencias, duplicación y crecimiento;
+- el Frontend puede usar permisos para experiencia de usuario, pero el Backend conserva siempre la autoridad final de autorización.
+
+Perfil, Rol y Permiso mantienen responsabilidades independientes y no deben confundirse.
+
+## 24. DT-021 — Contexto autenticado compartido en Frontend
+
+**Estado:** IMPLEMENTADA
+
+El estado del usuario autenticado se comparte mediante `AuthContextService`.
+
+Reglas:
+
+- guards, páginas, shell y features no llaman directamente a `AuthService.currentUser()`;
+- `AuthContextService` es el único consumidor externo directo de `AuthService.currentUser()`;
+- `AuthService` puede reutilizar internamente su propio método `currentUser()` como parte de flujos propios, por ejemplo después de un login correcto;
+- `authGuard` revalida el usuario contra el Backend durante la navegación autenticada;
+- otros consumidores pueden reutilizar el usuario ya validado mediante el contexto para evitar solicitudes duplicadas dentro del mismo ciclo de navegación;
+- un fallo de autenticación limpia el contexto;
+- logout limpia explícitamente el contexto;
+- los permisos contenidos en el contexto sirven para experiencia de usuario y navegación, no sustituyen la autorización del Backend;
+- no se mantiene una caché indefinida del usuario autenticado como autoridad de seguridad.

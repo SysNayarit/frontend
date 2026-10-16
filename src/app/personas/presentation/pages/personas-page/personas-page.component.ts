@@ -9,6 +9,7 @@ import {
   FormGroup,
 } from '@angular/forms';
 
+import { AuthContextService } from '../../../../auth/auth-context.service';
 import { AuthService } from '../../../../auth/auth.service';
 import {
   PersonDetail,
@@ -97,6 +98,8 @@ import { personDateInputValue } from '../../utils/person-date';
 })
 export class PersonasPageComponent implements OnInit {
   private readonly auth = inject(AuthService);
+
+  private readonly authContext = inject(AuthContextService);
 
   private readonly personService = inject(
     PersonService,
@@ -276,7 +279,7 @@ export class PersonasPageComponent implements OnInit {
   }
 
   private loadPermissions(): void {
-    this.auth.currentUser().subscribe({
+    this.authContext.ensureCurrent().subscribe({
       next: (user) => {
         this.canCreatePerson.set(
           user.permissions.includes(

@@ -2,6 +2,7 @@ import {
   ComponentFixture,
   TestBed,
 } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import {
   of,
   throwError,
@@ -401,6 +402,7 @@ describe('PersonasPageComponent', () => {
         PersonasPageComponent,
       ],
       providers: [
+        provideRouter([]),
         {
           provide: PersonService,
           useClass: PersonServiceStub,

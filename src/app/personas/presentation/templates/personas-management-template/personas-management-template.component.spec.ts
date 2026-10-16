@@ -6,6 +6,7 @@ import {
   FormControl,
   FormGroup,
 } from '@angular/forms';
+import { provideRouter } from '@angular/router';
 
 import { PersonListItem } from '../../../person.models';
 import { PersonasManagementTemplateComponent } from './personas-management-template.component';
@@ -57,6 +58,9 @@ describe('PersonasManagementTemplateComponent', () => {
       imports: [
         PersonasManagementTemplateComponent,
       ],
+      providers: [
+        provideRouter([]),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(
@@ -91,7 +95,7 @@ describe('PersonasManagementTemplateComponent', () => {
       fixture.nativeElement as HTMLElement;
 
     expect(element.textContent).toContain(
-      'Plataforma Integral',
+      'Módulo Personas',
     );
 
     expect(element.textContent).toContain(

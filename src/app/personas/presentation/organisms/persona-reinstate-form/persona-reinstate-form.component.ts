@@ -12,7 +12,7 @@ import {
 } from '@angular/forms';
 
 import { PersonListItem } from '../../../person.models';
-import { personDisplayName } from '../../utils/person-display-name';
+import { personDisplayName } from '../../../../shared/utils/person-display-name';
 
 export type PersonaReinstateForm = FormGroup<{
   password: FormControl<string>;

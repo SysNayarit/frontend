@@ -1,30 +1,20 @@
-import { inject } from '@angular/core';
-import {
-  CanActivateFn,
-  Router,
-} from '@angular/router';
-import {
-  catchError,
-  map,
-  of,
-} from 'rxjs';
+import { inject } from "@angular/core";
+import { CanActivateFn, Router } from "@angular/router";
+import { catchError, map, of } from "rxjs";
 
-import { AuthService } from './auth.service';
+import { AuthContextService } from "./auth-context.service";
 
 export const personasViewGuard: CanActivateFn = () => {
-  const auth = inject(AuthService);
+  const context = inject(AuthContextService);
+
   const router = inject(Router);
 
-  return auth.currentUser().pipe(
+  return context.ensureCurrent().pipe(
     map((user) =>
-      user.permissions.includes('personas.ver')
+      user.permissions.includes("personas.ver")
         ? true
-        : router.parseUrl('/inicio'),
+        : router.parseUrl("/inicio"),
     ),
-    catchError(() =>
-      of(
-        router.parseUrl('/acceso'),
-      ),
-    ),
+    catchError(() => of(router.parseUrl("/acceso"))),
   );
 };
