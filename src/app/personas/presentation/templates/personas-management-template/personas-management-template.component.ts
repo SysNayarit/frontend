@@ -100,7 +100,7 @@ import {
             <p
               class="mt-4 max-w-3xl leading-7 text-[#555555]"
             >
-              Consulta de personas registradas en la Módulo Personas SIGA.
+              Consulta de personas registradas en SIGA.
             </p>
 
             @if (canCreatePerson) {

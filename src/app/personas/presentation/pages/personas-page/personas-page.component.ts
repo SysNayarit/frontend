@@ -4,10 +4,7 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import {
-  FormControl,
-  FormGroup,
-} from '@angular/forms';
+import { FormControl, FormGroup } from '@angular/forms';
 
 import { AuthContextService } from '../../../../auth/auth-context.service';
 import { AuthService } from '../../../../auth/auth.service';
@@ -15,11 +12,19 @@ import {
   PersonDetail,
   PersonListItem,
   PersonListMeta,
-  PersonUpdateRequest,
 } from '../../../person.models';
 import { PersonService } from '../../../person.service';
+import {
+  PERSON_BIRTH_DATE_VALIDATION_TIME_ZONE,
+  createPersonForm,
+  normalizePersonForm,
+  personCreateRequest,
+  personFormHasErrors,
+  personFormValueFromDetail,
+  personUpdateRequest,
+  validatePersonForm,
+} from '../../forms/person-form';
 import { PersonasManagementTemplateComponent } from '../../templates/personas-management-template/personas-management-template.component';
-import { personDateInputValue } from '../../utils/person-date';
 
 
 
@@ -178,29 +183,9 @@ export class PersonasPageComponent implements OnInit {
   );
 
   readonly birthDateValidationTimeZone =
-    'America/Mexico_City';
+    PERSON_BIRTH_DATE_VALIDATION_TIME_ZONE;
 
-  readonly registerForm = new FormGroup({
-    nombres: new FormControl('', {
-      nonNullable: true,
-    }),
-    apellido_paterno: new FormControl('', {
-      nonNullable: true,
-    }),
-    apellido_materno: new FormControl('', {
-      nonNullable: true,
-    }),
-    fecha_nacimiento: new FormControl('', {
-      nonNullable: true,
-    }),
-    sexo: new FormControl('', {
-      nonNullable: true,
-    }),
-    estado_civil: new FormControl('', {
-      nonNullable: true,
-    }),
-  });
-
+  readonly registerForm = createPersonForm();
 
   readonly withdrawForm = new FormGroup({
     password: new FormControl('', {
@@ -214,26 +199,7 @@ export class PersonasPageComponent implements OnInit {
     }),
   });
 
-  readonly editForm = new FormGroup({
-    nombres: new FormControl('', {
-      nonNullable: true,
-    }),
-    apellido_paterno: new FormControl('', {
-      nonNullable: true,
-    }),
-    apellido_materno: new FormControl('', {
-      nonNullable: true,
-    }),
-    fecha_nacimiento: new FormControl('', {
-      nonNullable: true,
-    }),
-    sexo: new FormControl('', {
-      nonNullable: true,
-    }),
-    estado_civil: new FormControl('', {
-      nonNullable: true,
-    }),
-  });
+  readonly editForm = createPersonForm();
   readonly editSuccessMessage = signal<string | null>(
     null,
   );
@@ -377,22 +343,9 @@ export class PersonasPageComponent implements OnInit {
             person.id_persona,
           );
 
-          this.editForm.setValue({
-            nombres: person.nombres,
-            apellido_paterno:
-              person.apellido_paterno ?? '',
-            apellido_materno:
-              person.apellido_materno ?? '',
-            fecha_nacimiento:
-              personDateInputValue(
-                person.fecha_nacimiento,
-              ),
-            sexo:
-              person.sexo ?? '',
-            estado_civil:
-              person.estado_civil ?? '',
-          });
-
+          this.editForm.setValue(
+            personFormValueFromDetail(person),
+          );
           this.registerFormOpen.set(false);
           this.editFormOpen.set(true);
         },
@@ -422,104 +375,34 @@ export class PersonasPageComponent implements OnInit {
 
     this.editErrorMessage.set(null);
 
-    const values = this.editForm.getRawValue();
-
-    const nombres = values.nombres.trim();
-    const apellidoPaterno =
-      values.apellido_paterno.trim();
-    const apellidoMaterno =
-      values.apellido_materno.trim();
-
-    const fechaNacimiento =
-      values.fecha_nacimiento.trim();
-
-    const fechaActualParts = new Intl.DateTimeFormat(
-      'en-US',
-      {
-        timeZone:
-          this.birthDateValidationTimeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      },
-    ).formatToParts(
-      new Date(),
+    const values = normalizePersonForm(
+      this.editForm,
     );
 
-    const getDatePart = (
-      type: 'year' | 'month' | 'day',
-    ): string =>
-      fechaActualParts.find(
-        (part) => part.type === type,
-      )?.value ?? '';
+    const errors = validatePersonForm(
+      values,
+      'edit',
+    );
 
-    const fechaActual = [
-      getDatePart('year'),
-      getDatePart('month'),
-      getDatePart('day'),
-    ].join('-');
+    this.editNombresError.set(
+      errors.nombres,
+    );
 
-    const fechaNacimientoEsFutura =
-      fechaNacimiento !== '' &&
-      fechaNacimiento > fechaActual;
+    this.editApellidosError.set(
+      errors.apellidos,
+    );
 
-    this.editNombresError.set(null);
-    this.editApellidosError.set(null);
-    this.editFechaNacimientoError.set(null);
+    this.editFechaNacimientoError.set(
+      errors.fechaNacimiento,
+    );
 
-    if (nombres === '') {
-      this.editNombresError.set(
-        'Los nombres son obligatorios',
-      );
-    }
-
-    if (
-      apellidoPaterno === ''
-      && apellidoMaterno === ''
-    ) {
-      this.editApellidosError.set(
-        'La Persona debe conservar al menos un apellido',
-      );
-    }
-
-    if (fechaNacimientoEsFutura) {
-      this.editFechaNacimientoError.set(
-        'La fecha de nacimiento no puede ser futura',
-      );
-    }
-
-    if (
-      this.editNombresError() !== null
-      || this.editApellidosError() !== null
-      || this.editFechaNacimientoError() !== null
-    ) {
+    if (personFormHasErrors(errors)) {
       return;
     }
 
-    const payload: PersonUpdateRequest = {
-      nombres,
-      apellido_paterno:
-        apellidoPaterno === ''
-          ? null
-          : apellidoPaterno,
-      apellido_materno:
-        apellidoMaterno === ''
-          ? null
-          : apellidoMaterno,
-      fecha_nacimiento:
-        fechaNacimiento === ''
-          ? null
-          : fechaNacimiento,
-      sexo:
-        values.sexo === ''
-          ? null
-          : values.sexo,
-      estado_civil:
-        values.estado_civil === ''
-          ? null
-          : values.estado_civil,
-    };
-
+    const payload = personUpdateRequest(
+      values,
+    );
     this.personService
       .update(
         idPersona,
@@ -920,113 +803,34 @@ export class PersonasPageComponent implements OnInit {
   submitRegisterForm(): void {
     this.registerErrorMessage.set(null);
 
-    const nombres =
-      this.registerForm.controls.nombres.value.trim();
-
-    const apellidoPaterno =
-      this.registerForm.controls.apellido_paterno.value.trim();
-
-    const apellidoMaterno =
-      this.registerForm.controls.apellido_materno.value.trim();
-
-    const fechaNacimiento =
-      this.registerForm.controls.fecha_nacimiento.value.trim();
-
-    const sexo =
-      this.registerForm.controls.sexo.value.trim();
-
-    const estadoCivil =
-      this.registerForm.controls.estado_civil.value.trim();
-
-    const fechaActualParts = new Intl.DateTimeFormat(
-      'en-US',
-      {
-        timeZone:
-          this.birthDateValidationTimeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      },
-    ).formatToParts(
-      new Date(),
+    const values = normalizePersonForm(
+      this.registerForm,
     );
 
-    const getDatePart = (
-      type: 'year' | 'month' | 'day',
-    ): string =>
-      fechaActualParts.find(
-        (part) => part.type === type,
-      )?.value ?? '';
-
-    const fechaActual = [
-      getDatePart('year'),
-      getDatePart('month'),
-      getDatePart('day'),
-    ].join('-');
-
-    const fechaNacimientoEsFutura =
-      fechaNacimiento !== '' &&
-      fechaNacimiento > fechaActual;
+    const errors = validatePersonForm(
+      values,
+      'register',
+    );
 
     this.registerNombresError.set(
-      nombres === ''
-        ? 'Los nombres son obligatorios'
-        : null,
+      errors.nombres,
     );
 
     this.registerApellidosError.set(
-      apellidoPaterno === '' &&
-      apellidoMaterno === ''
-        ? 'Debe capturarse al menos un apellido'
-        : null,
+      errors.apellidos,
     );
 
     this.registerFechaNacimientoError.set(
-      fechaNacimientoEsFutura
-        ? 'La fecha de nacimiento no puede ser futura'
-        : null,
+      errors.fechaNacimiento,
     );
 
-    if (
-      nombres === '' ||
-      (
-        apellidoPaterno === '' &&
-        apellidoMaterno === ''
-      ) ||
-      fechaNacimientoEsFutura
-    ) {
+    if (personFormHasErrors(errors)) {
       return;
     }
-
     this.personService
-      .create({
-        nombres,
-        apellido_paterno:
-          apellidoPaterno === ''
-            ? null
-            : apellidoPaterno,
-        apellido_materno:
-          apellidoMaterno === ''
-            ? null
-            : apellidoMaterno,
-        ...(fechaNacimiento !== ''
-          ? {
-              fecha_nacimiento:
-                fechaNacimiento,
-            }
-          : {}),
-        ...(sexo !== ''
-          ? {
-              sexo,
-            }
-          : {}),
-        ...(estadoCivil !== ''
-          ? {
-              estado_civil:
-                estadoCivil,
-            }
-          : {}),
-      })
+      .create(
+        personCreateRequest(values),
+      )
       .subscribe({
         next: () => {
           this.registerForm.reset();
