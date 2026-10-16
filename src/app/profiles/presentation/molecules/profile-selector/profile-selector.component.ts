@@ -8,6 +8,13 @@ import {
 
 import { Profile } from "../../../profile.models";
 
+interface ProfileSelectionGroup {
+  id: number;
+  name: string;
+  sortOrder: number;
+  profiles: Profile[];
+}
+
 @Component({
   selector: "app-profile-selector",
   standalone: true,
@@ -32,10 +39,14 @@ import { Profile } from "../../../profile.models";
           (change)="onProfileChange($event)"
           class="siga-focus w-full rounded-xl border border-[#98989a]/30 bg-white px-4 py-3 text-sm font-semibold text-[#611232] disabled:cursor-wait disabled:opacity-60"
         >
-          @for (profile of profiles; track profile.id) {
-            <option [value]="profile.id" [selected]="profile.is_default">
-              {{ profile.name }}
-            </option>
+          @for (group of groupedProfiles; track group.id) {
+            <optgroup [label]="group.name">
+              @for (profile of group.profiles; track profile.id) {
+                <option [value]="profile.id" [selected]="profile.is_default">
+                  {{ profile.name }}
+                </option>
+              }
+            </optgroup>
           }
         </select>
       } @else {
@@ -58,6 +69,33 @@ export class ProfileSelectorComponent {
 
   @Output()
   readonly profileSelected = new EventEmitter<number>();
+
+  get groupedProfiles(): ProfileSelectionGroup[] {
+    const groups = new Map<number, ProfileSelectionGroup>();
+
+    for (const profile of this.profiles) {
+      const existingGroup = groups.get(profile.group.id);
+
+      if (existingGroup) {
+        existingGroup.profiles.push(profile);
+
+        continue;
+      }
+
+      groups.set(profile.group.id, {
+        id: profile.group.id,
+        name: profile.group.name,
+        sortOrder: profile.group.sort_order,
+        profiles: [profile],
+      });
+    }
+
+    return Array.from(groups.values()).sort(
+      (first, second) =>
+        first.sortOrder - second.sortOrder ||
+        first.name.localeCompare(second.name),
+    );
+  }
 
   onProfileChange(event: Event): void {
     const select = event.target as HTMLSelectElement;

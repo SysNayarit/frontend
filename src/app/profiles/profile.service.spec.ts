@@ -5,7 +5,7 @@ import {
 } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
 
-import { ProfileListResponse } from "./profile.models";
+import { ProfileListResponse, ProfileResponse } from "./profile.models";
 import { ProfileService } from "./profile.service";
 
 describe("ProfileService", () => {
@@ -25,7 +25,7 @@ describe("ProfileService", () => {
     http.verify();
   });
 
-  it("obtiene los perfiles asignados al usuario autenticado", () => {
+  it("obtiene los perfiles asignados con su grupo de trabajo", () => {
     const backendResponse: ProfileListResponse = {
       data: [
         {
@@ -33,12 +33,24 @@ describe("ProfileService", () => {
           name: "Personas",
           code: "PERFIL_PERSONAS",
           is_default: true,
+          group: {
+            id: 1,
+            name: "Operación",
+            code: "GRUPO_OPERACION",
+            sort_order: 10,
+          },
         },
         {
           id: 2,
           name: "Auditoria",
           code: "PERFIL_AUDITORIA",
           is_default: false,
+          group: {
+            id: 2,
+            name: "Control y supervisión",
+            code: "GRUPO_CONTROL_SUPERVISION",
+            sort_order: 20,
+          },
         },
       ],
     };
@@ -57,17 +69,28 @@ describe("ProfileService", () => {
 
     expect(result).toEqual(backendResponse);
   });
-  it("establece un perfil asignado como predeterminado", () => {
-    const backendResponse = {
+
+  it("establece un perfil asignado como predeterminado y recibe su grupo", () => {
+    const backendResponse: ProfileResponse = {
       data: {
         id: 2,
         name: "Auditoria",
         code: "PERFIL_AUDITORIA",
         is_default: true,
+        group: {
+          id: 2,
+          name: "Control y supervisión",
+          code: "GRUPO_CONTROL_SUPERVISION",
+          sort_order: 20,
+        },
       },
     };
 
-    service.setDefaultProfile(2).subscribe();
+    let result: ProfileResponse | undefined;
+
+    service.setDefaultProfile(2).subscribe((response) => {
+      result = response;
+    });
 
     const request = http.expectOne("/api/user/profiles/2/default");
 
@@ -75,5 +98,7 @@ describe("ProfileService", () => {
     expect(request.request.body).toEqual({});
 
     request.flush(backendResponse);
+
+    expect(result).toEqual(backendResponse);
   });
 });

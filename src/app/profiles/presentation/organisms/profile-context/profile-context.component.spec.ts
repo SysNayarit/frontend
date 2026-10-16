@@ -15,12 +15,24 @@ class ProfileServiceStub {
         name: "Personas",
         code: "PERFIL_PERSONAS",
         is_default: true,
+        group: {
+          id: 1,
+          name: "Operación",
+          code: "GRUPO_OPERACION",
+          sort_order: 10,
+        },
       },
       {
         id: 2,
         name: "Auditoria",
         code: "PERFIL_AUDITORIA",
         is_default: false,
+        group: {
+          id: 2,
+          name: "Control y supervisión",
+          code: "GRUPO_CONTROL_SUPERVISION",
+          sort_order: 20,
+        },
       },
     ],
   };
@@ -114,6 +126,12 @@ describe("ProfileContextComponent", () => {
           name: "Auditoria",
           code: "PERFIL_AUDITORIA",
           is_default: true,
+          group: {
+            id: 2,
+            name: "Control y supervisión",
+            code: "GRUPO_CONTROL_SUPERVISION",
+            sort_order: 20,
+          },
         },
       } as ProfileResponse);
     };
@@ -169,6 +187,12 @@ describe("ProfileContextComponent", () => {
         name: "Auditoria",
         code: "PERFIL_AUDITORIA",
         is_default: true,
+        group: {
+          id: 2,
+          name: "Control y supervisión",
+          code: "GRUPO_CONTROL_SUPERVISION",
+          sort_order: 20,
+        },
       },
     });
 
