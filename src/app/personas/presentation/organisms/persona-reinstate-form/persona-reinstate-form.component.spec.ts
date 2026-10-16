@@ -2,12 +2,9 @@ import {
   ComponentFixture,
   TestBed,
 } from '@angular/core/testing';
-import {
-  FormControl,
-  FormGroup,
-} from '@angular/forms';
 
 import { PersonListItem } from '../../../person.models';
+import { createPersonReauthenticationForm } from '../../forms/person-reauthentication-form';
 import { PersonaReinstateFormComponent } from './persona-reinstate-form.component';
 
 describe('PersonaReinstateFormComponent', () => {
@@ -23,12 +20,7 @@ describe('PersonaReinstateFormComponent', () => {
     estatus: 'BAJA',
   };
 
-  const createForm = () =>
-    new FormGroup({
-      password: new FormControl('', {
-        nonNullable: true,
-      }),
-    });
+  const createForm = createPersonReauthenticationForm;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({

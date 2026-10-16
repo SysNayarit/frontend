@@ -4,29 +4,23 @@ import {
   EventEmitter,
   Input,
   Output,
-} from '@angular/core';
-import {
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-} from '@angular/forms';
+} from "@angular/core";
+import { ReactiveFormsModule } from "@angular/forms";
 
-import { PersonListItem } from '../../../person.models';
-import { personDisplayName } from '../../../../shared/utils/person-display-name';
+import { personDisplayName } from "../../../../shared/utils/person-display-name";
+import { PersonListItem } from "../../../person.models";
+import { PersonReauthenticationForm } from "../../forms/person-reauthentication-form";
+import { PersonReauthenticationFieldComponent } from "../../molecules/person-reauthentication-field/person-reauthentication-field.component";
 
-export type PersonaReinstateForm = FormGroup<{
-  password: FormControl<string>;
-}>;
+export type PersonaReinstateForm = PersonReauthenticationForm;
 
 @Component({
-  selector: 'app-persona-reinstate-form',
+  selector: "app-persona-reinstate-form",
   standalone: true,
-  imports: [
-    ReactiveFormsModule,
-  ],
+  imports: [ReactiveFormsModule, PersonReauthenticationFieldComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    class: 'contents',
+    class: "contents",
   },
   template: `
     <form
@@ -41,58 +35,23 @@ export type PersonaReinstateForm = FormGroup<{
         Operación sensible
       </p>
 
-      <h3
-        class="siga-title mt-2 text-2xl font-bold text-[#611232]"
-      >
+      <h3 class="siga-title mt-2 text-2xl font-bold text-[#611232]">
         Reingresar Persona
       </h3>
 
-      <p
-        class="mt-3 text-sm leading-6 text-[#555555]"
-      >
+      <p class="mt-3 text-sm leading-6 text-[#555555]">
         Confirma el reingreso de
-        <strong>
-          {{ fullName(person) }}
-        </strong>
+        <strong>{{ fullName(person) }}</strong>
         con expediente
-        <strong>
-          {{ person.num_expediente }}
-        </strong>.
+        <strong>{{ person.num_expediente }}</strong
+        >.
       </p>
 
-      <p
-        class="mt-3 text-sm leading-6 text-[#555555]"
-      >
-        Por seguridad, vuelve a introducir tu contraseña antes de continuar.
-      </p>
-
-      <div class="mt-6 max-w-md">
-        <label
-          for="persona-reinstate-password"
-          class="block text-sm font-semibold text-[#611232]"
-        >
-          Contraseña
-        </label>
-
-        <input
-          id="persona-reinstate-password"
-          data-testid="persona-reinstate-password"
-          formControlName="password"
-          type="password"
-          autocomplete="current-password"
-          class="siga-focus mt-2 w-full rounded-lg border border-[#98989a]/40 bg-white px-4 py-3 text-[#161a1d]"
-        />
-
-        @if (passwordError) {
-          <p
-            data-testid="persona-reinstate-password-error"
-            class="mt-2 text-sm font-semibold text-[#9b2247]"
-            role="alert"
-          >
-            {{ passwordError }}
-          </p>
-        }
-      </div>
+      <app-person-reauthentication-field
+        [form]="form"
+        mode="reinstate"
+        [passwordError]="passwordError"
+      />
 
       @if (errorMessage) {
         <p
@@ -104,9 +63,7 @@ export type PersonaReinstateForm = FormGroup<{
         </p>
       }
 
-      <div
-        class="mt-6 flex flex-wrap gap-3"
-      >
+      <div class="mt-6 flex flex-wrap gap-3">
         <button
           type="submit"
           data-testid="persona-reinstate-submit"
@@ -141,12 +98,10 @@ export class PersonaReinstateFormComponent {
   errorMessage: string | null = null;
 
   @Output()
-  readonly submitRequested =
-    new EventEmitter<void>();
+  readonly submitRequested = new EventEmitter<void>();
 
   @Output()
-  readonly cancelRequested =
-    new EventEmitter<void>();
+  readonly cancelRequested = new EventEmitter<void>();
 
   readonly fullName = personDisplayName;
 }

@@ -2,12 +2,9 @@ import {
   ComponentFixture,
   TestBed,
 } from '@angular/core/testing';
-import {
-  FormControl,
-  FormGroup,
-} from '@angular/forms';
 
 import { PersonListItem } from '../../../person.models';
+import { createPersonReauthenticationForm } from '../../forms/person-reauthentication-form';
 import { PersonaWithdrawFormComponent } from './persona-withdraw-form.component';
 
 describe('PersonaWithdrawFormComponent', () => {
@@ -23,12 +20,7 @@ describe('PersonaWithdrawFormComponent', () => {
     estatus: 'ACTIVO',
   };
 
-  const createForm = () =>
-    new FormGroup({
-      password: new FormControl('', {
-        nonNullable: true,
-      }),
-    });
+  const createForm = createPersonReauthenticationForm;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({

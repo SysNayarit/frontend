@@ -4,7 +4,6 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { FormControl, FormGroup } from '@angular/forms';
 
 import { AuthContextService } from '../../../../auth/auth-context.service';
 import { AuthService } from '../../../../auth/auth.service';
@@ -14,6 +13,7 @@ import {
   PersonListMeta,
 } from '../../../person.models';
 import { PersonService } from '../../../person.service';
+import { createPersonReauthenticationForm } from '../../forms/person-reauthentication-form';
 import {
   PERSON_BIRTH_DATE_VALIDATION_TIME_ZONE,
   createPersonForm,
@@ -187,17 +187,9 @@ export class PersonasPageComponent implements OnInit {
 
   readonly registerForm = createPersonForm();
 
-  readonly withdrawForm = new FormGroup({
-    password: new FormControl('', {
-      nonNullable: true,
-    }),
-  });
+  readonly withdrawForm = createPersonReauthenticationForm();
 
-  readonly reinstateForm = new FormGroup({
-    password: new FormControl('', {
-      nonNullable: true,
-    }),
-  });
+  readonly reinstateForm = createPersonReauthenticationForm();
 
   readonly editForm = createPersonForm();
   readonly editSuccessMessage = signal<string | null>(
