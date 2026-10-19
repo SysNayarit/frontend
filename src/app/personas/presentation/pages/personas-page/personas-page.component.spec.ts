@@ -9,6 +9,7 @@ import {
   throwError,
 } from 'rxjs';
 
+import { AuthContextService } from '../../../../auth/auth-context.service';
 import {
   AuthenticatedUser,
 } from '../../../../auth/auth.models';
@@ -4040,5 +4041,49 @@ describe('PersonasPageComponent', () => {
     );
 
     expect(component.meta()?.current_page).toBe(2);
+  });
+
+  it('actualiza las acciones cuando cambia el contexto de permisos', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    const context = TestBed.inject(
+      AuthContextService,
+    );
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.crear',
+      ],
+    };
+
+    const fixture = createFixture();
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register"]',
+      ),
+    ).not.toBeNull();
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+      ],
+    };
+
+    context.refresh().subscribe();
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-testid="persona-register"]',
+      ),
+    ).toBeNull();
   });
 });

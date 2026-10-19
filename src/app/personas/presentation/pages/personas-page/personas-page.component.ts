@@ -95,13 +95,33 @@ export class PersonasPageComponent implements OnInit {
     null,
   );
 
-  readonly canCreatePerson = signal(false);
+  readonly canCreatePerson = computed(
+    () =>
+      this.authContext.hasPermission(
+        'personas.crear',
+      ),
+  );
 
-  readonly canUpdatePerson = signal(false);
+  readonly canUpdatePerson = computed(
+    () =>
+      this.authContext.hasPermission(
+        'personas.actualizar',
+      ),
+  );
 
-  readonly canWithdrawPerson = signal(false);
+  readonly canWithdrawPerson = computed(
+    () =>
+      this.authContext.hasPermission(
+        'personas.baja',
+      ),
+  );
 
-  readonly canReinstatePerson = signal(false);
+  readonly canReinstatePerson = computed(
+    () =>
+      this.authContext.hasPermission(
+        'personas.reingreso',
+      ),
+  );
 
   readonly activeFlow = signal<PersonasManagementFlow | null>(
     null,
@@ -209,44 +229,11 @@ export class PersonasPageComponent implements OnInit {
   );
 
   ngOnInit(): void {
-    this.loadPermissions();
-    this.loadPage(1);
-  }
-
-  private loadPermissions(): void {
     this.authContext.ensureCurrent().subscribe({
-      next: (user) => {
-        this.canCreatePerson.set(
-          user.permissions.includes(
-            'personas.crear',
-          ),
-        );
-
-        this.canUpdatePerson.set(
-          user.permissions.includes(
-            'personas.actualizar',
-          ),
-        );
-
-        this.canWithdrawPerson.set(
-          user.permissions.includes(
-            'personas.baja',
-          ),
-        );
-
-        this.canReinstatePerson.set(
-          user.permissions.includes(
-            'personas.reingreso',
-          ),
-        );
-      },
-      error: () => {
-        this.canCreatePerson.set(false);
-        this.canUpdatePerson.set(false);
-        this.canWithdrawPerson.set(false);
-        this.canReinstatePerson.set(false);
-      },
+      error: () => undefined,
     });
+
+    this.loadPage(1);
   }
 
   loadPage(
