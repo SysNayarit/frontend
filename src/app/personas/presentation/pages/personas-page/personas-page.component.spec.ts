@@ -120,6 +120,11 @@ class PersonServiceStub {
   findSubject: Subject<PersonDetail> | null =
     null;
 
+  listSubjects = new Map<
+    number,
+    Subject<PersonListResponse>
+  >();
+
   shouldFail = false;
 
   response: PersonListResponse = {
@@ -388,6 +393,13 @@ class PersonServiceStub {
     page = 1,
   ) {
     this.listCalls.push(page);
+
+    const listSubject =
+      this.listSubjects.get(page);
+
+    if (listSubject !== undefined) {
+      return listSubject.asObservable();
+    }
 
     if (this.shouldFail) {
       return throwError(
@@ -3965,5 +3977,68 @@ describe('PersonasPageComponent', () => {
 
     expect(component.registerFormOpen()).toBe(true);
     expect(component.editFormOpen()).toBe(false);
+  });
+
+  it('ignora el detalle tardio despues de cerrar la seleccion', () => {
+    const findSubject =
+      new Subject<PersonDetail>();
+
+    service.findSubject = findSubject;
+
+    const fixture = createFixture();
+    const component = fixture.componentInstance;
+
+    component.viewDetail(
+      service.detailResponse.id_persona,
+    );
+
+    component.closeDetail();
+
+    findSubject.next(
+      service.detailResponse,
+    );
+
+    expect(component.selectedPerson()).toBeNull();
+    expect(component.detailErrorMessage()).toBeNull();
+  });
+
+  it('ignora una pagina tardia cuando existe una solicitud mas reciente', () => {
+    const firstPageSubject =
+      new Subject<PersonListResponse>();
+
+    const secondPageSubject =
+      new Subject<PersonListResponse>();
+
+    service.listSubjects.set(
+      1,
+      firstPageSubject,
+    );
+
+    service.listSubjects.set(
+      2,
+      secondPageSubject,
+    );
+
+    const fixture = createFixture();
+    const component = fixture.componentInstance;
+
+    component.loadPage(2);
+
+    secondPageSubject.next({
+      ...service.response,
+      meta: {
+        ...service.response.meta,
+        current_page: 2,
+        last_page: 2,
+      },
+    });
+
+    expect(component.meta()?.current_page).toBe(2);
+
+    firstPageSubject.next(
+      service.response,
+    );
+
+    expect(component.meta()?.current_page).toBe(2);
   });
 });

@@ -68,6 +68,10 @@ export class PersonasPageComponent implements OnInit {
     PersonService,
   );
 
+  private listRequestVersion = 0;
+
+  private detailRequestVersion = 0;
+
   private editRequestVersion = 0;
 
   readonly persons = signal<PersonListItem[]>(
@@ -247,16 +251,33 @@ export class PersonasPageComponent implements OnInit {
   loadPage(
     page: number,
   ): void {
+    const requestVersion =
+      ++this.listRequestVersion;
+
     this.errorMessage.set(null);
 
     this.personService
       .list(page)
       .subscribe({
         next: (response) => {
+          if (
+            requestVersion !==
+            this.listRequestVersion
+          ) {
+            return;
+          }
+
           this.persons.set(response.data);
           this.meta.set(response.meta);
         },
         error: () => {
+          if (
+            requestVersion !==
+            this.listRequestVersion
+          ) {
+            return;
+          }
+
           this.errorMessage.set(
             'No fue posible cargar el listado de personas',
           );
@@ -265,6 +286,8 @@ export class PersonasPageComponent implements OnInit {
   }
 
   closeDetail(): void {
+    this.detailRequestVersion += 1;
+
     this.selectedPerson.set(null);
     this.detailErrorMessage.set(null);
   }
@@ -272,6 +295,9 @@ export class PersonasPageComponent implements OnInit {
   viewDetail(
     idPersona: string,
   ): void {
+    const requestVersion =
+      ++this.detailRequestVersion;
+
     this.selectedPerson.set(null);
     this.detailErrorMessage.set(null);
 
@@ -279,9 +305,23 @@ export class PersonasPageComponent implements OnInit {
       .find(idPersona)
       .subscribe({
         next: (person) => {
+          if (
+            requestVersion !==
+            this.detailRequestVersion
+          ) {
+            return;
+          }
+
           this.selectedPerson.set(person);
         },
         error: () => {
+          if (
+            requestVersion !==
+            this.detailRequestVersion
+          ) {
+            return;
+          }
+
           this.selectedPerson.set(null);
 
           this.detailErrorMessage.set(
