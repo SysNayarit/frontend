@@ -5,6 +5,7 @@ import {
 import { provideRouter } from '@angular/router';
 import {
   of,
+  Subject,
   throwError,
 } from 'rxjs';
 
@@ -115,6 +116,9 @@ class PersonServiceStub {
   createBirthDateValidationShouldFail = false;
 
   findShouldFail = false;
+
+  findSubject: Subject<PersonDetail> | null =
+    null;
 
   shouldFail = false;
 
@@ -364,6 +368,10 @@ class PersonServiceStub {
     idPersona: string,
   ) {
     this.findCalls.push(idPersona);
+
+    if (this.findSubject !== null) {
+      return this.findSubject.asObservable();
+    }
 
     if (this.findShouldFail) {
       return throwError(
@@ -3862,5 +3870,100 @@ describe('PersonasPageComponent', () => {
         '[data-testid="persona-detail"]',
       )?.textContent,
     ).toContain('ACTIVO');
+  });
+
+  it('mantiene un solo flujo de gestion activo a la vez', () => {
+    const fixture = createFixture();
+
+    const component =
+      fixture.componentInstance;
+
+    const person =
+      service.response.data[0];
+
+    if (person === undefined) {
+      throw new Error(
+        'Se esperaba una Persona de prueba.',
+      );
+    }
+
+    component.openRegisterForm();
+
+    expect(component.activeFlow()).toBe(
+      'register',
+    );
+    expect(component.registerFormOpen()).toBe(true);
+
+    component.openWithdrawForm(person);
+
+    expect(component.activeFlow()).toBe(
+      'withdraw',
+    );
+    expect(component.registerFormOpen()).toBe(false);
+    expect(component.withdrawFormOpen()).toBe(true);
+
+    component.openEditForm(
+      person.id_persona,
+    );
+
+    expect(component.activeFlow()).toBe(
+      'edit',
+    );
+    expect(component.withdrawFormOpen()).toBe(false);
+    expect(component.editFormOpen()).toBe(true);
+
+    component.openRegisterForm();
+
+    expect(component.activeFlow()).toBe(
+      'register',
+    );
+    expect(component.editFormOpen()).toBe(false);
+    expect(component.registerFormOpen()).toBe(true);
+  });
+
+  it('ignora una respuesta tardia de edicion cuando otro flujo ya fue abierto', () => {
+    const fixture = createFixture();
+
+    const component =
+      fixture.componentInstance;
+
+    const person =
+      service.response.data[0];
+
+    if (person === undefined) {
+      throw new Error(
+        'Se esperaba una Persona de prueba.',
+      );
+    }
+
+    const findSubject =
+      new Subject<PersonDetail>();
+
+    service.findSubject = findSubject;
+
+    component.openEditForm(
+      person.id_persona,
+    );
+
+    expect(component.activeFlow()).toBeNull();
+
+    component.openRegisterForm();
+
+    expect(component.activeFlow()).toBe(
+      'register',
+    );
+
+    findSubject.next(
+      service.detailResponse,
+    );
+
+    fixture.detectChanges();
+
+    expect(component.activeFlow()).toBe(
+      'register',
+    );
+
+    expect(component.registerFormOpen()).toBe(true);
+    expect(component.editFormOpen()).toBe(false);
   });
 });

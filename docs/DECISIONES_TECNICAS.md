@@ -443,3 +443,21 @@ Reglas:
 - PersonLifecycleService no concede permisos ni sustituye autorización;
 - el Backend continúa siendo la autoridad final para permisos y para la exigencia de reautenticación reciente;
 - no se introduce un ejecutor genérico configurable cuando una abstracción explícita resulta más clara y mantenible.
+
+## 26. DT-023 — Flujo exclusivo y composición estructural de Personas
+
+**Estado:** IMPLEMENTADA
+
+La gestión interactiva de Personas utiliza una única fuente de verdad para determinar qué flujo funcional está activo y mantiene al template del módulo como una estructura visual sin conocimiento del estado ni de los eventos del dominio.
+
+Reglas:
+
+- `PersonasPage` mantiene un único `activeFlow` con los estados `register`, `edit`, `withdraw`, `reinstate` o `null`;
+- los estados visibles de cada formulario son derivados mediante `computed` y no señales booleanas independientes;
+- abrir un nuevo flujo cierra y limpia el flujo anterior, evitando combinaciones visuales inválidas;
+- las respuestas tardías de la consulta previa a Edición se invalidan mediante una versión de solicitud y no pueden recuperar un flujo obsoleto;
+- `PersonasManagementTemplate` conserva exclusivamente estructura institucional, navegación del módulo y contenedor visual;
+- el contenido funcional se proyecta mediante `ng-content`;
+- `PersonasPage` compone directamente formularios, detalle, listado, permisos, mensajes y eventos;
+- el template no expone `@Input` ni `@Output` funcionales del dominio Personas;
+- no se introduce un objeto de configuración global ni una abstracción adicional para transportar el estado de la página.

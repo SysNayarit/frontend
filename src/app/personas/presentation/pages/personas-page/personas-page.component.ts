@@ -1,5 +1,6 @@
 import {
   Component,
+  computed,
   inject,
   OnInit,
   signal,
@@ -27,81 +28,158 @@ import {
   personUpdateRequest,
   validatePersonForm,
 } from '../../forms/person-form';
+import { PersonaDetailComponent } from '../../organisms/persona-detail/persona-detail.component';
+import { PersonaEditFormComponent } from '../../organisms/persona-edit-form/persona-edit-form.component';
+import { PersonaRegisterFormComponent } from '../../organisms/persona-register-form/persona-register-form.component';
+import { PersonaReinstateFormComponent } from '../../organisms/persona-reinstate-form/persona-reinstate-form.component';
+import { PersonasListComponent } from '../../organisms/personas-list/personas-list.component';
+import { PersonaWithdrawFormComponent } from '../../organisms/persona-withdraw-form/persona-withdraw-form.component';
 import { PersonasManagementTemplateComponent } from '../../templates/personas-management-template/personas-management-template.component';
 
 
+
+type PersonasManagementFlow =
+  | 'register'
+  | 'edit'
+  | 'withdraw'
+  | 'reinstate';
 
 @Component({
   selector: 'app-personas-page',
   standalone: true,
   imports: [
     PersonasManagementTemplateComponent,
+    PersonaDetailComponent,
+    PersonaEditFormComponent,
+    PersonaRegisterFormComponent,
+    PersonaReinstateFormComponent,
+    PersonaWithdrawFormComponent,
+    PersonasListComponent,
   ],
   template: `
-    <app-personas-management-template
-      [canCreatePerson]="canCreatePerson()"
-      [registerSuccessMessage]="registerSuccessMessage()"
-      [editSuccessMessage]="editSuccessMessage()"
-      [withdrawSuccessMessage]="withdrawSuccessMessage()"
-      [reinstateSuccessMessage]="reinstateSuccessMessage()"
+    <app-personas-management-template>
+      @if (canCreatePerson()) {
+        <button
+          type="button"
+          data-testid="persona-register"
+          (click)="openRegisterForm()"
+          class="siga-focus mt-6 rounded-lg bg-[#611232] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#9b2247]"
+        >
+          Registrar persona
+        </button>
+      }
 
-      [withdrawFormOpen]="withdrawFormOpen()"
-      [withdrawingPerson]="withdrawingPerson()"
-      [withdrawForm]="withdrawForm"
-      [withdrawPasswordError]="withdrawPasswordError()"
-      [withdrawErrorMessage]="withdrawErrorMessage()"
+      @if (registerSuccessMessage()) {
+        <div
+          data-testid="persona-register-success"
+          class="mt-6 rounded-lg border border-[#1e5b4f]/30 bg-white p-4 text-sm font-semibold text-[#1e5b4f]"
+          role="status"
+        >
+          {{ registerSuccessMessage() }}
+        </div>
+      }
 
-      [reinstateFormOpen]="reinstateFormOpen()"
-      [reinstatingPerson]="reinstatingPerson()"
-      [reinstateForm]="reinstateForm"
-      [reinstatePasswordError]="reinstatePasswordError()"
-      [reinstateErrorMessage]="reinstateErrorMessage()"
+      @if (editSuccessMessage()) {
+        <div
+          data-testid="persona-edit-success"
+          class="mt-6 rounded-lg border border-[#1e5b4f]/30 bg-white p-4 text-sm font-semibold text-[#1e5b4f]"
+          role="status"
+        >
+          {{ editSuccessMessage() }}
+        </div>
+      }
 
-      [registerFormOpen]="registerFormOpen()"
-      [registerForm]="registerForm"
-      [registerErrorMessage]="registerErrorMessage()"
-      [registerFechaNacimientoError]="registerFechaNacimientoError()"
-      [registerNombresError]="registerNombresError()"
-      [registerApellidosError]="registerApellidosError()"
+      @if (withdrawSuccessMessage()) {
+        <div
+          data-testid="persona-withdraw-success"
+          class="mt-6 rounded-lg border border-[#1e5b4f]/30 bg-white p-4 text-sm font-semibold text-[#1e5b4f]"
+          role="status"
+        >
+          {{ withdrawSuccessMessage() }}
+        </div>
+      }
 
-      [editFormOpen]="editFormOpen()"
-      [editForm]="editForm"
-      [editErrorMessage]="editErrorMessage()"
-      [editNombresError]="editNombresError()"
-      [editApellidosError]="editApellidosError()"
-      [editFechaNacimientoError]="editFechaNacimientoError()"
+      @if (reinstateSuccessMessage()) {
+        <div
+          data-testid="persona-reinstate-success"
+          class="mt-6 rounded-lg border border-[#1e5b4f]/30 bg-white p-4 text-sm font-semibold text-[#1e5b4f]"
+          role="status"
+        >
+          {{ reinstateSuccessMessage() }}
+        </div>
+      }
 
-      [selectedPerson]="selectedPerson()"
-      [detailErrorMessage]="detailErrorMessage()"
+      @if (withdrawFormOpen()) {
+        @if (withdrawingPerson(); as personToWithdraw) {
+          <app-persona-withdraw-form
+            [form]="withdrawForm"
+            [person]="personToWithdraw"
+            [passwordError]="withdrawPasswordError()"
+            [errorMessage]="withdrawErrorMessage()"
+            (submitRequested)="submitWithdrawForm()"
+            (cancelRequested)="cancelWithdrawForm()"
+          />
+        }
+      }
 
-      [persons]="persons()"
-      [meta]="meta()"
-      [errorMessage]="errorMessage()"
-      [canUpdatePerson]="canUpdatePerson()"
-      [canWithdrawPerson]="canWithdrawPerson()"
-      [canReinstatePerson]="canReinstatePerson()"
+      @if (reinstateFormOpen()) {
+        @if (reinstatingPerson(); as personToReinstate) {
+          <app-persona-reinstate-form
+            [form]="reinstateForm"
+            [person]="personToReinstate"
+            [passwordError]="reinstatePasswordError()"
+            [errorMessage]="reinstateErrorMessage()"
+            (submitRequested)="submitReinstateForm()"
+            (cancelRequested)="cancelReinstateForm()"
+          />
+        }
+      }
 
-      (openRegisterRequested)="openRegisterForm()"
-      (submitRegisterRequested)="submitRegisterForm()"
-      (cancelRegisterRequested)="cancelRegisterForm()"
+      @if (registerFormOpen()) {
+        <app-persona-register-form
+          [form]="registerForm"
+          [errorMessage]="registerErrorMessage()"
+          [fechaNacimientoError]="registerFechaNacimientoError()"
+          [nombresError]="registerNombresError()"
+          [apellidosError]="registerApellidosError()"
+          (submitRequested)="submitRegisterForm()"
+          (cancelRequested)="cancelRegisterForm()"
+        />
+      }
 
-      (submitEditRequested)="submitEditForm()"
-      (cancelEditRequested)="cancelEditForm()"
+      @if (editFormOpen()) {
+        <app-persona-edit-form
+          [form]="editForm"
+          [errorMessage]="editErrorMessage()"
+          [nombresError]="editNombresError()"
+          [apellidosError]="editApellidosError()"
+          [fechaNacimientoError]="editFechaNacimientoError()"
+          (submitRequested)="submitEditForm()"
+          (cancelRequested)="cancelEditForm()"
+        />
+      }
 
-      (submitWithdrawRequested)="submitWithdrawForm()"
-      (cancelWithdrawRequested)="cancelWithdrawForm()"
+      <app-persona-detail
+        [person]="selectedPerson()"
+        [errorMessage]="detailErrorMessage()"
+        (closeRequested)="closeDetail()"
+      />
 
-      (submitReinstateRequested)="submitReinstateForm()"
-      (cancelReinstateRequested)="cancelReinstateForm()"
-
-      (closeDetailRequested)="closeDetail()"
-      (viewDetailRequested)="viewDetail($event)"
-      (editRequested)="openEditForm($event)"
-      (withdrawRequested)="openWithdrawForm($event)"
-      (reinstateRequested)="openReinstateForm($event)"
-      (previousPageRequested)="previousPage()"
-      (nextPageRequested)="nextPage()"
-    />
+      <app-personas-list
+        [persons]="persons()"
+        [meta]="meta()"
+        [errorMessage]="errorMessage()"
+        [canUpdate]="canUpdatePerson()"
+        [canWithdraw]="canWithdrawPerson()"
+        [canReinstate]="canReinstatePerson()"
+        (viewDetailRequested)="viewDetail($event)"
+        (editRequested)="openEditForm($event)"
+        (withdrawRequested)="openWithdrawForm($event)"
+        (reinstateRequested)="openReinstateForm($event)"
+        (previousPageRequested)="previousPage()"
+        (nextPageRequested)="nextPage()"
+      />
+    </app-personas-management-template>
   `,
 })
 export class PersonasPageComponent implements OnInit {
@@ -113,6 +191,8 @@ export class PersonasPageComponent implements OnInit {
   private readonly personService = inject(
     PersonService,
   );
+
+  private editRequestVersion = 0;
 
   readonly persons = signal<PersonListItem[]>(
     [],
@@ -142,15 +222,25 @@ export class PersonasPageComponent implements OnInit {
 
   readonly canReinstatePerson = signal(false);
 
-  readonly registerFormOpen = signal(false);
+  readonly activeFlow = signal<PersonasManagementFlow | null>(
+    null,
+  );
 
-  readonly editFormOpen = signal(false);
+  readonly registerFormOpen = computed(
+    () => this.activeFlow() === 'register',
+  );
+
+  readonly editFormOpen = computed(
+    () => this.activeFlow() === 'edit',
+  );
 
   readonly editingPersonId = signal<string | null>(
     null,
   );
 
-  readonly withdrawFormOpen = signal(false);
+  readonly withdrawFormOpen = computed(
+    () => this.activeFlow() === 'withdraw',
+  );
 
   readonly withdrawingPerson = signal<PersonListItem | null>(
     null,
@@ -168,7 +258,9 @@ export class PersonasPageComponent implements OnInit {
     null,
   );
 
-  readonly reinstateFormOpen = signal(false);
+  readonly reinstateFormOpen = computed(
+    () => this.activeFlow() === 'reinstate',
+  );
 
   readonly reinstatingPerson = signal<PersonListItem | null>(
     null,
@@ -326,15 +418,25 @@ export class PersonasPageComponent implements OnInit {
   openEditForm(
     idPersona: string,
   ): void {
+    this.closeActiveFlow();
+
+    const requestVersion =
+      ++this.editRequestVersion;
+
     this.editSuccessMessage.set(null);
     this.editErrorMessage.set(null);
-    this.editFormOpen.set(false);
     this.editingPersonId.set(null);
 
     this.personService
       .find(idPersona)
       .subscribe({
         next: (person) => {
+          if (
+            requestVersion !==
+            this.editRequestVersion
+          ) {
+            return;
+          }
           this.editingPersonId.set(
             person.id_persona,
           );
@@ -342,11 +444,16 @@ export class PersonasPageComponent implements OnInit {
           this.editForm.setValue(
             personFormValueFromDetail(person),
           );
-          this.registerFormOpen.set(false);
-          this.editFormOpen.set(true);
+
+          this.activeFlow.set('edit');
         },
         error: () => {
-          this.editFormOpen.set(false);
+          if (
+            requestVersion !==
+            this.editRequestVersion
+          ) {
+            return;
+          }
           this.editingPersonId.set(null);
         },
       });
@@ -359,7 +466,7 @@ export class PersonasPageComponent implements OnInit {
     this.editFechaNacimientoError.set(null);
     this.editErrorMessage.set(null);
 
-    this.editFormOpen.set(false);
+    this.activeFlow.set(null);
     this.editingPersonId.set(null);
   }
   submitEditForm(): void {
@@ -415,7 +522,7 @@ export class PersonasPageComponent implements OnInit {
           this.editApellidosError.set(null);
           this.editFechaNacimientoError.set(null);
 
-          this.editFormOpen.set(false);
+          this.activeFlow.set(null);
           this.editingPersonId.set(null);
 
           this.editSuccessMessage.set(
@@ -510,16 +617,15 @@ export class PersonasPageComponent implements OnInit {
   openWithdrawForm(
     person: PersonListItem,
   ): void {
+    this.closeActiveFlow();
+
     this.withdrawForm.reset();
     this.withdrawPasswordError.set(null);
     this.withdrawErrorMessage.set(null);
     this.withdrawSuccessMessage.set(null);
     this.withdrawingPerson.set(person);
 
-    this.registerFormOpen.set(false);
-    this.editFormOpen.set(false);
-
-    this.withdrawFormOpen.set(true);
+    this.activeFlow.set('withdraw');
   }
   submitWithdrawForm(): void {
     const person = this.withdrawingPerson();
@@ -568,7 +674,7 @@ export class PersonasPageComponent implements OnInit {
           this.withdrawPasswordError.set(null);
           this.withdrawErrorMessage.set(null);
           this.withdrawingPerson.set(null);
-          this.withdrawFormOpen.set(false);
+          this.activeFlow.set(null);
 
           this.withdrawSuccessMessage.set(
             'Persona dada de baja correctamente',
@@ -616,23 +722,20 @@ export class PersonasPageComponent implements OnInit {
     this.withdrawPasswordError.set(null);
     this.withdrawErrorMessage.set(null);
     this.withdrawingPerson.set(null);
-    this.withdrawFormOpen.set(false);
+    this.activeFlow.set(null);
   }
   openReinstateForm(
     person: PersonListItem,
   ): void {
+    this.closeActiveFlow();
+
     this.reinstateForm.reset();
     this.reinstatePasswordError.set(null);
     this.reinstateErrorMessage.set(null);
     this.reinstateSuccessMessage.set(null);
     this.reinstatingPerson.set(person);
 
-    this.cancelWithdrawForm();
-
-    this.registerFormOpen.set(false);
-    this.editFormOpen.set(false);
-
-    this.reinstateFormOpen.set(true);
+    this.activeFlow.set('reinstate');
   }
   submitReinstateForm(): void {
     const person = this.reinstatingPerson();
@@ -681,7 +784,7 @@ export class PersonasPageComponent implements OnInit {
           this.reinstatePasswordError.set(null);
           this.reinstateErrorMessage.set(null);
           this.reinstatingPerson.set(null);
-          this.reinstateFormOpen.set(false);
+          this.activeFlow.set(null);
 
           this.reinstateSuccessMessage.set(
             'Persona reingresada correctamente',
@@ -729,12 +832,14 @@ export class PersonasPageComponent implements OnInit {
     this.reinstatePasswordError.set(null);
     this.reinstateErrorMessage.set(null);
     this.reinstatingPerson.set(null);
-    this.reinstateFormOpen.set(false);
+    this.activeFlow.set(null);
   }
   openRegisterForm(): void {
+    this.closeActiveFlow();
+
     this.registerSuccessMessage.set(null);
     this.registerErrorMessage.set(null);
-    this.registerFormOpen.set(true);
+    this.activeFlow.set('register');
   }
 
   cancelRegisterForm(): void {
@@ -745,7 +850,7 @@ export class PersonasPageComponent implements OnInit {
     this.registerFechaNacimientoError.set(null);
     this.registerErrorMessage.set(null);
 
-    this.registerFormOpen.set(false);
+    this.activeFlow.set(null);
   }
 
   submitRegisterForm(): void {
@@ -786,7 +891,7 @@ export class PersonasPageComponent implements OnInit {
           this.registerNombresError.set(null);
           this.registerApellidosError.set(null);
 
-          this.registerFormOpen.set(false);
+          this.activeFlow.set(null);
 
           this.registerSuccessMessage.set(
             'Persona registrada correctamente',
@@ -870,6 +975,27 @@ export class PersonasPageComponent implements OnInit {
           );
         },
       });
+  }
+
+  private closeActiveFlow(): void {
+    this.editRequestVersion += 1;
+
+    switch (this.activeFlow()) {
+      case 'register':
+        this.cancelRegisterForm();
+        return;
+      case 'edit':
+        this.cancelEditForm();
+        return;
+      case 'withdraw':
+        this.cancelWithdrawForm();
+        return;
+      case 'reinstate':
+        this.cancelReinstateForm();
+        return;
+      default:
+        return;
+    }
   }
 
   private lifecycleErrorSource(
