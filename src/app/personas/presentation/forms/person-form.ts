@@ -118,6 +118,62 @@ export function personFormHasErrors(
   );
 }
 
+export function personFormValidationErrorsFromResponse(
+  error: unknown,
+): PersonFormValidationErrors | null {
+  const response = error as {
+    status?: number;
+    error?: {
+      errors?: Record<string, string[]>;
+    };
+  };
+
+  if (response.status !== 422) {
+    return null;
+  }
+
+  const errors = response.error?.errors;
+
+  if (errors === undefined) {
+    return null;
+  }
+
+  const validationErrors: PersonFormValidationErrors = {
+    nombres: firstServerValidationMessage(
+      errors["nombres"],
+      "Los nombres no son válidos.",
+    ),
+    apellidos:
+      firstServerValidationMessage(
+        errors["apellido_paterno"],
+        "Los apellidos no son válidos.",
+      ) ??
+      firstServerValidationMessage(
+        errors["apellido_materno"],
+        "Los apellidos no son válidos.",
+      ),
+    fechaNacimiento: firstServerValidationMessage(
+      errors["fecha_nacimiento"],
+      "La fecha de nacimiento no es válida.",
+    ),
+  };
+
+  return personFormHasErrors(validationErrors)
+    ? validationErrors
+    : null;
+}
+
+function firstServerValidationMessage(
+  messages: string[] | undefined,
+  fallback: string,
+): string | null {
+  if (!messages?.length) {
+    return null;
+  }
+
+  return messages[0] ?? fallback;
+}
+
 export function personCreateRequest(
   values: PersonFormValue,
 ): PersonCreateRequest {

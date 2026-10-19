@@ -24,6 +24,7 @@ import {
   normalizePersonForm,
   personCreateRequest,
   personFormHasErrors,
+  personFormValidationErrorsFromResponse,
   personFormValueFromDetail,
   personUpdateRequest,
   validatePersonForm,
@@ -448,77 +449,21 @@ export class PersonasPageComponent implements OnInit {
           this.loadPage(currentPage);
         },
         error: (error: unknown) => {
-          const response = error as {
-            status?: number;
-            error?: {
-              errors?: Record<
-                string,
-                string[]
-              >;
-            };
-          };
+          const validationErrors =
+            personFormValidationErrorsFromResponse(
+              error,
+            );
 
-          const nombresErrors =
-            response.error?.errors?.[
-              'nombres'
-            ];
-
-          const apellidoPaternoErrors =
-            response.error?.errors?.[
-              'apellido_paterno'
-            ];
-
-          const apellidoMaternoErrors =
-            response.error?.errors?.[
-              'apellido_materno'
-            ];
-
-          const fechaNacimientoErrors =
-            response.error?.errors?.[
-              'fecha_nacimiento'
-            ];
-
-          if (
-            response.status === 422 &&
-            nombresErrors?.length
-          ) {
+          if (validationErrors !== null) {
             this.editNombresError.set(
-              nombresErrors[0] ??
-                'Los nombres no son válidos.',
+              validationErrors.nombres,
             );
-
-            this.editErrorMessage.set(null);
-
-            return;
-          }
-
-          if (
-            response.status === 422 &&
-            (
-              apellidoPaternoErrors?.length ||
-              apellidoMaternoErrors?.length
-            )
-          ) {
             this.editApellidosError.set(
-              apellidoPaternoErrors?.[0] ??
-                apellidoMaternoErrors?.[0] ??
-                'Los apellidos no son válidos.',
+              validationErrors.apellidos,
             );
-
-            this.editErrorMessage.set(null);
-
-            return;
-          }
-
-          if (
-            response.status === 422 &&
-            fechaNacimientoErrors?.length
-          ) {
             this.editFechaNacimientoError.set(
-              fechaNacimientoErrors[0] ??
-                'La fecha de nacimiento no es válida.',
+              validationErrors.fechaNacimiento,
             );
-
             this.editErrorMessage.set(null);
 
             return;
@@ -816,71 +761,20 @@ export class PersonasPageComponent implements OnInit {
           this.loadPage(1);
         },
         error: (error: unknown) => {
-          const response = error as {
-            status?: number;
-            error?: {
-              errors?: Record<
-                string,
-                string[]
-              >;
-            };
-          };
+          const validationErrors =
+            personFormValidationErrorsFromResponse(
+              error,
+            );
 
-          const nombresErrors =
-            response.error?.errors?.[
-              'nombres'
-            ];
-
-          const apellidoPaternoErrors =
-            response.error?.errors?.[
-              'apellido_paterno'
-            ];
-
-          const apellidoMaternoErrors =
-            response.error?.errors?.[
-              'apellido_materno'
-            ];
-
-          const fechaNacimientoErrors =
-            response.error?.errors?.[
-              'fecha_nacimiento'
-            ];
-
-          if (
-            response.status === 422 &&
-            nombresErrors?.length
-          ) {
+          if (validationErrors !== null) {
             this.registerNombresError.set(
-              nombresErrors[0] ??
-                'Los nombres no son válidos.',
+              validationErrors.nombres,
             );
-
-            return;
-          }
-
-          if (
-            response.status === 422 &&
-            (
-              apellidoPaternoErrors?.length ||
-              apellidoMaternoErrors?.length
-            )
-          ) {
             this.registerApellidosError.set(
-              apellidoPaternoErrors?.[0] ??
-                apellidoMaternoErrors?.[0] ??
-                'Los apellidos no son válidos.',
+              validationErrors.apellidos,
             );
-
-            return;
-          }
-
-          if (
-            response.status === 422 &&
-            fechaNacimientoErrors?.length
-          ) {
             this.registerFechaNacimientoError.set(
-              fechaNacimientoErrors[0] ??
-                'La fecha de nacimiento no es válida.',
+              validationErrors.fechaNacimiento,
             );
 
             return;

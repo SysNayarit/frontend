@@ -5,6 +5,7 @@ import {
   normalizePersonForm,
   personCreateRequest,
   personFormHasErrors,
+  personFormValidationErrorsFromResponse,
   personFormValueFromDetail,
   personUpdateRequest,
   validatePersonForm,
@@ -161,5 +162,68 @@ describe("person-form", () => {
       sexo: null,
       estado_civil: null,
     });
+  });
+
+  it("mapea todos los errores 422 reconocidos del backend", () => {
+    const errors = personFormValidationErrorsFromResponse({
+      status: 422,
+      error: {
+        errors: {
+          nombres: ["Nombre rechazado por el servidor."],
+          apellido_paterno: ["Apellido paterno rechazado."],
+          apellido_materno: ["Apellido materno rechazado."],
+          fecha_nacimiento: ["Fecha rechazada por el servidor."],
+        },
+      },
+    });
+
+    expect(errors).toEqual({
+      nombres: "Nombre rechazado por el servidor.",
+      apellidos: "Apellido paterno rechazado.",
+      fechaNacimiento: "Fecha rechazada por el servidor.",
+    });
+  });
+
+  it("usa el error del apellido materno cuando no existe error paterno", () => {
+    const errors = personFormValidationErrorsFromResponse({
+      status: 422,
+      error: {
+        errors: {
+          apellido_materno: ["Apellido materno rechazado."],
+        },
+      },
+    });
+
+    expect(errors).toEqual({
+      nombres: null,
+      apellidos: "Apellido materno rechazado.",
+      fechaNacimiento: null,
+    });
+  });
+
+  it("ignora respuestas que no son 422", () => {
+    expect(
+      personFormValidationErrorsFromResponse({
+        status: 500,
+        error: {
+          errors: {
+            nombres: ["No debe interpretarse."],
+          },
+        },
+      }),
+    ).toBeNull();
+  });
+
+  it("ignora errores 422 sin campos reconocidos de Persona", () => {
+    expect(
+      personFormValidationErrorsFromResponse({
+        status: 422,
+        error: {
+          errors: {
+            correo: ["Correo rechazado."],
+          },
+        },
+      }),
+    ).toBeNull();
   });
 });
