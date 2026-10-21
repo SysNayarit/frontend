@@ -3,6 +3,7 @@ import { provideRouter } from "@angular/router";
 import { Subject } from "rxjs";
 
 import {
+  PersonImportPreviewResponse,
   PersonImportUploadResponse,
 } from "../../../person-import.models";
 import { PersonImportService } from "../../../person-import.service";
@@ -12,15 +13,26 @@ describe("PersonImportPageComponent", () => {
   let fixture: ComponentFixture<PersonImportPageComponent>;
   let uploadResponse$: Subject<PersonImportUploadResponse>;
   let uploadedFiles: File[];
+  let previewRequests: Array<{
+    uuid: string;
+    page: number;
+    response$: Subject<PersonImportPreviewResponse>;
+  }>;
 
   beforeEach(async () => {
     uploadResponse$ = new Subject<PersonImportUploadResponse>();
     uploadedFiles = [];
+    previewRequests = [];
 
     const importService = {
       upload(file: File) {
         uploadedFiles.push(file);
         return uploadResponse$.asObservable();
+      },
+      getBatch(uuid: string, page = 1) {
+        const response$ = new Subject<PersonImportPreviewResponse>();
+        previewRequests.push({ uuid, page, response$ });
+        return response$.asObservable();
       },
     };
 
@@ -264,6 +276,175 @@ describe("PersonImportPageComponent", () => {
       elementByTestId(fixture, "person-import-selected-file").textContent,
     ).toContain("segundo.xlsx");
   });
+  it("consulta automaticamente el preview despues de cargar el XLSX", () => {
+    uploadReadyBatch();
+
+    expect(previewRequests).toHaveLength(1);
+    expect(previewRequests[0]?.uuid).toBe("lote-preview");
+    expect(previewRequests[0]?.page).toBe(1);
+
+    expect(
+      elementByTestId(fixture, "person-import-preview-loading").textContent,
+    ).toContain("Consultando");
+  });
+
+  it("presenta las filas y errores recibidos del GET", () => {
+    uploadReadyBatch();
+
+    previewRequests[0]!.response$.next(previewResponse());
+    previewRequests[0]!.response$.complete();
+    fixture.detectChanges();
+
+    const preview = elementByTestId(
+      fixture,
+      "person-import-preview",
+    );
+
+    expect(preview.textContent).toContain("MARIA");
+    expect(preview.textContent).toContain("INVALID");
+    expect(preview.textContent).toContain(
+      "El nombre es obligatorio.",
+    );
+  });
+
+  it("solicita la segunda pagina desde el organismo", () => {
+    uploadReadyBatch();
+
+    previewRequests[0]!.response$.next(previewResponse());
+    previewRequests[0]!.response$.complete();
+    fixture.detectChanges();
+
+    buttonByTestId("person-import-preview-next").click();
+
+    expect(previewRequests).toHaveLength(2);
+    expect(previewRequests[1]?.uuid).toBe("lote-preview");
+    expect(previewRequests[1]?.page).toBe(2);
+  });
+
+  it("informa un error del GET sin borrar el resumen del lote", () => {
+    uploadReadyBatch();
+
+    previewRequests[0]!.response$.error(
+      new Error("Consulta no disponible"),
+    );
+    fixture.detectChanges();
+
+    expect(
+      elementByTestId(fixture, "person-import-preview-error").textContent,
+    ).toContain("No se pudo consultar");
+
+    expect(
+      elementByTestId(fixture, "person-import-summary").textContent,
+    ).toContain("lote-preview");
+  });
+
+  it("descarta respuestas de preview anteriores al cambiar el XLSX", () => {
+    uploadReadyBatch();
+
+    selectFile(new File(["nuevo"], "nuevo.xlsx"));
+
+    previewRequests[0]!.response$.next(previewResponse());
+    previewRequests[0]!.response$.complete();
+    fixture.detectChanges();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="person-import-preview"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="person-import-summary"]',
+      ),
+    ).toBeNull();
+  });
+
+  it("cancela la consulta anterior al solicitar otra pagina", () => {
+    uploadReadyBatch();
+
+    const firstRequest = previewRequests[0];
+
+    expect(firstRequest).toBeDefined();
+    expect(firstRequest!.response$.observed).toBe(true);
+
+    fixture.componentInstance.loadPreview(2);
+
+    expect(previewRequests).toHaveLength(2);
+    expect(firstRequest!.response$.observed).toBe(false);
+    expect(previewRequests[1]!.response$.observed).toBe(true);
+
+    firstRequest!.response$.next(previewResponse());
+    fixture.detectChanges();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="person-import-preview"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      elementByTestId(fixture, "person-import-preview-loading").textContent,
+    ).toContain("Consultando");
+  });
+  function uploadReadyBatch(): void {
+    selectFile(new File(["contenido"], "personas.xlsx"));
+    buttonByTestId("person-import-upload").click();
+
+    uploadResponse$.next({
+      data: {
+        uuid: "lote-preview",
+        original_filename: "personas.xlsx",
+        status: "READY",
+        total_rows: 52,
+        valid_rows: 51,
+        invalid_rows: 1,
+        processed_rows: 0,
+        failed_rows: 0,
+        confirmed_at: null,
+        started_at: null,
+        finished_at: null,
+      },
+    });
+    uploadResponse$.complete();
+    fixture.detectChanges();
+  }
+
+  function previewResponse(): PersonImportPreviewResponse {
+    return {
+      data: {
+        uuid: "lote-preview",
+        original_filename: "personas.xlsx",
+        status: "READY",
+        total_rows: 52,
+        valid_rows: 51,
+        invalid_rows: 1,
+        processed_rows: 0,
+        failed_rows: 0,
+        confirmed_at: null,
+        started_at: null,
+        finished_at: null,
+      },
+      rows: [
+        {
+          row_number: 2,
+          status: "INVALID",
+          raw_data: { nombres: "MARIA" },
+          normalized_data: { nombres: "MARIA" },
+          validation_errors: {
+            nombres: ["El nombre es obligatorio."],
+          },
+          result_data: null,
+        },
+      ],
+      meta: {
+        current_page: 1,
+        per_page: 50,
+        last_page: 2,
+        total: 52,
+      },
+    };
+  }
   function buttonByTestId(testId: string): HTMLButtonElement {
     const element = elementByTestId(fixture, testId);
 

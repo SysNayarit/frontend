@@ -25,3 +25,35 @@ export interface PersonImportBatch {
 export interface PersonImportUploadResponse {
   data: PersonImportBatch;
 }
+
+export type PersonImportRowStatus =
+  | 'PENDING'
+  | 'VALID'
+  | 'INVALID'
+  | 'PROCESSED'
+  | 'FAILED'
+  | 'SKIPPED';
+
+export type PersonImportRowData = Record<string, unknown>;
+
+export interface PersonImportRow {
+  row_number: number;
+  status: PersonImportRowStatus;
+  raw_data: PersonImportRowData;
+  normalized_data: PersonImportRowData | null;
+  validation_errors: Record<string, string[]>;
+  result_data: PersonImportRowData | null;
+}
+
+export interface PersonImportPreviewMeta {
+  current_page: number;
+  per_page: number;
+  last_page: number;
+  total: number;
+}
+
+export interface PersonImportPreviewResponse {
+  data: PersonImportBatch;
+  rows: PersonImportRow[];
+  meta: PersonImportPreviewMeta;
+}

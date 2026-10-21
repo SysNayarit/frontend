@@ -7,15 +7,20 @@ import {
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { RouterLink } from "@angular/router";
+import { Subscription } from "rxjs";
 
-import { PersonImportBatch } from "../../../person-import.models";
+import {
+  PersonImportBatch,
+  PersonImportPreviewResponse,
+} from "../../../person-import.models";
 import { PersonImportService } from "../../../person-import.service";
 import { ModuleNavigationComponent } from "../../molecules/module-navigation/module-navigation.component";
+import { PersonImportPreviewComponent } from "../../organisms/person-import-preview/person-import-preview.component";
 
 @Component({
   selector: "app-person-import-page",
   standalone: true,
-  imports: [RouterLink, ModuleNavigationComponent],
+  imports: [RouterLink, ModuleNavigationComponent, PersonImportPreviewComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section
@@ -202,6 +207,33 @@ import { ModuleNavigationComponent } from "../../molecules/module-navigation/mod
               </dl>
             </section>
           }
+
+          @if (isPreviewLoading()) {
+            <p
+              data-testid="person-import-preview-loading"
+              role="status"
+              class="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-[#555555]"
+            >
+              Consultando vista previa del lote...
+            </p>
+          }
+
+          @if (previewError(); as message) {
+            <div
+              data-testid="person-import-preview-error"
+              role="alert"
+              class="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+            >
+              {{ message }}
+            </div>
+          }
+
+          @if (preview(); as result) {
+            <app-person-import-preview
+              [preview]="result"
+              (pageChange)="loadPreview($event)"
+            />
+          }
         </div>
       </section>
     </div>
@@ -216,6 +248,12 @@ export class PersonImportPageComponent {
   readonly batch = signal<PersonImportBatch | null>(null);
   readonly errorMessage = signal<string | null>(null);
 
+  readonly preview = signal<PersonImportPreviewResponse | null>(null);
+  readonly isPreviewLoading = signal(false);
+  readonly previewError = signal<string | null>(null);
+
+  private previewSubscription: Subscription | null = null;
+
   onFileSelected(event: Event): void {
     if (this.isUploading()) {
       return;
@@ -228,6 +266,8 @@ export class PersonImportPageComponent {
     }
 
     const file = input.files?.item(0) ?? null;
+
+    this.clearPreview();
 
     this.batch.set(null);
     this.errorMessage.set(null);
@@ -254,6 +294,7 @@ export class PersonImportPageComponent {
       return;
     }
 
+    this.clearPreview();
     this.isUploading.set(true);
     this.errorMessage.set(null);
     this.batch.set(null);
@@ -264,6 +305,7 @@ export class PersonImportPageComponent {
       .subscribe({
         next: (response) => {
           this.batch.set(response.data);
+          this.loadPreview(1);
         },
         error: () => {
           this.isUploading.set(false);
@@ -275,5 +317,48 @@ export class PersonImportPageComponent {
           this.isUploading.set(false);
         },
       });
+  }
+
+  loadPreview(page: number): void {
+    const currentBatch = this.batch();
+
+    if (
+      !currentBatch ||
+      !Number.isInteger(page) ||
+      page < 1
+    ) {
+      return;
+    }
+
+    this.clearPreview();
+    this.isPreviewLoading.set(true);
+
+    this.previewSubscription = this.importService
+      .getBatch(currentBatch.uuid, page)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          this.preview.set(response);
+          this.batch.set(response.data);
+        },
+        error: () => {
+          this.isPreviewLoading.set(false);
+          this.previewError.set(
+            "No se pudo consultar la vista previa del lote.",
+          );
+        },
+        complete: () => {
+          this.isPreviewLoading.set(false);
+        },
+      });
+  }
+
+  private clearPreview(): void {
+    this.previewSubscription?.unsubscribe();
+    this.previewSubscription = null;
+
+    this.preview.set(null);
+    this.previewError.set(null);
+    this.isPreviewLoading.set(false);
   }
 }

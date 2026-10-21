@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  PersonImportPreviewResponse,
   PersonImportUploadResponse,
 } from './person-import.models';
 
@@ -12,6 +13,19 @@ import {
 export class PersonImportService {
   private readonly http = inject(HttpClient);
 
+  getBatch(
+    batchUuid: string,
+    page = 1,
+  ): Observable<PersonImportPreviewResponse> {
+    return this.http.get<PersonImportPreviewResponse>(
+      `/api/personas/importaciones/${encodeURIComponent(batchUuid)}`,
+      {
+        params: {
+          page: String(page),
+        },
+      },
+    );
+  }
   upload(
     file: File,
   ): Observable<PersonImportUploadResponse> {

@@ -39,6 +39,139 @@ describe('PersonImportService', () => {
     http.verify();
   });
 
+  it('consulta el preview de un lote mediante su UUID', () => {
+    const batchUuid =
+      '01900000-0000-7000-8000-000000000001';
+
+    let result: unknown;
+
+    service.getBatch(batchUuid).subscribe((response) => {
+      result = response;
+    });
+
+    const request = http.expectOne(
+      `/api/personas/importaciones/${batchUuid}?page=1`,
+    );
+
+    expect(request.request.method).toBe('GET');
+
+    const response = {
+      data: {
+        uuid: batchUuid,
+        original_filename: 'personas.xlsx',
+        status: 'READY',
+        total_rows: 2,
+        valid_rows: 1,
+        invalid_rows: 1,
+        processed_rows: 0,
+        failed_rows: 0,
+        confirmed_at: null,
+        started_at: null,
+        finished_at: null,
+      },
+      rows: [
+        {
+          row_number: 2,
+          status: 'VALID',
+          raw_data: {
+            nombres: 'MARIA',
+          },
+          normalized_data: {
+            nombres: 'MARIA',
+          },
+          validation_errors: {},
+          result_data: null,
+        },
+        {
+          row_number: 3,
+          status: 'INVALID',
+          raw_data: {
+            nombres: '',
+          },
+          normalized_data: {
+            nombres: '',
+          },
+          validation_errors: {
+            nombres: ['El nombre es obligatorio.'],
+          },
+          result_data: null,
+        },
+      ],
+      meta: {
+        current_page: 1,
+        per_page: 50,
+        last_page: 1,
+        total: 2,
+      },
+    };
+
+    request.flush(response);
+
+    expect(result).toEqual(response);
+  });
+
+  it('permite consultar una pagina especifica del preview', () => {
+    const batchUuid =
+      '01900000-0000-7000-8000-000000000002';
+
+    service.getBatch(batchUuid, 2).subscribe();
+
+    const request = http.expectOne(
+      `/api/personas/importaciones/${batchUuid}?page=2`,
+    );
+
+    expect(request.request.method).toBe('GET');
+
+    request.flush({
+      data: {
+        uuid: batchUuid,
+        original_filename: 'personas.xlsx',
+        status: 'READY',
+        total_rows: 55,
+        valid_rows: 54,
+        invalid_rows: 1,
+        processed_rows: 0,
+        failed_rows: 0,
+        confirmed_at: null,
+        started_at: null,
+        finished_at: null,
+      },
+      rows: [],
+      meta: {
+        current_page: 2,
+        per_page: 50,
+        last_page: 2,
+        total: 55,
+      },
+    });
+  });
+
+  it('propaga errores HTTP durante la consulta del preview', () => {
+    const batchUuid =
+      '01900000-0000-7000-8000-000000000003';
+
+    let errorStatus: number | undefined;
+
+    service.getBatch(batchUuid).subscribe({
+      error: (error: { status: number }) => {
+        errorStatus = error.status;
+      },
+    });
+
+    const request = http.expectOne(
+      `/api/personas/importaciones/${batchUuid}?page=1`,
+    );
+
+    request.flush(
+      { message: 'No autorizado.' },
+      {
+        status: 403,
+        statusText: 'Forbidden',
+      },
+    );
+
+    expect(errorStatus).toBe(403);
+  });
   it('carga un XLSX de personas mediante multipart con la clave archivo', () => {
     const file =
       new File(
