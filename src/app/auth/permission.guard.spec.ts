@@ -16,7 +16,10 @@ import {
 
 import { AuthenticatedUser } from './auth.models';
 import { AuthService } from './auth.service';
-import { personasViewGuard } from './permission.guard';
+import {
+  personasImportGuard,
+  personasViewGuard,
+} from './permission.guard';
 
 class AuthServiceStub {
   currentUserResult: Observable<AuthenticatedUser> = of({
@@ -60,10 +63,12 @@ describe('personasViewGuard', () => {
     router = TestBed.inject(Router);
   });
 
-  async function runGuard(): Promise<boolean | UrlTree> {
+  async function runGuard(
+    guard = personasViewGuard,
+  ): Promise<boolean | UrlTree> {
     const result = TestBed.runInInjectionContext(
       () =>
-        personasViewGuard(
+        guard(
           {} as ActivatedRouteSnapshot,
           {} as RouterStateSnapshot,
         ),
@@ -121,5 +126,57 @@ describe('personasViewGuard', () => {
         result as UrlTree,
       ),
     ).toBe('/acceso');
+  });
+  it('permite importar cuando el usuario tiene personas.importar', async () => {
+    auth.currentUserResult = of({
+      id: 1,
+      id_persona: null,
+      name: 'admin',
+      email: 'admin@imail.com',
+      email_verified_at: null,
+      created_at: '2026-10-09T00:00:00.000000Z',
+      updated_at: '2026-10-09T00:00:00.000000Z',
+      person: null,
+      permissions: [
+        'personas.importar',
+      ],
+    });
+
+    expect(
+      await runGuard(
+        personasImportGuard,
+      ),
+    ).toBe(true);
+  });
+
+  it('rechaza importaciones cuando falta personas.importar', async () => {
+    auth.currentUserResult = of({
+      id: 1,
+      id_persona: null,
+      name: 'admin',
+      email: 'admin@imail.com',
+      email_verified_at: null,
+      created_at: '2026-10-09T00:00:00.000000Z',
+      updated_at: '2026-10-09T00:00:00.000000Z',
+      person: null,
+      permissions: [
+        'personas.ver',
+      ],
+    });
+
+    const result =
+      await runGuard(
+        personasImportGuard,
+      );
+
+    expect(
+      result instanceof UrlTree,
+    ).toBe(true);
+
+    expect(
+      router.serializeUrl(
+        result as UrlTree,
+      ),
+    ).toBe('/inicio');
   });
 });

@@ -4043,6 +4043,61 @@ describe('PersonasPageComponent', () => {
     expect(component.meta()?.current_page).toBe(2);
   });
 
+  it('muestra la accion de importacion solo con personas.importar', () => {
+    const auth = TestBed.inject(
+      AuthService,
+    ) as unknown as AuthServiceStub;
+
+    const context = TestBed.inject(
+      AuthContextService,
+    );
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+        'personas.importar',
+      ],
+    };
+
+    const fixture = createFixture();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const importLink =
+      element.querySelector(
+        '[data-testid="person-import-open"]',
+      ) as HTMLAnchorElement | null;
+
+    expect(importLink).not.toBeNull();
+
+    expect(
+      importLink?.getAttribute('href'),
+    ).toBe('/personas/importaciones');
+
+    expect(
+      importLink?.textContent,
+    ).toContain(
+      'Importar personas',
+    );
+
+    auth.currentUserResult = {
+      ...auth.currentUserResult,
+      permissions: [
+        'personas.ver',
+      ],
+    };
+
+    context.refresh().subscribe();
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-testid="person-import-open"]',
+      ),
+    ).toBeNull();
+  });
   it('actualiza las acciones cuando cambia el contexto de permisos', () => {
     const auth = TestBed.inject(
       AuthService,

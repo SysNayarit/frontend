@@ -5,6 +5,7 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { AuthContextService } from '../../../../auth/auth-context.service';
 import {
@@ -49,6 +50,7 @@ type PersonasManagementFlow =
   selector: 'app-personas-page',
   standalone: true,
   imports: [
+    RouterLink,
     PersonasManagementTemplateComponent,
     PersonaDetailComponent,
     PersonaEditFormComponent,
@@ -99,6 +101,13 @@ export class PersonasPageComponent implements OnInit {
     () =>
       this.authContext.hasPermission(
         'personas.crear',
+      ),
+  );
+
+  readonly canImportPerson = computed(
+    () =>
+      this.authContext.hasPermission(
+        'personas.importar',
       ),
   );
 

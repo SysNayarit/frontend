@@ -1,13 +1,30 @@
 <app-personas-management-template>
-  @if (canCreatePerson()) {
-    <button
-      type="button"
-      data-testid="persona-register"
-      (click)="openRegisterForm()"
-      class="siga-focus mt-6 rounded-lg bg-[#611232] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#9b2247]"
+  @if (canCreatePerson() || canImportPerson()) {
+    <div
+      class="mt-6 flex flex-wrap gap-3"
+      data-testid="personas-primary-actions"
     >
-      Registrar persona
-    </button>
+      @if (canCreatePerson()) {
+        <button
+          type="button"
+          data-testid="persona-register"
+          (click)="openRegisterForm()"
+          class="siga-focus rounded-lg bg-[#611232] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#9b2247]"
+        >
+          Registrar persona
+        </button>
+      }
+
+      @if (canImportPerson()) {
+        <a
+          routerLink="/personas/importaciones"
+          data-testid="person-import-open"
+          class="siga-focus inline-flex items-center rounded-lg border border-[#611232] px-5 py-3 text-sm font-semibold text-[#611232] transition hover:bg-[#611232]/5"
+        >
+          Importar personas
+        </a>
+      }
+    </div>
   }
 
   @if (registerSuccessMessage()) {

@@ -1,5 +1,8 @@
 import { authGuard } from "./auth/auth.guard";
-import { personasViewGuard } from "./auth/permission.guard";
+import {
+  personasImportGuard,
+  personasViewGuard,
+} from "./auth/permission.guard";
 import { routes } from "./app.routes";
 
 describe("routes", () => {
@@ -37,5 +40,31 @@ describe("routes", () => {
     expect(personasRoute?.component).toBeDefined();
 
     expect(personasRoute?.canActivate).toEqual([personasViewGuard]);
+  });
+  it("protege la importacion de personas con personas.importar", () => {
+    const authenticatedRoute = routes.find(
+      (route) =>
+        route.path === "" &&
+        Array.isArray(route.children),
+    );
+
+    const importRoute =
+      authenticatedRoute?.children?.find(
+        (route) =>
+          route.path ===
+          "personas/importaciones",
+      );
+
+    expect(importRoute).toBeDefined();
+
+    expect(
+      importRoute?.component,
+    ).toBeDefined();
+
+    expect(
+      importRoute?.canActivate,
+    ).toEqual([
+      personasImportGuard,
+    ]);
   });
 });
