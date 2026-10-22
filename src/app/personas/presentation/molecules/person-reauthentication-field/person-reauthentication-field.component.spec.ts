@@ -38,6 +38,34 @@ describe("PersonReauthenticationFieldComponent", () => {
     ).not.toBeNull();
   });
 
+  it("usa los identificadores de importación", () => {
+    fixture.componentRef.setInput("mode", "import");
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector('[data-testid="persona-import-password"]'),
+    ).not.toBeNull();
+  });
+
+  it("muestra el error de contraseña durante la importación", () => {
+    fixture.componentRef.setInput("mode", "import");
+    fixture.componentRef.setInput(
+      "passwordError",
+      "La contraseña no es válida.",
+    );
+
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector('[data-testid="persona-import-password-error"]')
+        ?.textContent,
+    ).toContain("La contraseña no es válida.");
+  });
+
   it("mantiene el formulario recibido como fuente de contraseña", () => {
     const form = createPersonReauthenticationForm();
 

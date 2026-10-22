@@ -8,6 +8,7 @@ import {
 import {
   PersonImportPreviewResponse,
   PersonImportRow,
+  PersonImportRowStatus,
 } from "../../../person-import.models";
 
 @Component({
@@ -18,100 +19,147 @@ import {
     <section
       data-testid="person-import-preview"
       aria-labelledby="person-import-preview-title"
-      class="mt-8 rounded-xl border border-gray-200 bg-white p-5 sm:p-6"
+      class="mt-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
     >
-      <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3
             id="person-import-preview-title"
             class="siga-title text-xl font-bold text-[#611232]"
           >
-            Vista previa de registros
+            Personas del archivo
           </h3>
 
-          <p class="mt-2 text-sm text-[#555555]">
-            Revisa los registros y sus resultados de validación.
+          <p class="mt-1 text-sm text-[#555555]">
+            Revisa cada persona y consulta sus detalles cuando lo necesites.
           </p>
         </div>
 
-        <p class="text-sm font-semibold text-[#611232]">
-          Total de registros: {{ preview().meta.total }}
-        </p>
+        <span
+          class="rounded-full bg-[#611232]/5 px-3 py-1.5 text-sm font-semibold text-[#611232]"
+        >
+          {{ preview().meta.total }} registros
+        </span>
       </div>
 
       @if (preview().rows.length === 0) {
         <p
           data-testid="person-import-preview-empty"
-          class="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-[#555555]"
+          class="mt-5 rounded-lg bg-gray-50 p-4 text-sm text-[#555555]"
         >
           No hay registros para mostrar.
         </p>
       } @else {
-        <div class="mt-6 space-y-4">
-          @for (row of preview().rows; track row.row_number) {
-            <article
-              class="rounded-lg border border-gray-200 p-4"
-              [attr.data-row-number]="row.row_number"
-            >
-              <div class="flex flex-wrap items-center gap-3">
-                <h4 class="font-semibold text-[#611232]">
-                  Fila {{ row.row_number }}
-                </h4>
+        <div class="mt-5 overflow-x-auto rounded-lg border border-gray-200">
+          <table class="w-full min-w-[640px] border-collapse text-left text-sm">
+            <thead class="bg-gray-50 text-[#555555]">
+              <tr>
+                <th scope="col" class="w-16 px-4 py-3 font-semibold">
+                  Fila
+                </th>
+                <th scope="col" class="px-4 py-3 font-semibold">
+                  Persona
+                </th>
+                <th scope="col" class="px-4 py-3 font-semibold">
+                  Validación
+                </th>
+                <th scope="col" class="w-32 px-4 py-3 font-semibold">
+                  Información
+                </th>
+              </tr>
+            </thead>
 
-                <span
-                  class="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-[#333333]"
-                >
-                  {{ row.status }}
-                </span>
-              </div>
+            <tbody class="divide-y divide-gray-200">
+              @for (row of preview().rows; track row.row_number) {
+                <tr [attr.data-row-number]="row.row_number">
+                  <td class="px-4 py-3 align-top text-[#555555]">
+                    {{ row.row_number }}
+                  </td>
 
-              <dl class="mt-4 grid gap-3 sm:grid-cols-2">
-                @for (field of fields(row); track field.key) {
-                  <div>
-                    <dt class="text-xs font-semibold text-[#555555]">
-                      {{ field.key }}
-                    </dt>
+                  <td class="px-4 py-3 align-top">
+                    <p class="font-semibold text-[#161a1d]">
+                      {{ personName(row) }}
+                    </p>
 
-                    <dd class="mt-1 break-words text-sm text-[#333333]">
-                      {{ field.value }}
-                    </dd>
-                  </div>
-                }
-              </dl>
-
-              @if (validationErrors(row).length > 0) {
-                <div
-                  class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4"
-                >
-                  <p class="text-sm font-semibold text-red-800">
-                    Errores de validación
-                  </p>
-
-                  <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-red-800">
-                    @for (error of validationErrors(row); track $index) {
-                      <li>
-                        <strong>{{ error.field }}:</strong>
-                        {{ error.message }}
-                      </li>
+                    @if (personIdentifier(row); as identifier) {
+                      <p class="mt-1 text-xs text-[#555555]">
+                        {{ identifier }}
+                      </p>
                     }
-                  </ul>
-                </div>
+
+                    @if (validationErrors(row).length > 0) {
+                      <div
+                        class="mt-2 space-y-1 text-xs text-red-800"
+                        role="alert"
+                      >
+                        @for (error of validationErrors(row); track $index) {
+                          <p>
+                            <strong>{{ error.field }}:</strong>
+                            {{ error.message }}
+                          </p>
+                        }
+                      </div>
+                    }
+                  </td>
+
+                  <td class="px-4 py-3 align-top">
+                    <span
+                      class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+                      [class.bg-green-50]="row.status === 'VALID' || row.status === 'PROCESSED'"
+                      [class.text-green-800]="row.status === 'VALID' || row.status === 'PROCESSED'"
+                      [class.bg-red-50]="row.status === 'INVALID' || row.status === 'FAILED'"
+                      [class.text-red-800]="row.status === 'INVALID' || row.status === 'FAILED'"
+                      [class.bg-gray-100]="row.status !== 'VALID' && row.status !== 'PROCESSED' && row.status !== 'INVALID' && row.status !== 'FAILED'"
+                      [class.text-gray-700]="row.status !== 'VALID' && row.status !== 'PROCESSED' && row.status !== 'INVALID' && row.status !== 'FAILED'"
+                    >
+                      {{ statusLabel(row.status) }}
+                    </span>
+
+                    <span class="sr-only">
+                      Estado técnico: {{ row.status }}
+                    </span>
+                  </td>
+
+                  <td class="px-4 py-3 align-top">
+                    <details class="group">
+                      <summary
+                        class="siga-focus cursor-pointer rounded text-sm font-semibold text-[#611232] hover:underline"
+                      >
+                        Ver detalles
+                      </summary>
+
+                      <dl class="mt-3 space-y-2">
+                        @for (field of fields(row); track field.key) {
+                          <div class="border-b border-gray-100 pb-2">
+                            <dt class="text-xs font-semibold text-[#555555]">
+                              {{ field.key }}
+                            </dt>
+
+                            <dd class="mt-1 break-words text-xs text-[#161a1d]">
+                              {{ field.value }}
+                            </dd>
+                          </div>
+                        }
+                      </dl>
+                    </details>
+                  </td>
+                </tr>
               }
-            </article>
-          }
+            </tbody>
+          </table>
         </div>
       }
 
       <nav
         aria-label="Paginación de vista previa"
-        class="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-5"
+        class="mt-5 flex flex-wrap items-center justify-between gap-3"
       >
         <p class="text-sm text-[#555555]">
           Página {{ preview().meta.current_page }}
           de {{ preview().meta.last_page }}
         </p>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
           <button
             type="button"
             data-testid="person-import-preview-previous"
@@ -139,6 +187,54 @@ import {
 export class PersonImportPreviewComponent {
   readonly preview = input.required<PersonImportPreviewResponse>();
   readonly pageChange = output<number>();
+
+  personName(row: PersonImportRow): string {
+    const data = row.normalized_data ?? row.raw_data;
+
+    const name = [
+      data["nombres"],
+      data["apellido_paterno"],
+      data["apellido_materno"],
+    ]
+      .filter(
+        (value): value is string =>
+          typeof value === "string" && value.trim() !== "",
+      )
+      .join(" ");
+
+    return name || "Sin nombre";
+  }
+
+  personIdentifier(row: PersonImportRow): string | null {
+    const data = row.normalized_data ?? row.raw_data;
+
+    const curp = data["curp"];
+
+    if (typeof curp === "string" && curp.trim() !== "") {
+      return `CURP: ${curp}`;
+    }
+
+    return null;
+  }
+
+  statusLabel(status: PersonImportRowStatus): string {
+    switch (status) {
+      case "VALID":
+        return "Correcta";
+      case "INVALID":
+        return "Por corregir";
+      case "PROCESSED":
+        return "Registrada";
+      case "FAILED":
+        return "No registrada";
+      case "SKIPPED":
+        return "Omitida";
+      case "PENDING":
+        return "Pendiente";
+      default:
+        return status;
+    }
+  }
 
   fields(
     row: PersonImportRow,

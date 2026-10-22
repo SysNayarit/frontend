@@ -57,3 +57,11 @@ export interface PersonImportPreviewResponse {
   rows: PersonImportRow[];
   meta: PersonImportPreviewMeta;
 }
+export interface PersonImportHistoryItem extends PersonImportBatch {
+  created_at: string;
+}
+
+export interface PersonImportHistoryResponse {
+  data: PersonImportHistoryItem[];
+  meta: PersonImportPreviewMeta;
+}

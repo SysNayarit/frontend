@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  PersonImportHistoryResponse,
   PersonImportPreviewResponse,
   PersonImportUploadResponse,
 } from './person-import.models';
@@ -13,6 +14,16 @@ import {
 export class PersonImportService {
   private readonly http = inject(HttpClient);
 
+  getHistory(page = 1): Observable<PersonImportHistoryResponse> {
+    return this.http.get<PersonImportHistoryResponse>(
+      '/api/personas/importaciones',
+      {
+        params: {
+          page: String(page),
+        },
+      },
+    );
+  }
   getBatch(
     batchUuid: string,
     page = 1,
@@ -24,6 +35,14 @@ export class PersonImportService {
           page: String(page),
         },
       },
+    );
+  }
+  confirmBatch(
+    batchUuid: string,
+  ): Observable<PersonImportUploadResponse> {
+    return this.http.post<PersonImportUploadResponse>(
+      `/api/personas/importaciones/${encodeURIComponent(batchUuid)}/confirmar`,
+      {},
     );
   }
   upload(

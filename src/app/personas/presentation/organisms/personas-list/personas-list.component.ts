@@ -1,3 +1,6 @@
+import { NgTemplateOutlet } from '@angular/common';
+import { TemplateRef } from '@angular/core';
+
 import {
   ChangeDetectionStrategy,
   Component,
@@ -18,6 +21,7 @@ import { personDisplayName } from '../../../../shared/utils/person-display-name'
   selector: 'app-personas-list',
   standalone: true,
   imports: [
+    NgTemplateOutlet,
     PersonActionsComponent,
     PersonasPaginationComponent,
   ],
@@ -105,10 +109,15 @@ import { personDisplayName } from '../../../../shared/utils/person-display-name'
               track person.id_persona
             ) {
               <tr
-                class="border-t border-[#98989a]/20"
+                class="group border-t border-[#98989a]/20 transition-colors duration-200 motion-reduce:transition-none"
+                [class.bg-[#DBEAFE]]="activePersonId === person.id_persona"
+                [class.bg-[#FEE2E2]]="activePersonId !== person.id_persona && person.estatus === 'BAJA'"
+                [class.hover:bg-[#EFF6FF]]="activePersonId !== person.id_persona && person.estatus !== 'BAJA'"
+                [attr.aria-selected]="activePersonId === person.id_persona"
               >
                 <td
-                  class="whitespace-nowrap px-4 py-3 text-sm font-medium text-[#611232]"
+                  class="whitespace-nowrap border-l-4 border-transparent px-4 py-3 text-sm font-medium text-[#611232] transition-colors duration-200 motion-reduce:transition-none"
+                  [class.border-[#2563EB]]="activePersonId === person.id_persona"
                 >
                   {{ person.num_expediente }}
                 </td>
@@ -122,11 +131,19 @@ import { personDisplayName } from '../../../../shared/utils/person-display-name'
                 <td
                   class="whitespace-nowrap px-4 py-3 text-sm text-[#555555]"
                 >
-                  {{ person.estatus }}
+                  <span
+                    class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                    [class.bg-[#FEE2E2]]="person.estatus === 'BAJA'"
+                    [class.text-[#991B1B]]="person.estatus === 'BAJA'"
+                    [class.bg-[#E7F4ED]]="person.estatus !== 'BAJA'"
+                    [class.text-[#1E5B4F]]="person.estatus !== 'BAJA'"
+                  >
+                    {{ person.estatus }}
+                  </span>
                 </td>
 
                 <td
-                  class="whitespace-nowrap px-4 py-3"
+                  class="w-max whitespace-nowrap px-4 py-3"
                 >
                   <app-person-actions
                     [person]="person"
@@ -140,6 +157,45 @@ import { personDisplayName } from '../../../../shared/utils/person-display-name'
                   />
                 </td>
               </tr>
+
+              @if (
+                expandedPersonId === person.id_persona &&
+                contextPanelTemplate
+              ) {
+                <tr
+                  data-testid="persona-expanded-row"
+                  [attr.data-person-id]="person.id_persona"
+                  class="border-t border-[#2563EB]/30 bg-[#DBEAFE] motion-safe:animate-[siga-row-appear_650ms_cubic-bezier(0.22,1,0.36,1)_both]"
+                >
+                  <td colspan="4" class="p-3 sm:p-5">
+                    <section
+                      data-testid="persona-context-panel"
+                      [attr.aria-label]="'Información de ' + fullName(person)"
+                      class="siga-panel-expansion min-w-0 rounded-xl border border-[#2563EB]/30 border-l-4 border-l-[#2563EB] bg-white p-4 shadow-sm sm:p-6"
+                    >
+                      <div
+                        class="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-[#98989a]/20 pb-4"
+                      >
+                        <div>
+                          <p class="text-xs font-semibold text-[#555555]">
+                            Persona seleccionada
+                          </p>
+                          <h3 class="mt-1 text-lg font-bold text-[#611232]">
+                            {{ fullName(person) }}
+                          </h3>
+                          <p class="text-sm text-[#555555]">
+                            Expediente: {{ person.num_expediente }}
+                          </p>
+                        </div>
+                      </div>
+
+                      <ng-container
+                        [ngTemplateOutlet]="contextPanelTemplate"
+                      />
+                    </section>
+                  </td>
+                </tr>
+              }
             }
           </tbody>
         </table>
@@ -156,6 +212,15 @@ import { personDisplayName } from '../../../../shared/utils/person-display-name'
   `,
 })
 export class PersonasListComponent {
+  @Input()
+  activePersonId: string | null = null;
+
+  @Input()
+  contextPanelTemplate: TemplateRef<unknown> | null = null;
+
+  @Input()
+  expandedPersonId: string | null = null;
+
   @Input()
   persons: PersonListItem[] = [];
 

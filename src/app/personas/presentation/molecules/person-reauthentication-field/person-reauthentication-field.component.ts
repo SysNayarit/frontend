@@ -3,7 +3,7 @@ import { ReactiveFormsModule } from "@angular/forms";
 
 import { PersonReauthenticationForm } from "../../forms/person-reauthentication-form";
 
-export type PersonReauthenticationMode = "withdraw" | "reinstate";
+export type PersonReauthenticationMode = "withdraw" | "reinstate" | "import";
 
 @Component({
   selector: "app-person-reauthentication-field",
@@ -55,9 +55,14 @@ export class PersonReauthenticationFieldComponent {
   passwordError: string | null = null;
 
   get passwordId(): string {
-    return this.mode === "withdraw"
-      ? "persona-withdraw-password"
-      : "persona-reinstate-password";
+    switch (this.mode) {
+      case "withdraw":
+        return "persona-withdraw-password";
+      case "reinstate":
+        return "persona-reinstate-password";
+      case "import":
+        return "persona-import-password";
+    }
   }
 
   get passwordErrorTestId(): string {

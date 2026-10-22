@@ -1,18 +1,28 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
-import { Subject } from "rxjs";
+import { of, Subject } from "rxjs";
 
 import {
   PersonImportPreviewResponse,
   PersonImportUploadResponse,
 } from "../../../person-import.models";
+import {
+  PersonImportConfirmationError,
+  PersonImportConfirmationService,
+} from "../../../person-import-confirmation.service";
 import { PersonImportService } from "../../../person-import.service";
 import { PersonImportPageComponent } from "./person-import-page.component";
 
 describe("PersonImportPageComponent", () => {
   let fixture: ComponentFixture<PersonImportPageComponent>;
   let uploadResponse$: Subject<PersonImportUploadResponse>;
+  let confirmationResponse$: Subject<PersonImportUploadResponse>;
+  let confirmationRequests: Array<{
+    uuid: string;
+    password: string;
+  }>;
   let uploadedFiles: File[];
+  let historyPages: number[];
   let previewRequests: Array<{
     uuid: string;
     page: number;
@@ -21,7 +31,10 @@ describe("PersonImportPageComponent", () => {
 
   beforeEach(async () => {
     uploadResponse$ = new Subject<PersonImportUploadResponse>();
+    confirmationResponse$ = new Subject<PersonImportUploadResponse>();
+    confirmationRequests = [];
     uploadedFiles = [];
+    historyPages = [];
     previewRequests = [];
 
     const importService = {
@@ -34,12 +47,33 @@ describe("PersonImportPageComponent", () => {
         previewRequests.push({ uuid, page, response$ });
         return response$.asObservable();
       },
+      getHistory(page = 1) {
+        historyPages.push(page);
+        return of({
+          data: [],
+          meta: {
+            current_page: page,
+            per_page: 15,
+            last_page: 1,
+            total: 0,
+          },
+        });
+      },
     };
 
     await TestBed.configureTestingModule({
       imports: [PersonImportPageComponent],
       providers: [
         provideRouter([]),
+        {
+          provide: PersonImportConfirmationService,
+          useValue: {
+            confirm(uuid: string, password: string) {
+              confirmationRequests.push({ uuid, password });
+              return confirmationResponse$.asObservable();
+            },
+          },
+        },
         {
           provide: PersonImportService,
           useValue: importService,
@@ -82,6 +116,274 @@ describe("PersonImportPageComponent", () => {
     expect(navigation.textContent).toContain("Importación de personas");
   });
 
+  it("prepara el XLSX sin cargarlo hasta confirmar la accion", () => {
+    const file = new File(["contenido"], "personas.xlsx");
+
+    selectFile(file);
+
+    expect(uploadedFiles).toHaveLength(0);
+    expect(fixture.componentInstance.selectedFile()).toBe(file);
+    expect(fixture.componentInstance.isUploading()).toBe(false);
+    expect(buttonByTestId("person-import-upload").disabled).toBe(false);
+  });
+  it("abre y cierra resultados con el mismo boton", () => {
+    const uuid = "01900000-0000-7000-8000-000000000098";
+
+    consultHistoricalBatch(uuid);
+
+    expect(fixture.componentInstance.expandedHistoryUuid()).toBe(uuid);
+    expect(previewRequests).toHaveLength(1);
+
+    let button = buttonByTestId("person-import-history-consult");
+    expect(button.textContent).toContain("Cerrar resultados");
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+
+    button.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.expandedHistoryUuid()).toBeNull();
+    expect(fixture.componentInstance.selectedHistoryUuid()).toBe(uuid);
+
+    button = buttonByTestId("person-import-history-consult");
+    expect(button.textContent).toContain("Consultar resultados");
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(previewRequests[0]!.response$.observed).toBe(false);
+  });
+
+  it("conserva el resaltado azul despues de cerrar resultados", () => {
+    const uuid = "01900000-0000-7000-8000-000000000098";
+
+    consultHistoricalBatch(uuid);
+
+    buttonByTestId("person-import-history-consult").click();
+    fixture.detectChanges();
+
+    const row = elementByTestId(
+      fixture,
+      "person-import-history-item",
+    );
+
+    expect(fixture.componentInstance.selectedHistoryUuid()).toBe(uuid);
+    expect(row.classList.contains("bg-blue-50")).toBe(true);
+    expect(row.classList.contains("border-blue-500")).toBe(true);
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="person-import-history-expanded"]',
+      ),
+    ).toBeNull();
+  });
+  it("muestra los indicadores de los distintos estados del historial", () => {
+    const cases = [
+      {
+        status: "READY",
+        invalid_rows: 2,
+        failed_rows: 0,
+        label: "Con observaciones",
+        css: "bg-amber-100",
+      },
+      {
+        status: "READY",
+        invalid_rows: 0,
+        failed_rows: 0,
+        label: "Listo para cargar",
+        css: "bg-blue-100",
+      },
+      {
+        status: "COMPLETED",
+        invalid_rows: 0,
+        failed_rows: 0,
+        label: "Cargado",
+        css: "bg-green-100",
+      },
+      {
+        status: "COMPLETED",
+        invalid_rows: 0,
+        failed_rows: 2,
+        label: "Cargado con incidencias",
+        css: "bg-red-100",
+      },
+      {
+        status: "FAILED",
+        invalid_rows: 0,
+        failed_rows: 1,
+        label: "Error de procesamiento",
+        css: "bg-red-100",
+      },
+    ] as const;
+
+    for (const item of cases) {
+      fixture.componentInstance.history.set({
+        data: [
+          {
+            ...previewResponse().data,
+            ...item,
+            created_at: "2026-10-22T18:00:00.000Z",
+          },
+        ],
+        meta: {
+          current_page: 1,
+          per_page: 15,
+          last_page: 1,
+          total: 1,
+        },
+      });
+
+      fixture.detectChanges();
+
+      const row = elementByTestId(fixture, "person-import-history-item");
+      const indicator = Array.from(row.querySelectorAll("span")).find(
+        (element) => element.textContent?.trim() === item.label,
+      );
+
+      expect(indicator).toBeDefined();
+      expect(indicator?.classList.contains(item.css)).toBe(true);
+    }
+  });
+
+  it("distingue las tres fechas de una importacion", () => {
+    const received = "2026-10-22T18:00:00.000Z";
+    const confirmed = "2026-10-22T18:15:00.000Z";
+    const finished = "2026-10-22T18:25:00.000Z";
+    const component = fixture.componentInstance;
+
+    component.history.set({
+      data: [
+        {
+          ...previewResponse().data,
+          created_at: received,
+          confirmed_at: confirmed,
+          finished_at: finished,
+        },
+      ],
+      meta: {
+        current_page: 1,
+        per_page: 15,
+        last_page: 1,
+        total: 1,
+      },
+    });
+
+    fixture.detectChanges();
+
+    const content = elementByTestId(
+      fixture,
+      "person-import-history-item",
+    ).textContent ?? "";
+
+    expect(content).toContain(
+      "Archivo recibido: " + component.historyDate(received),
+    );
+    expect(content).toContain(
+      "Carga confirmada: " + component.historyDate(confirmed),
+    );
+    expect(content).toContain(
+      "Procesamiento finalizado:",
+    );
+    expect(content).toContain(component.historyDate(finished));
+    expect(component.historyDate("fecha-invalida"))
+      .toBe("Fecha no disponible");
+  });
+
+  it("solicita la segunda pagina mediante el historial", () => {
+    const component = fixture.componentInstance;
+
+    component.history.set({
+      data: [
+        {
+          ...previewResponse().data,
+          created_at: "2026-10-22T18:00:00.000Z",
+        },
+      ],
+      meta: {
+        current_page: 1,
+        per_page: 15,
+        last_page: 2,
+        total: 16,
+      },
+    });
+
+    fixture.detectChanges();
+
+    const section = elementByTestId(fixture, "person-import-history");
+    const next = Array.from(section.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Siguiente",
+    );
+
+    expect(next).toBeDefined();
+    expect(next?.disabled).toBe(false);
+
+    next?.click();
+
+    expect(historyPages).toEqual([1, 2]);
+  });
+
+  it("cambia la seleccion y cancela el preview del archivo anterior", () => {
+    const first = "01900000-0000-7000-8000-000000000098";
+    const second = "01900000-0000-7000-8000-000000000099";
+    const component = fixture.componentInstance;
+
+    component.history.set({
+      data: [
+        {
+          ...previewResponse().data,
+          uuid: first,
+          original_filename: "primero.xlsx",
+          created_at: "2026-10-22T18:00:00.000Z",
+        },
+        {
+          ...previewResponse().data,
+          uuid: second,
+          original_filename: "segundo.xlsx",
+          created_at: "2026-10-22T18:05:00.000Z",
+        },
+      ],
+      meta: {
+        current_page: 1,
+        per_page: 15,
+        last_page: 1,
+        total: 2,
+      },
+    });
+
+    fixture.detectChanges();
+
+    let buttons = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll(
+        '[data-testid="person-import-history-consult"]',
+      ),
+    ) as HTMLButtonElement[];
+
+    buttons[0]!.click();
+    fixture.detectChanges();
+
+    expect(component.selectedHistoryUuid()).toBe(first);
+    expect(component.expandedHistoryUuid()).toBe(first);
+    expect(previewRequests[0]?.uuid).toBe(first);
+
+    buttons = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll(
+        '[data-testid="person-import-history-consult"]',
+      ),
+    ) as HTMLButtonElement[];
+
+    buttons[1]!.click();
+    fixture.detectChanges();
+
+    expect(component.selectedHistoryUuid()).toBe(second);
+    expect(component.expandedHistoryUuid()).toBe(second);
+    expect(previewRequests[0]!.response$.observed).toBe(false);
+    expect(previewRequests[1]?.uuid).toBe(second);
+
+    const rows = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll(
+        '[data-testid="person-import-history-item"]',
+      ),
+    ) as HTMLElement[];
+
+    expect(rows[0]!.classList.contains("bg-blue-50")).toBe(false);
+    expect(rows[1]!.classList.contains("bg-blue-50")).toBe(true);
+  });
   it("mantiene deshabilitada la carga hasta seleccionar un XLSX", () => {
     const button = buttonByTestId("person-import-upload");
 
@@ -387,6 +689,454 @@ describe("PersonImportPageComponent", () => {
       elementByTestId(fixture, "person-import-preview-loading").textContent,
     ).toContain("Consultando");
   });
+  it("recupera un lote existente mediante su UUID sin cargar otro archivo", () => {
+    const uuid = "01900000-0000-7000-8000-000000000098";
+
+    consultHistoricalBatch(uuid);
+
+    expect(previewRequests).toHaveLength(1);
+    expect(previewRequests[0]?.uuid).toBe(uuid);
+    expect(previewRequests[0]?.page).toBe(1);
+    expect(uploadedFiles).toHaveLength(0);
+  });
+
+  it("muestra el resumen y la vista previa del lote recuperado", () => {
+    const uuid = "01900000-0000-7000-8000-000000000098";
+
+    consultHistoricalBatch(uuid);
+
+    previewRequests[0]!.response$.next({
+      ...previewResponse(),
+      data: {
+        ...previewResponse().data,
+        uuid,
+        original_filename: "personas-recuperadas.xlsx",
+      },
+    });
+    previewRequests[0]!.response$.complete();
+
+    fixture.detectChanges();
+
+    expect(
+      elementByTestId(fixture, "person-import-summary").textContent,
+    ).toContain("personas-recuperadas.xlsx");
+
+    expect(
+      elementByTestId(fixture, "person-import-preview").textContent,
+    ).toContain("MARIA");
+
+    expect(uploadedFiles).toHaveLength(0);
+  });
+
+  it("informa cuando no se puede recuperar un lote", () => {
+    consultHistoricalBatch("01900000-0000-7000-8000-000000000099");
+
+    previewRequests[0]!.response$.error(
+      new Error("Lote no encontrado"),
+    );
+
+    fixture.detectChanges();
+
+    expect(
+      elementByTestId(fixture, "person-import-recovery-error").textContent,
+    ).toContain("No se pudo recuperar");
+
+    expect(uploadedFiles).toHaveLength(0);
+  });
+
+  it("descarta una recuperación anterior al seleccionar otro XLSX", () => {
+    const uuid = "01900000-0000-7000-8000-000000000098";
+
+    consultHistoricalBatch(uuid);
+
+    expect(previewRequests).toHaveLength(1);
+    expect(previewRequests[0]!.response$.observed).toBe(true);
+
+    selectFile(new File(["nuevo"], "otro-lote.xlsx"));
+
+    expect(previewRequests[0]!.response$.observed).toBe(false);
+
+    previewRequests[0]!.response$.next({
+      ...previewResponse(),
+      data: {
+        ...previewResponse().data,
+        uuid,
+      },
+    });
+
+    previewRequests[0]!.response$.complete();
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector('[data-testid="person-import-summary"]'),
+    ).toBeNull();
+
+    expect(
+      element.querySelector('[data-testid="person-import-preview"]'),
+    ).toBeNull();
+
+    expect(
+      elementByTestId(
+        fixture,
+        "person-import-selected-file",
+      ).textContent,
+    ).toContain("otro-lote.xlsx");
+  });
+
+  it("abre la confirmación para un lote READY con filas válidas", () => {
+    uploadReadyBatch();
+
+    fixture.detectChanges();
+
+    buttonByTestId("person-import-open-confirmation").click();
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector(
+        '[data-testid="person-import-confirmation-form"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector('[data-testid="persona-import-password"]'),
+    ).not.toBeNull();
+  });
+
+  it("no permite confirmar lotes QUEUED o sin filas válidas", () => {
+    uploadReadyBatch();
+
+    previewRequests[0]!.response$.next({
+      ...previewResponse(),
+      data: {
+        ...previewResponse().data,
+        status: "QUEUED",
+      },
+    });
+    previewRequests[0]!.response$.complete();
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector(
+        '[data-testid="person-import-open-confirmation"]',
+      ),
+    ).toBeNull();
+
+    expect(confirmationRequests).toHaveLength(0);
+  });
+
+  it("exige una contraseña antes de solicitar la confirmación", () => {
+    uploadReadyBatch();
+
+    fixture.detectChanges();
+    buttonByTestId("person-import-open-confirmation").click();
+    fixture.detectChanges();
+
+    const form = elementByTestId(
+      fixture,
+      "person-import-confirmation-form",
+    );
+
+    form.dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true }),
+    );
+    fixture.detectChanges();
+
+    expect(confirmationRequests).toHaveLength(0);
+
+    expect(
+      elementByTestId(
+        fixture,
+        "persona-import-password-error",
+      ).textContent,
+    ).toContain("La contraseña es obligatoria.");
+  });
+
+  it("envía el UUID y contraseña una sola vez mientras confirma", () => {
+    uploadReadyBatch();
+
+    fixture.detectChanges();
+    buttonByTestId("person-import-open-confirmation").click();
+    fixture.detectChanges();
+
+    const password = elementByTestId(
+      fixture,
+      "persona-import-password",
+    ) as HTMLInputElement;
+
+    password.value = "clave-de-prueba";
+    password.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    const form = elementByTestId(
+      fixture,
+      "person-import-confirmation-form",
+    );
+
+    form.dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true }),
+    );
+
+    form.dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true }),
+    );
+
+    expect(confirmationRequests).toEqual([
+      {
+        uuid: "lote-preview",
+        password: "clave-de-prueba",
+      },
+    ]);
+
+    fixture.detectChanges();
+
+    expect(
+      buttonByTestId("person-import-confirm-submit").disabled,
+    ).toBe(true);
+  });
+
+  it("actualiza el estado QUEUED sin anunciar el procesamiento completo", () => {
+    uploadReadyBatch();
+
+    fixture.detectChanges();
+    buttonByTestId("person-import-open-confirmation").click();
+    fixture.detectChanges();
+
+    const password = elementByTestId(
+      fixture,
+      "persona-import-password",
+    ) as HTMLInputElement;
+
+    password.value = "clave-de-prueba";
+    password.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    elementByTestId(
+      fixture,
+      "person-import-confirmation-form",
+    ).dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true }),
+    );
+
+    confirmationResponse$.next({
+      data: {
+        ...previewResponse().data,
+        status: "QUEUED",
+        confirmed_at: "2026-10-22T12:00:00.000Z",
+      },
+    });
+    confirmationResponse$.complete();
+    fixture.detectChanges();
+
+    expect(
+      elementByTestId(fixture, "person-import-summary").textContent,
+    ).toContain("QUEUED");
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="person-import-confirmation-form"]',
+      ),
+    ).toBeNull();
+
+    expect(
+      elementByTestId(
+        fixture,
+        "person-import-confirmation-success",
+      ).textContent,
+    ).toContain("cola");
+
+    expect(
+      elementByTestId(
+        fixture,
+        "person-import-confirmation-success",
+      ).textContent,
+    ).not.toContain("completada");
+  });
+
+  it("presenta los errores de reautenticación junto a la contraseña", () => {
+    uploadReadyBatch();
+
+    fixture.detectChanges();
+    buttonByTestId("person-import-open-confirmation").click();
+    fixture.detectChanges();
+
+    const password = elementByTestId(
+      fixture,
+      "persona-import-password",
+    ) as HTMLInputElement;
+
+    password.value = "incorrecta";
+    password.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    elementByTestId(
+      fixture,
+      "person-import-confirmation-form",
+    ).dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true }),
+    );
+
+    confirmationResponse$.error(
+      new PersonImportConfirmationError(
+        "reauthentication",
+        { status: 422 },
+      ),
+    );
+    fixture.detectChanges();
+
+    expect(
+      elementByTestId(
+        fixture,
+        "persona-import-password-error",
+      ).textContent,
+    ).toContain("contraseña");
+
+    expect(
+      elementByTestId(
+        fixture,
+        "persona-import-password",
+      ) as HTMLInputElement,
+    ).toHaveProperty("value", "");
+  });
+
+  it("cierra la confirmación al seleccionar otro XLSX y limpia la contraseña", () => {
+    uploadReadyBatch();
+    fixture.detectChanges();
+
+    buttonByTestId("person-import-open-confirmation").click();
+    fixture.detectChanges();
+
+    const password = elementByTestId(
+      fixture,
+      "persona-import-password",
+    ) as HTMLInputElement;
+
+    password.value = "clave-anterior";
+    password.dispatchEvent(new Event("input", { bubbles: true }));
+
+    selectFile(new File(["nuevo"], "otro-lote.xlsx"));
+    fixture.detectChanges();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="person-import-confirmation-form"]',
+      ),
+    ).toBeNull();
+
+    expect(fixture.componentInstance.confirmationForm.controls.password.value)
+      .toBe("");
+
+    expect(confirmationRequests).toHaveLength(0);
+  });
+
+  it("cierra la confirmación al recuperar otro lote y limpia la contraseña", () => {
+    uploadReadyBatch();
+
+    previewRequests[0]!.response$.next(previewResponse());
+    previewRequests[0]!.response$.complete();
+
+    fixture.detectChanges();
+
+    buttonByTestId("person-import-open-confirmation").click();
+    fixture.detectChanges();
+
+    const password = elementByTestId(
+      fixture,
+      "persona-import-password",
+    ) as HTMLInputElement;
+
+    password.value = "clave-anterior";
+    password.dispatchEvent(new Event("input", { bubbles: true }));
+
+    consultHistoricalBatch("01900000-0000-7000-8000-000000000098");
+    fixture.detectChanges();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="person-import-confirmation-form"]',
+      ),
+    ).toBeNull();
+
+    expect(fixture.componentInstance.confirmationForm.controls.password.value)
+      .toBe("");
+
+    expect(previewRequests.at(-1)?.uuid)
+      .toBe("01900000-0000-7000-8000-000000000098");
+  });
+
+  it("bloquea cambios de lote mientras una confirmación está pendiente", () => {
+    uploadReadyBatch();
+    fixture.detectChanges();
+
+    buttonByTestId("person-import-open-confirmation").click();
+    fixture.detectChanges();
+
+    const password = elementByTestId(
+      fixture,
+      "persona-import-password",
+    ) as HTMLInputElement;
+
+    password.value = "clave-de-prueba";
+    password.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    elementByTestId(
+      fixture,
+      "person-import-confirmation-form",
+    ).dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true }),
+    );
+
+    expect(confirmationRequests).toHaveLength(1);
+
+    const previousBatch = fixture.componentInstance.batch();
+    const previousPreviewCount = previewRequests.length;
+
+    selectFile(new File(["nuevo"], "otro-lote.xlsx"));
+
+    fixture.componentInstance.recoveryUuid.set(
+      "01900000-0000-7000-8000-000000000098",
+    );
+    fixture.componentInstance.recoverBatch();
+
+    expect(fixture.componentInstance.batch()).toEqual(previousBatch);
+    expect(previewRequests).toHaveLength(previousPreviewCount);
+    expect(fixture.componentInstance.isConfirming()).toBe(true);
+    expect(confirmationRequests).toHaveLength(1);
+  });
+
+  it("no permite confirmar un lote READY sin filas válidas", () => {
+    uploadReadyBatch();
+
+    previewRequests[0]!.response$.next({
+      ...previewResponse(),
+      data: {
+        ...previewResponse().data,
+        status: "READY",
+        valid_rows: 0,
+        invalid_rows: 52,
+      },
+    });
+    previewRequests[0]!.response$.complete();
+
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector(
+        '[data-testid="person-import-open-confirmation"]',
+      ),
+    ).toBeNull();
+
+    expect(confirmationRequests).toHaveLength(0);
+  });
+
   function uploadReadyBatch(): void {
     selectFile(new File(["contenido"], "personas.xlsx"));
     buttonByTestId("person-import-upload").click();
@@ -444,6 +1194,32 @@ describe("PersonImportPageComponent", () => {
         total: 52,
       },
     };
+  }
+  function consultHistoricalBatch(uuid: string): void {
+    const component = fixture.componentInstance;
+
+    component.history.set({
+      data: [
+        {
+          ...previewResponse().data,
+          uuid,
+          original_filename: "personas-historial.xlsx",
+          created_at: "2026-10-22T18:00:00.000Z",
+        },
+      ],
+      meta: {
+        current_page: 1,
+        per_page: 15,
+        last_page: 1,
+        total: 1,
+      },
+    });
+
+    fixture.detectChanges();
+
+    buttonByTestId("person-import-history-consult").click();
+
+    fixture.detectChanges();
   }
   function buttonByTestId(testId: string): HTMLButtonElement {
     const element = elementByTestId(fixture, testId);

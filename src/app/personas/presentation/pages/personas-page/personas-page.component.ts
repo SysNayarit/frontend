@@ -89,6 +89,30 @@ export class PersonasPageComponent implements OnInit {
     null,
   );
 
+  readonly selectedRowId = signal<string | null>(null);
+
+  readonly detailTargetId = signal<string | null>(null);
+
+  readonly contextualPersonId = computed(() => {
+    if (this.withdrawFormOpen()) {
+      return this.withdrawingPerson()?.id_persona ?? null;
+    }
+
+    if (this.reinstateFormOpen()) {
+      return this.reinstatingPerson()?.id_persona ?? null;
+    }
+
+    if (this.editFormOpen()) {
+      return this.editingPersonId();
+    }
+
+    if (this.registerFormOpen()) {
+      return null;
+    }
+
+    return this.detailTargetId();
+  });
+
   readonly selectedPerson = signal<PersonDetail | null>(
     null,
   );
@@ -286,6 +310,7 @@ export class PersonasPageComponent implements OnInit {
     this.detailRequestVersion += 1;
 
     this.selectedPerson.set(null);
+    this.detailTargetId.set(null);
     this.detailErrorMessage.set(null);
   }
 
@@ -296,6 +321,7 @@ export class PersonasPageComponent implements OnInit {
       ++this.detailRequestVersion;
 
     this.selectedPerson.set(null);
+    this.detailTargetId.set(idPersona);
     this.detailErrorMessage.set(null);
 
     this.personService
@@ -783,6 +809,79 @@ export class PersonasPageComponent implements OnInit {
       });
   }
 
+  toggleDetail(idPersona: string): void {
+    this.selectedRowId.set(idPersona);
+
+    if (
+      this.detailTargetId() === idPersona &&
+      this.activeFlow() === null
+    ) {
+      this.closeDetail();
+      return;
+    }
+
+    this.closeActiveFlow();
+    this.closeDetail();
+    this.viewDetail(idPersona);
+  }
+
+  toggleEdit(idPersona: string): void {
+    this.selectedRowId.set(idPersona);
+
+    if (
+      this.activeFlow() === 'edit' &&
+      this.editingPersonId() === idPersona
+    ) {
+      this.closeActiveFlow();
+      return;
+    }
+
+    this.closeActiveFlow();
+    this.closeDetail();
+    this.openEditForm(idPersona);
+  }
+
+  toggleWithdraw(person: PersonListItem): void {
+    this.selectedRowId.set(person.id_persona);
+
+    if (
+      this.activeFlow() === 'withdraw' &&
+      this.withdrawingPerson()?.id_persona === person.id_persona
+    ) {
+      this.closeActiveFlow();
+      return;
+    }
+
+    this.closeActiveFlow();
+
+    // Conservar el detalle si corresponde a la misma persona.
+    if (this.detailTargetId() !== person.id_persona) {
+      this.closeDetail();
+    }
+
+    this.openWithdrawForm(person);
+  }
+
+  toggleReinstate(person: PersonListItem): void {
+    this.selectedRowId.set(person.id_persona);
+
+    if (
+      this.activeFlow() === 'reinstate' &&
+      this.reinstatingPerson()?.id_persona === person.id_persona
+    ) {
+      this.closeActiveFlow();
+      return;
+    }
+
+    this.closeActiveFlow();
+
+    // Conservar el detalle si corresponde a la misma persona.
+    if (this.detailTargetId() !== person.id_persona) {
+      this.closeDetail();
+    }
+
+    this.openReinstateForm(person);
+  }
   private closeActiveFlow(): void {
     this.editRequestVersion += 1;
 

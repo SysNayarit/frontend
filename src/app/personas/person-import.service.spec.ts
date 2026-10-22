@@ -295,4 +295,71 @@ describe('PersonImportService', () => {
       },
     });
   });
+  it('confirma un lote READY mediante su UUID', () => {
+    const batchUuid = '01900000-0000-7000-8000-000000000098';
+
+    const response: PersonImportUploadResponse = {
+      data: {
+        uuid: batchUuid,
+        original_filename: 'personas.xlsx',
+        status: 'QUEUED',
+        total_rows: 10,
+        valid_rows: 10,
+        invalid_rows: 0,
+        processed_rows: 0,
+        failed_rows: 0,
+        confirmed_at: '2026-10-22T12:00:00.000Z',
+        started_at: null,
+        finished_at: null,
+      },
+    };
+
+    let result: PersonImportUploadResponse | undefined;
+
+    service.confirmBatch(batchUuid).subscribe((value) => {
+      result = value;
+    });
+
+    const request = http.expectOne(
+      `/api/personas/importaciones/${batchUuid}/confirmar`,
+    );
+
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+
+    request.flush(response, {
+      status: 202,
+      statusText: 'Accepted',
+    });
+
+    expect(result).toEqual(response);
+  });
+
+  it('propaga errores HTTP durante la confirmación', () => {
+    const batchUuid = '01900000-0000-7000-8000-000000000099';
+
+    let errorStatus: number | undefined;
+
+    service.confirmBatch(batchUuid).subscribe({
+      error: (error: { status: number }) => {
+        errorStatus = error.status;
+      },
+    });
+
+    const request = http.expectOne(
+      `/api/personas/importaciones/${batchUuid}/confirmar`,
+    );
+
+    expect(request.request.method).toBe('POST');
+
+    request.flush(
+      { message: 'Se requiere una reautenticación reciente.' },
+      {
+        status: 403,
+        statusText: 'Forbidden',
+      },
+    );
+
+    expect(errorStatus).toBe(403);
+  });
 });

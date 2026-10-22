@@ -17,13 +17,13 @@ import { PersonListItem } from '../../../person.models';
   },
   template: `
     <div
-      class="flex flex-wrap gap-2"
+      class="flex flex-nowrap items-center gap-2 whitespace-nowrap"
     >
       <button
         type="button"
         data-testid="persona-view-detail"
         (click)="viewDetailRequested.emit(person.id_persona)"
-        class="siga-focus rounded-lg border border-[#611232] px-3 py-2 text-sm font-semibold text-[#611232] transition hover:bg-[#611232] hover:text-white"
+        class="siga-focus shrink-0 rounded-lg border border-[#611232] px-3 py-2 text-sm font-semibold text-[#611232] transition hover:bg-[#611232] hover:text-white"
       >
         Ver detalle
       </button>
@@ -33,7 +33,7 @@ import { PersonListItem } from '../../../person.models';
           type="button"
           data-testid="persona-edit"
           (click)="editRequested.emit(person.id_persona)"
-          class="siga-focus rounded-lg border border-[#a57f2c] px-3 py-2 text-sm font-semibold text-[#611232] transition hover:bg-[#a57f2c]/10"
+          class="siga-focus shrink-0 rounded-lg border border-[#a57f2c] px-3 py-2 text-sm font-semibold text-[#611232] transition hover:bg-[#a57f2c]/10"
         >
           Editar
         </button>
@@ -47,7 +47,7 @@ import { PersonListItem } from '../../../person.models';
           type="button"
           data-testid="persona-withdraw"
           (click)="withdrawRequested.emit(person)"
-          class="siga-focus rounded-lg border border-[#9b2247] px-3 py-2 text-sm font-semibold text-[#9b2247] transition hover:bg-[#9b2247] hover:text-white"
+          class="siga-focus shrink-0 rounded-lg border border-[#9b2247] px-3 py-2 text-sm font-semibold text-[#9b2247] transition hover:bg-[#9b2247] hover:text-white"
         >
           Dar de baja
         </button>
@@ -61,7 +61,7 @@ import { PersonListItem } from '../../../person.models';
           type="button"
           data-testid="persona-reinstate"
           (click)="reinstateRequested.emit(person)"
-          class="siga-focus rounded-lg border border-[#1e5b4f] px-3 py-2 text-sm font-semibold text-[#1e5b4f] transition hover:bg-[#1e5b4f] hover:text-white"
+          class="siga-focus shrink-0 rounded-lg border border-[#1e5b4f] px-3 py-2 text-sm font-semibold text-[#1e5b4f] transition hover:bg-[#1e5b4f] hover:text-white"
         >
           Reingresar
         </button>

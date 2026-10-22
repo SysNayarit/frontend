@@ -67,6 +67,19 @@
     </div>
   }
 
+  @if (registerFormOpen()) {
+    <app-persona-register-form
+      [form]="registerForm"
+      [errorMessage]="registerErrorMessage()"
+      [fechaNacimientoError]="registerFechaNacimientoError()"
+      [nombresError]="registerNombresError()"
+      [apellidosError]="registerApellidosError()"
+      (submitRequested)="submitRegisterForm()"
+      (cancelRequested)="cancelRegisterForm()"
+    />
+  }
+
+  <ng-template #panelContextual>
   @if (withdrawFormOpen()) {
     @if (withdrawingPerson(); as personToWithdraw) {
       <app-persona-withdraw-form
@@ -93,17 +106,6 @@
     }
   }
 
-  @if (registerFormOpen()) {
-    <app-persona-register-form
-      [form]="registerForm"
-      [errorMessage]="registerErrorMessage()"
-      [fechaNacimientoError]="registerFechaNacimientoError()"
-      [nombresError]="registerNombresError()"
-      [apellidosError]="registerApellidosError()"
-      (submitRequested)="submitRegisterForm()"
-      (cancelRequested)="cancelRegisterForm()"
-    />
-  }
 
   @if (editFormOpen()) {
     <app-persona-edit-form
@@ -123,17 +125,22 @@
     (closeRequested)="closeDetail()"
   />
 
+
+  </ng-template>
   <app-personas-list
     [persons]="persons()"
+    [activePersonId]="selectedRowId()"
+    [expandedPersonId]="contextualPersonId()"
+    [contextPanelTemplate]="panelContextual"
     [meta]="meta()"
     [errorMessage]="errorMessage()"
     [canUpdate]="canUpdatePerson()"
     [canWithdraw]="canWithdrawPerson()"
     [canReinstate]="canReinstatePerson()"
-    (viewDetailRequested)="viewDetail($event)"
-    (editRequested)="openEditForm($event)"
-    (withdrawRequested)="openWithdrawForm($event)"
-    (reinstateRequested)="openReinstateForm($event)"
+    (viewDetailRequested)="toggleDetail($event)"
+    (editRequested)="toggleEdit($event)"
+    (withdrawRequested)="toggleWithdraw($event)"
+    (reinstateRequested)="toggleReinstate($event)"
     (previousPageRequested)="previousPage()"
     (nextPageRequested)="nextPage()"
   />
