@@ -135,6 +135,89 @@ import { personDisplayName } from '../../../../shared/utils/person-display-name'
             </dd>
           </div>
         </dl>
+        <section
+          data-testid="persona-registration-info"
+          class="mt-6 border-t border-[#a57f2c]/25 pt-5"
+          aria-label="Información de registro"
+        >
+          <h4 class="siga-title text-lg font-bold text-[#611232]">
+            Información de registro
+          </h4>
+
+          @if (person.informacion_registro; as registro) {
+            <dl class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-[#555555]">
+                  Forma de registro
+                </dt>
+                <dd data-testid="registration-origin" class="mt-1 text-[#161a1d]">
+                  @switch (registro.forma_registro) {
+                    @case ('INDIVIDUAL') { Individual }
+                    @case ('MASIVO') { Masivo }
+                    @default { No determinado }
+                  }
+                </dd>
+              </div>
+
+              <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-[#555555]">
+                  Fecha de registro
+                </dt>
+                <dd data-testid="registration-date" class="mt-1 text-[#161a1d]">
+                  {{ formatDate(registro.fecha_registro) ?? 'No registrada' }}
+                </dd>
+              </div>
+
+              <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-[#555555]">
+                  Registrado por
+                </dt>
+                <dd data-testid="registration-user" class="mt-1 text-[#161a1d]">
+                  {{ registro.registrado_por ?? 'No identificado' }}
+                </dd>
+              </div>
+
+              @if (registro.forma_registro === 'MASIVO') {
+                <div>
+                  <dt class="text-xs font-semibold uppercase tracking-wide text-[#555555]">
+                    Archivo de origen
+                  </dt>
+                  <dd data-testid="registration-file" class="mt-1 break-all text-[#161a1d]">
+                    {{ registro.archivo_origen ?? 'No disponible' }}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt class="text-xs font-semibold uppercase tracking-wide text-[#555555]">
+                    Fila del archivo
+                  </dt>
+                  <dd data-testid="registration-row" class="mt-1 text-[#161a1d]">
+                    {{ registro.fila_archivo ?? 'No disponible' }}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt class="text-xs font-semibold uppercase tracking-wide text-[#555555]">
+                    Identificador del lote
+                  </dt>
+                  <dd data-testid="registration-batch" class="mt-1 break-all text-sm text-[#161a1d]">
+                    {{ registro.lote_uuid ?? 'No disponible' }}
+                  </dd>
+                </div>
+              }
+            </dl>
+
+            @if (registro.forma_registro === 'NO_DETERMINADO') {
+              <p data-testid="registration-unknown" class="mt-4 text-sm text-[#555555]">
+                No existe evidencia suficiente para determinar cómo se registró esta persona.
+              </p>
+            }
+          } @else {
+            <p data-testid="registration-unavailable" class="mt-4 text-sm text-[#555555]">
+              Información de registro no disponible.
+            </p>
+          }
+        </section>
       </section>
     }
   `,

@@ -36,6 +36,14 @@ export interface PersonUpdateRequest {
   estado_civil?: string | null;
 }
 
+export interface PersonRegistrationInfo {
+  fecha_registro: string | null;
+  forma_registro: 'INDIVIDUAL' | 'MASIVO' | 'NO_DETERMINADO';
+  registrado_por: string | null;
+  archivo_origen: string | null;
+  fila_archivo: number | null;
+  lote_uuid: string | null;
+}
 export interface PersonDetail {
   id_persona: string;
   curp: string | null;
@@ -55,4 +63,5 @@ export interface PersonDetail {
   fecha_alta: string;
   fecha_baja: string | null;
   estatus: string;
+  informacion_registro?: PersonRegistrationInfo | null;
 }

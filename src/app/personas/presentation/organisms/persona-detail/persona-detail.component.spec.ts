@@ -153,6 +153,114 @@ describe('PersonaDetailComponent', () => {
     ).toBeNull();
   });
 
+  it('muestra el origen masivo y su archivo de procedencia', () => {
+    fixture.componentRef.setInput('person', {
+      ...person,
+      informacion_registro: {
+        fecha_registro: '2026-10-22T12:00:00.000Z',
+        forma_registro: 'MASIVO',
+        registrado_por: 'USUARIO IMPORTADOR',
+        archivo_origen: 'personal_octubre.xlsx',
+        fila_archivo: 25,
+        lote_uuid: 'lote-prueba-001',
+      },
+    });
+
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const section = element.querySelector(
+      '[data-testid="persona-registration-info"]',
+    ) as HTMLElement;
+
+    expect(section.textContent).toContain('Masivo');
+    expect(section.textContent).toContain('USUARIO IMPORTADOR');
+    expect(section.textContent).toContain('personal_octubre.xlsx');
+    expect(section.textContent).toContain('25');
+    expect(section.textContent).toContain('lote-prueba-001');
+  });
+
+  it('muestra el origen individual sin campos de importacion', () => {
+    fixture.componentRef.setInput('person', {
+      ...person,
+      informacion_registro: {
+        fecha_registro: '2026-10-22T12:00:00.000Z',
+        forma_registro: 'INDIVIDUAL',
+        registrado_por: 'USUARIO CAPTURISTA',
+        archivo_origen: null,
+        fila_archivo: null,
+        lote_uuid: null,
+      },
+    });
+
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector('[data-testid="registration-origin"]')
+        ?.textContent,
+    ).toContain('Individual');
+
+    expect(
+      element.querySelector('[data-testid="registration-user"]')
+        ?.textContent,
+    ).toContain('USUARIO CAPTURISTA');
+
+    expect(
+      element.querySelector('[data-testid="registration-file"]'),
+    ).toBeNull();
+
+    expect(
+      element.querySelector('[data-testid="registration-row"]'),
+    ).toBeNull();
+
+    expect(
+      element.querySelector('[data-testid="registration-batch"]'),
+    ).toBeNull();
+  });
+
+  it('explica cuando no se puede determinar el origen', () => {
+    fixture.componentRef.setInput('person', {
+      ...person,
+      informacion_registro: {
+        fecha_registro: '2026-10-22T12:00:00.000Z',
+        forma_registro: 'NO_DETERMINADO',
+        registrado_por: null,
+        archivo_origen: null,
+        fila_archivo: null,
+        lote_uuid: null,
+      },
+    });
+
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector('[data-testid="registration-origin"]')
+        ?.textContent,
+    ).toContain('No determinado');
+
+    expect(
+      element.querySelector('[data-testid="registration-unknown"]'),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector('[data-testid="registration-file"]'),
+    ).toBeNull();
+  });
+
+  it('tolera respuestas que no incluyen procedencia', () => {
+    fixture.componentRef.setInput('person', person);
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector('[data-testid="registration-unavailable"]'),
+    ).not.toBeNull();
+  });
   it('emite la solicitud de cierre del detalle', () => {
     fixture.componentRef.setInput(
       'person',
