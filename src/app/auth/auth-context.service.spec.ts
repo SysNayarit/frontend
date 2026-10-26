@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from "@angular/common/http";
 import { TestBed } from "@angular/core/testing";
 import { Observable, of, Subject, throwError } from "rxjs";
 
@@ -96,16 +97,16 @@ describe("AuthContextService", () => {
     expect(context.hasPermission("personas.ver")).toBe(true);
   });
 
-  it("limpia el contexto cuando la consulta falla", () => {
+  it("conserva el contexto ante una excepcion no HTTP", () => {
     context.refresh().subscribe();
 
-    auth.currentUserResult = throwError(() => new Error("Sesión inválida"));
+    auth.currentUserResult = throwError(() => new Error("Error inesperado"));
 
     context.refresh().subscribe({
       error: () => undefined,
     });
 
-    expect(context.user()).toBeNull();
+    expect(context.user()).toEqual(auth.user);
   });
 
   it("permite limpiar explicitamente el usuario", () => {
@@ -114,5 +115,62 @@ describe("AuthContextService", () => {
     context.clear();
 
     expect(context.user()).toBeNull();
+  });
+
+  it("limpia el usuario cuando el backend devuelve 401", () => {
+    context.refresh().subscribe();
+
+    auth.currentUserResult = throwError(
+      () => new HttpErrorResponse({ status: 401 }),
+    );
+
+    context.refresh().subscribe({
+      error: () => undefined,
+    });
+
+    expect(context.user()).toBeNull();
+    expect(context.hasPermission("personas.ver")).toBe(false);
+  });
+
+  it("conserva el contexto anterior ante un error HTTP 500", () => {
+    context.refresh().subscribe();
+
+    auth.currentUserResult = throwError(
+      () => new HttpErrorResponse({ status: 500 }),
+    );
+
+    context.refresh().subscribe({
+      error: () => undefined,
+    });
+
+    expect(context.user()).toEqual(auth.user);
+  });
+
+  it("conserva el contexto anterior ante un error de red", () => {
+    context.refresh().subscribe();
+
+    auth.currentUserResult = throwError(
+      () => new HttpErrorResponse({ status: 0 }),
+    );
+
+    context.refresh().subscribe({
+      error: () => undefined,
+    });
+
+    expect(context.user()).toEqual(auth.user);
+  });
+
+  it("conserva la sesion ante una respuesta HTTP 403", () => {
+    context.refresh().subscribe();
+
+    auth.currentUserResult = throwError(
+      () => new HttpErrorResponse({ status: 403 }),
+    );
+
+    context.refresh().subscribe({
+      error: () => undefined,
+    });
+
+    expect(context.user()).toEqual(auth.user);
   });
 });

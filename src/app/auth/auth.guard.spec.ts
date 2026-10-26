@@ -96,4 +96,37 @@ describe('authGuard', () => {
       ),
     ).toBe('/acceso');
   });
+
+  it("distingue HTTP 403 de una sesion vencida", async () => {
+    auth.currentUserResult = throwError(
+      () => new HttpErrorResponse({ status: 403 }),
+    );
+
+    const result = await runGuard();
+
+    expect(router.serializeUrl(result as UrlTree))
+      .toBe("/estado-acceso?tipo=permisos");
+  });
+
+  it("distingue HTTP 500 de una sesion vencida", async () => {
+    auth.currentUserResult = throwError(
+      () => new HttpErrorResponse({ status: 500 }),
+    );
+
+    const result = await runGuard();
+
+    expect(router.serializeUrl(result as UrlTree))
+      .toBe("/estado-acceso?tipo=temporal");
+  });
+
+  it("distingue un error de red de una sesion vencida", async () => {
+    auth.currentUserResult = throwError(
+      () => new HttpErrorResponse({ status: 0 }),
+    );
+
+    const result = await runGuard();
+
+    expect(router.serializeUrl(result as UrlTree))
+      .toBe("/estado-acceso?tipo=temporal");
+  });
 });

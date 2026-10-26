@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from "@angular/common/http";
 import { inject } from "@angular/core";
 import { CanActivateFn, Router } from "@angular/router";
 import { catchError, map, of } from "rxjs";
@@ -16,7 +17,19 @@ function permissionGuard(permission: string): CanActivateFn {
           ? true
           : router.parseUrl("/inicio"),
       ),
-      catchError(() => of(router.parseUrl("/acceso"))),
+      catchError((error: unknown) => {
+        if (error instanceof HttpErrorResponse) {
+          if (error.status === 401) {
+            return of(router.parseUrl("/acceso"));
+          }
+
+          if (error.status === 403) {
+            return of(router.parseUrl("/estado-acceso?tipo=permisos"));
+          }
+        }
+
+        return of(router.parseUrl("/estado-acceso?tipo=temporal"));
+      }),
     );
   };
 }

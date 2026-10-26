@@ -1,4 +1,5 @@
 import { Routes } from "@angular/router";
+import { AccessStatusPageComponent } from "./auth/access-status-page.component";
 
 import { authGuard } from "./auth/auth.guard";
 import { LoginPageComponent } from "./auth/login-page.component";
@@ -20,6 +21,10 @@ export const routes: Routes = [
   {
     path: "acceso",
     component: LoginPageComponent,
+  },
+  {
+    path: "estado-acceso",
+    component: AccessStatusPageComponent,
   },
   {
     path: "",

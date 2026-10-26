@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from "@angular/common/http";
 import { inject, Injectable, signal } from "@angular/core";
 import {
   catchError,
@@ -36,7 +37,9 @@ export class AuthContextService {
         this.currentUserState.set(user);
       }),
       catchError((error: unknown) => {
-        this.clear();
+        if (error instanceof HttpErrorResponse && error.status === 401) {
+          this.clear();
+        }
 
         return throwError(() => error);
       }),
