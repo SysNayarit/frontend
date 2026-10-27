@@ -37,3 +37,5 @@ function permissionGuard(permission: string): CanActivateFn {
 export const personasViewGuard = permissionGuard("personas.ver");
 
 export const personasImportGuard = permissionGuard("personas.importar");
+
+export const usuariosViewGuard = permissionGuard("usuarios.ver");

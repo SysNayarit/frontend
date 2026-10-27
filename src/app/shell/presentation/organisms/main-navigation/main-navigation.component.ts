@@ -39,6 +39,24 @@ import { RouterLink, RouterLinkActive } from "@angular/router";
           Inicio
         </a>
 
+        @if (hasPermission("usuarios.ver")) {
+          <a
+            routerLink="/usuarios"
+            routerLinkActive="bg-[#611232] text-white shadow-sm"
+            [routerLinkActiveOptions]="{ exact: true }"
+            data-testid="users-navigation"
+            class="siga-focus flex items-center gap-3 rounded-xl border border-[#98989a]/20 px-4 py-3 font-semibold text-[#611232] transition hover:border-[#a57f2c]/40 hover:bg-[#e6d194]/15"
+          >
+            <span
+              class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e6d194]/35"
+              aria-hidden="true"
+            >
+              U
+            </span>
+
+            Usuarios
+          </a>
+        }
         @if (hasPermission("personas.ver")) {
           <a
             routerLink="/personas"

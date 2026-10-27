@@ -6,8 +6,10 @@ import { LoginPageComponent } from "./auth/login-page.component";
 import {
   personasImportGuard,
   personasViewGuard,
+  usuariosViewGuard,
 } from "./auth/permission.guard";
 import { HomeComponent } from "./home.component";
+import { UsersPageComponent } from "./usuarios/presentation/pages/users-page/users-page.component";
 import { AuthenticatedLayoutComponent } from "./shell/presentation/templates/authenticated-layout/authenticated-layout.component";
 import { PersonImportPageComponent } from "./personas/presentation/pages/person-import-page/person-import-page.component";
 import { PersonasPageComponent } from "./personas/presentation/pages/personas-page/personas-page.component";
@@ -34,6 +36,11 @@ export const routes: Routes = [
       {
         path: "inicio",
         component: HomeComponent,
+      },
+      {
+        path: "usuarios",
+        component: UsersPageComponent,
+        canActivate: [usuariosViewGuard],
       },
       {
         path: "personas/importaciones",

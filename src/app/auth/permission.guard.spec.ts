@@ -19,6 +19,7 @@ import { AuthService } from './auth.service';
 import {
   personasImportGuard,
   personasViewGuard,
+  usuariosViewGuard,
 } from './permission.guard';
 
 class AuthServiceStub {
@@ -211,5 +212,41 @@ describe('personasViewGuard', () => {
 
     expect(router.serializeUrl(result as UrlTree))
       .toBe("/estado-acceso?tipo=temporal");
+  });
+
+  it("permite consultar usuarios con usuarios.ver", async () => {
+    auth.currentUserResult = of({
+      id: 1,
+      id_persona: null,
+      name: "admin",
+      email: "admin@example.test",
+      email_verified_at: null,
+      created_at: "2026-10-09T00:00:00.000000Z",
+      updated_at: "2026-10-09T00:00:00.000000Z",
+      person: null,
+      permissions: ["usuarios.ver"],
+    });
+
+    expect(await runGuard(usuariosViewGuard)).toBe(true);
+  });
+
+  it("rechaza consultar usuarios sin usuarios.ver", async () => {
+    auth.currentUserResult = of({
+      id: 1,
+      id_persona: null,
+      name: "admin",
+      email: "admin@example.test",
+      email_verified_at: null,
+      created_at: "2026-10-09T00:00:00.000000Z",
+      updated_at: "2026-10-09T00:00:00.000000Z",
+      person: null,
+      permissions: ["personas.ver"],
+    });
+
+    const result = await runGuard(usuariosViewGuard);
+
+    expect(result instanceof UrlTree).toBe(true);
+    expect(router.serializeUrl(result as UrlTree))
+      .toBe("/inicio");
   });
 });

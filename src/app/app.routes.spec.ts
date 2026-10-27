@@ -2,6 +2,7 @@ import { authGuard } from "./auth/auth.guard";
 import {
   personasImportGuard,
   personasViewGuard,
+  usuariosViewGuard,
 } from "./auth/permission.guard";
 import { routes } from "./app.routes";
 
@@ -66,5 +67,26 @@ describe("routes", () => {
     ).toEqual([
       personasImportGuard,
     ]);
+  });
+
+  it("protege usuarios con usuarios.ver dentro del area autenticada", () => {
+    const authenticatedRoute = routes.find(
+      (route) =>
+        route.path === "" &&
+        Array.isArray(route.children),
+    );
+
+    expect(authenticatedRoute).toBeDefined();
+    expect(authenticatedRoute?.canActivateChild)
+      .toEqual([authGuard]);
+
+    const usersRoute = authenticatedRoute?.children?.find(
+      (route) => route.path === "usuarios",
+    );
+
+    expect(usersRoute).toBeDefined();
+    expect(usersRoute?.component).toBeDefined();
+    expect(usersRoute?.canActivate)
+      .toEqual([usuariosViewGuard]);
   });
 });
