@@ -38,6 +38,29 @@ export class UserRoleService {
     );
   }
 
+  assignRolesBulk(
+    roleId: number,
+    userIds: readonly number[],
+  ): Observable<{
+    role_id: number;
+    result: {
+      selected: number;
+      assigned: number;
+      already_assigned: number;
+    };
+  }> {
+    return this.http.post<{
+      role_id: number;
+      result: {
+        selected: number;
+        assigned: number;
+        already_assigned: number;
+      };
+    }>("/api/usuarios/roles/masivo", {
+      role_id: roleId,
+      user_ids: [...userIds],
+    });
+  }
   removeRole(
     userId: number,
     roleId: number,

@@ -134,4 +134,56 @@ describe("UserService", () => {
 
     expect(status).toBe(403);
   });
+
+  it("crea un usuario asociado a una persona registrada", () => {
+    const payload = {
+      id_persona: "00000000-0000-4000-8000-000000000001",
+      email: "nuevo@example.test",
+      password: "ClaveSeguraTemporal2026",
+      password_confirmation: "ClaveSeguraTemporal2026",
+    };
+
+    service.create(payload).subscribe((user) => {
+      expect(user.id_persona).toBe(payload.id_persona);
+      expect(user.email).toBe(payload.email);
+    });
+
+    const request = http.expectOne("/api/usuarios");
+
+    expect(request.request.method).toBe("POST");
+    expect(request.request.body).toEqual(payload);
+
+    request.flush({
+      id: 15,
+      id_persona: payload.id_persona,
+      name: "Persona Registrada",
+      email: payload.email,
+    }, { status: 201, statusText: "Created" });
+  });
+
+  it("consulta personas disponibles con busqueda y paginacion", () => {
+    service.availablePersons("Maria", 2).subscribe((result) => {
+      expect(result.meta.current_page).toBe(2);
+      expect(result.data).toEqual([]);
+    });
+
+    const request = http.expectOne(
+      (item) =>
+        item.url === "/api/usuarios/personas-disponibles" &&
+        item.params.get("buscar") === "Maria" &&
+        item.params.get("page") === "2",
+    );
+
+    expect(request.request.method).toBe("GET");
+
+    request.flush({
+      data: [],
+      meta: {
+        current_page: 2,
+        last_page: 2,
+        per_page: 20,
+        total: 21,
+      },
+    });
+  });
 });

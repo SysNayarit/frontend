@@ -6,14 +6,20 @@ import {
   inject,
   OnInit,
   signal,
+  viewChild,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import type { Observable } from "rxjs";
+import { switchMap, type Observable } from "rxjs";
 import { HttpErrorResponse } from "@angular/common/http";
 import { AuthContextService } from "../../../../auth/auth-context.service";
 import { AuthService } from "../../../../auth/auth.service";
 
-import { UserListResponse, UserSummary } from "../../../user.models";
+import { AvailablePerson, UserListResponse, UserSummary } from "../../../user.models";
+import { AvailablePersonSelectorComponent } from "../../organisms/available-person-selector/available-person-selector.component";
+import {
+  UserCreateFormComponent,
+  UserCreateFormValue,
+} from "../../organisms/user-create-form/user-create-form.component";
 import { UserRole } from "../../../user-role.models";
 import { UserRoleService } from "../../../user-role.service";
 import { UserService } from "../../../user.service";
@@ -30,6 +36,8 @@ import { UserRoleOperation } from "../../organisms/user-role-confirmation/user-r
   imports: [
     NgTemplateOutlet,
     UserListComponent,
+    AvailablePersonSelectorComponent,
+    UserCreateFormComponent,
     UserRolesComponent,
     UsersPaginationComponent,
   ],
@@ -50,6 +58,87 @@ import { UserRoleOperation } from "../../organisms/user-role-confirmation/user-r
         </p>
       </header>
 
+      @if (canCreateUsers()) {
+        <div class="rounded-xl border border-[#e7e2e3] bg-white p-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-sm font-semibold text-[#611232]">
+                Registro de usuarios
+              </h2>
+              <p class="mt-1 text-xs text-gray-600">
+                Asocia una cuenta a una Persona registrada.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              data-testid="add-user"
+              class="siga-focus rounded-lg bg-[#611232] px-4 py-2 text-sm font-medium text-white"
+              (click)="togglePersonSelector()"
+            >
+              {{ personSelectorOpen() ? "Cancelar selección" : "Agregar usuario" }}
+            </button>
+          </div>
+
+          @if (personSelectorOpen()) {
+            <div class="mt-4">
+              <app-available-person-selector
+                (personSelected)="choosePerson($event)"
+              />
+            </div>
+          }
+
+          @if (selectedPerson()) {
+            <div
+              data-testid="selected-person"
+              class="mt-4 rounded-lg border border-[#a57f2c]/30 bg-[#faf9f7] p-3"
+            >
+              <p class="text-sm font-medium text-[#611232]">
+                Persona seleccionada:
+                {{ selectedPerson()!.nombres }}
+                {{ selectedPerson()!.apellido_paterno }}
+                {{ selectedPerson()!.apellido_materno }}
+              </p>
+              <p class="mt-1 text-xs text-gray-600">
+                Expediente: {{ selectedPerson()!.num_expediente }}
+              </p>
+              <p class="mt-2 text-xs text-gray-600">
+                La cuenta todavía no ha sido creada.
+              </p>
+            </div>
+          }
+        </div>
+      }
+      @if (createUserNotice()) {
+        <p
+          role="status"
+          data-testid="user-create-success"
+          class="rounded-xl border border-[#a57f2c]/30 bg-white p-4 text-sm text-[#611232]"
+        >
+          {{ createUserNotice() }}
+        </p>
+      }
+
+      @if (selectedPerson() && canCreateUsers()) {
+        <div class="space-y-3">
+          @if (createUserError()) {
+            <p
+              role="alert"
+              data-testid="user-create-error"
+              class="rounded-lg border border-red-200 bg-white p-3 text-sm text-red-700"
+            >
+              {{ createUserError() }}
+            </p>
+          }
+
+          <app-user-create-form
+            [person]="selectedPerson()!"
+            [processing]="creatingUser()"
+            (confirm)="confirmCreateUser($event)"
+            (cancel)="cancelCreateUser()"
+          />
+        </div>
+      }
       @if (loading()) {
         <p
           role="status"
@@ -163,6 +252,144 @@ export class UsersPageComponent implements OnInit {
   private readonly userRoleService = inject(UserRoleService);
   private readonly destroyRef = inject(DestroyRef);
 
+  readonly creatingUser = signal(false);
+  readonly createUserError = signal<string | null>(null);
+  readonly createUserNotice = signal<string | null>(null);
+
+  private readonly createForm = viewChild(UserCreateFormComponent);
+
+  private clearCreatePasswords(): void {
+    this.createForm()?.form.patchValue({
+      password: "",
+      password_confirmation: "",
+      administratorPassword: "",
+    });
+  }
+
+  confirmCreateUser(value: UserCreateFormValue): void {
+    const person = this.selectedPerson();
+
+    if (
+      person === null ||
+      !this.canCreateUsers() ||
+      this.creatingUser() ||
+      !value.email.trim() ||
+      value.password.length < 15 ||
+      value.password !== value.password_confirmation ||
+      !value.administratorPassword
+    ) {
+      return;
+    }
+
+    const payload = {
+      id_persona: person.id_persona,
+      email: value.email.trim().toLowerCase(),
+      password: value.password,
+      password_confirmation: value.password_confirmation,
+    };
+
+    let stage: "reauthentication" | "creation" = "reauthentication";
+
+    this.creatingUser.set(true);
+    this.createUserError.set(null);
+    this.createUserNotice.set(null);
+
+    this.authService
+      .reauthenticate(value.administratorPassword)
+      .pipe(
+        switchMap(() => {
+          stage = "creation";
+          return this.userService.create(payload);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: () => {
+          this.clearCreatePasswords();
+          this.creatingUser.set(false);
+          this.selectedPerson.set(null);
+          this.personSelectorOpen.set(false);
+          this.createUserNotice.set(
+            "Usuario creado correctamente. Ya puedes administrar sus roles.",
+          );
+          this.reload();
+        },
+        error: (error: unknown) => {
+          this.clearCreatePasswords();
+          this.creatingUser.set(false);
+
+          if (stage === "reauthentication") {
+            this.createUserError.set(
+              "No fue posible confirmar la contraseña del administrador.",
+            );
+            return;
+          }
+
+          if (error instanceof HttpErrorResponse) {
+            if (error.status === 422) {
+              this.createUserError.set(
+                "Verifica el correo o si la Persona ya tiene una cuenta asociada.",
+              );
+              return;
+            }
+
+            if (error.status === 403) {
+              this.createUserError.set(
+                "No tienes permiso para crear usuarios.",
+              );
+              return;
+            }
+
+            if (error.status === 423) {
+              this.createUserError.set(
+                "La reautenticación ha caducado.",
+              );
+              return;
+            }
+          }
+
+          this.createUserError.set(
+            "No fue posible crear el usuario. Intenta nuevamente.",
+          );
+        },
+      });
+  }
+
+  cancelCreateUser(): void {
+    if (this.creatingUser()) return;
+
+    this.clearCreatePasswords();
+    this.selectedPerson.set(null);
+    this.createUserError.set(null);
+  }
+  readonly personSelectorOpen = signal(false);
+  readonly selectedPerson = signal<AvailablePerson | null>(null);
+
+  canCreateUsers(): boolean {
+    return this.authContext.hasPermission("usuarios.crear");
+  }
+
+  togglePersonSelector(): void {
+    if (!this.canCreateUsers()) {
+      return;
+    }
+
+    if (this.creatingUser()) return;
+
+    this.createUserError.set(null);
+    this.createUserNotice.set(null);
+    this.personSelectorOpen.update((open) => !open);
+    this.selectedPerson.set(null);
+  }
+
+  choosePerson(person: AvailablePerson): void {
+    if (!this.canCreateUsers() || !this.personSelectorOpen()) {
+      return;
+    }
+
+    this.selectedPerson.set(person);
+    this.personSelectorOpen.set(false);
+  }
   readonly users = signal<readonly UserSummary[]>([]);
   readonly currentPage = signal(1);
   readonly lastPage = signal(1);

@@ -122,4 +122,26 @@ describe("UserListComponent", () => {
     expect(selected[0].id).toBe(2);
     expect(selected[0].email).toBe("usuario@example.test");
   });
+
+  it("convierte correctamente la fecha UTC al horario de Mexico", () => {
+    component.users = [{
+      ...users[1],
+      created_at: "2026-10-28T02:00:00Z",
+    }];
+
+    fixture.detectChanges();
+
+    const row: HTMLElement =
+      fixture.nativeElement.querySelector(
+        '[data-testid="user-row"]',
+      );
+
+    expect(row.textContent).toContain("2026-10-27");
+  });
+
+  it("respeta el cambio de dia en horario de Mexico", () => {
+    expect(
+      component.registrationDate("2026-10-28T06:30:00Z"),
+    ).toBe("2026-10-28");
+  });
 });

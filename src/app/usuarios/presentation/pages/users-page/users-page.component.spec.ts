@@ -7,6 +7,8 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { AuthContextService } from "../../../../auth/auth-context.service";
 import { UsersPageComponent } from "./users-page.component";
+import { By } from "@angular/platform-browser";
+import { UserCreateFormComponent } from "../../organisms/user-create-form/user-create-form.component";
 
 describe("UsersPageComponent", () => {
   let fixture: ComponentFixture<UsersPageComponent>;
@@ -1790,5 +1792,360 @@ describe("UsersPageComponent", () => {
 
     expect(component.rolesError()).toBeNull();
     expect(component.selectedRoles()).toEqual([]);
+  });
+
+  it("abre el selector de Personas disponibles con permiso", () => {
+    loadAuthenticatedUser(["usuarios.ver", "usuarios.crear"]);
+
+    fixture.detectChanges();
+    respond(1, 1, 1);
+    fixture.detectChanges();
+
+    const button: HTMLButtonElement =
+      fixture.nativeElement.querySelector('[data-testid="add-user"]');
+
+    expect(button).not.toBeNull();
+    button.click();
+    fixture.detectChanges();
+
+    const request = http.expectOne(
+      (item) =>
+        item.url === "/api/usuarios/personas-disponibles" &&
+        item.method === "GET",
+    );
+
+    const person = {
+      id_persona: "00000000-0000-4000-8000-000000000001",
+      num_expediente: "123",
+      nombres: "MARIA",
+      apellido_paterno: "PRUEBA",
+      apellido_materno: null,
+      estatus: "ACTIVO",
+    };
+
+    request.flush({
+      data: [person],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: 1,
+      },
+    });
+
+    fixture.detectChanges();
+
+    const select: HTMLButtonElement =
+      fixture.nativeElement.querySelector(
+        "app-available-person-selector button[type='button']",
+      );
+
+    select.click();
+    fixture.detectChanges();
+
+    expect(component.selectedPerson()?.id_persona)
+      .toBe(person.id_persona);
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="selected-person"]'),
+    ).not.toBeNull();
+
+    expect(
+      http.match((item) =>
+        item.method === "POST" && item.url === "/api/usuarios",
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("oculta el alta de usuarios sin permiso", () => {
+    loadAuthenticatedUser(["usuarios.ver"]);
+
+    fixture.detectChanges();
+    respond(1, 1, 1);
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="add-user"]'),
+    ).toBeNull();
+  });
+
+  it("crea usuario despues de reautenticar", () => {
+    loadAuthenticatedUser(["usuarios.ver", "usuarios.crear"]);
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    const person = {
+      id_persona: "00000000-0000-4000-8000-000000000001",
+      num_expediente: "123",
+      nombres: "MARIA",
+      apellido_paterno: "PRUEBA",
+      apellido_materno: null,
+      estatus: "ACTIVO",
+    };
+
+    component.selectedPerson.set(person);
+
+    component.confirmCreateUser({
+      email: " NUEVO@EXAMPLE.TEST ",
+      password: "ClaveInicialSegura2026",
+      password_confirmation: "ClaveInicialSegura2026",
+      administratorPassword: "ClaveAdministrador",
+    });
+
+    expect(component.creatingUser()).toBe(true);
+
+    expect(
+      http.match((r) =>
+        r.method === "POST" && r.url === "/api/usuarios",
+      ),
+    ).toHaveLength(0);
+
+    const reauth = http.expectOne("/reauthenticate");
+
+    expect(reauth.request.body).toEqual({
+      password: "ClaveAdministrador",
+    });
+
+    reauth.flush({});
+
+    const create = http.expectOne("/api/usuarios");
+
+    expect(create.request.body).toEqual({
+      id_persona: person.id_persona,
+      email: "nuevo@example.test",
+      password: "ClaveInicialSegura2026",
+      password_confirmation: "ClaveInicialSegura2026",
+    });
+
+    create.flush({
+      id: 25,
+      id_persona: person.id_persona,
+      name: "MARIA PRUEBA",
+      email: "nuevo@example.test",
+    }, { status: 201, statusText: "Created" });
+
+    respond(1, 1, 1);
+
+    expect(component.creatingUser()).toBe(false);
+    expect(component.selectedPerson()).toBeNull();
+    expect(component.createUserNotice()).not.toBeNull();
+  });
+
+  it("no crea usuario cuando falla la reautenticacion", () => {
+    loadAuthenticatedUser(["usuarios.ver", "usuarios.crear"]);
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.selectedPerson.set({
+      id_persona: "00000000-0000-4000-8000-000000000001",
+      num_expediente: "123",
+      nombres: "MARIA",
+      apellido_paterno: "PRUEBA",
+      apellido_materno: null,
+      estatus: "ACTIVO",
+    });
+
+    component.confirmCreateUser({
+      email: "nuevo@example.test",
+      password: "ClaveInicialSegura2026",
+      password_confirmation: "ClaveInicialSegura2026",
+      administratorPassword: "Incorrecta",
+    });
+
+    http.expectOne("/reauthenticate").flush(
+      { message: "Credenciales invalidas" },
+      { status: 422, statusText: "Unprocessable Content" },
+    );
+
+    expect(
+      http.match((r) =>
+        r.method === "POST" && r.url === "/api/usuarios",
+      ),
+    ).toHaveLength(0);
+
+    expect(component.creatingUser()).toBe(false);
+    expect(component.selectedPerson()).not.toBeNull();
+    expect(component.createUserError()).not.toBeNull();
+  });
+
+  it("impide solicitudes duplicadas de creacion", () => {
+    loadAuthenticatedUser(["usuarios.ver", "usuarios.crear"]);
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.selectedPerson.set({
+      id_persona: "00000000-0000-4000-8000-000000000001",
+      num_expediente: "123",
+      nombres: "MARIA",
+      apellido_paterno: "PRUEBA",
+      apellido_materno: null,
+      estatus: "ACTIVO",
+    });
+
+    const credentials = {
+      email: "nuevo@example.test",
+      password: "ClaveInicialSegura2026",
+      password_confirmation: "ClaveInicialSegura2026",
+      administratorPassword: "ClaveAdministrador",
+    };
+
+    component.confirmCreateUser(credentials);
+    component.confirmCreateUser(credentials);
+
+    const requests = http.match("/reauthenticate");
+    expect(requests).toHaveLength(1);
+
+    requests[0].flush(
+      { message: "Error temporal" },
+      { status: 503, statusText: "Service Unavailable" },
+    );
+  });
+
+  for (const scenario of [
+    { status: 422, name: "rechaza el alta con error 422" },
+    { status: 403, name: "rechaza el alta con error 403" },
+    { status: 423, name: "rechaza el alta con error 423" },
+  ]) {
+    it(scenario.name, () => {
+      loadAuthenticatedUser(["usuarios.ver", "usuarios.crear"]);
+      fixture.detectChanges();
+      respond(1, 1, 1);
+
+      const person = {
+        id_persona: "00000000-0000-4000-8000-000000000001",
+        num_expediente: "123",
+        nombres: "MARIA",
+        apellido_paterno: "PRUEBA",
+        apellido_materno: null,
+        estatus: "ACTIVO",
+      };
+
+      component.selectedPerson.set(person);
+
+      component.confirmCreateUser({
+        email: "nuevo@example.test",
+        password: "ClaveInicialSegura2026",
+        password_confirmation: "ClaveInicialSegura2026",
+        administratorPassword: "ClaveAdministrador",
+      });
+
+      http.expectOne("/reauthenticate").flush({});
+
+      http.expectOne("/api/usuarios").flush(
+        { message: "Operacion rechazada" },
+        {
+          status: scenario.status,
+          statusText: "Request Rejected",
+        },
+      );
+
+      fixture.detectChanges();
+
+      expect(component.creatingUser()).toBe(false);
+      expect(component.selectedPerson()?.id_persona)
+        .toBe(person.id_persona);
+      expect(component.createUserError()).not.toBeNull();
+      expect(component.createUserNotice()).toBeNull();
+
+      expect(
+        fixture.nativeElement.querySelector(
+          '[data-testid="user-create-error"]',
+        ),
+      ).not.toBeNull();
+    });
+  }
+
+  it("limpia credenciales tras error de creacion", () => {
+    loadAuthenticatedUser(["usuarios.ver", "usuarios.crear"]);
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.selectedPerson.set({
+      id_persona: "00000000-0000-4000-8000-000000000001",
+      num_expediente: "123",
+      nombres: "MARIA",
+      apellido_paterno: "PRUEBA",
+      apellido_materno: null,
+      estatus: "ACTIVO",
+    });
+    fixture.detectChanges();
+
+    const form = fixture.debugElement.query(
+      By.directive(UserCreateFormComponent),
+    ).componentInstance as UserCreateFormComponent;
+
+    form.form.setValue({
+      email: "nuevo@example.test",
+      password: "ClaveInicialSegura2026",
+      password_confirmation: "ClaveInicialSegura2026",
+      administratorPassword: "ClaveAdministrador",
+    });
+
+    form.submit();
+
+    http.expectOne("/reauthenticate").flush({});
+
+    http.expectOne("/api/usuarios").flush(
+      { message: "Datos rechazados" },
+      { status: 422, statusText: "Unprocessable Content" },
+    );
+
+    const values = form.form.getRawValue();
+
+    expect(values.email).toBe("nuevo@example.test");
+    expect(values.password).toBe("");
+    expect(values.password_confirmation).toBe("");
+    expect(values.administratorPassword).toBe("");
+    expect(component.selectedPerson()).not.toBeNull();
+    expect(component.createUserError()).not.toBeNull();
+  });
+
+  it("descarta las credenciales al cancelar el alta", () => {
+    loadAuthenticatedUser(["usuarios.ver", "usuarios.crear"]);
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.selectedPerson.set({
+      id_persona: "00000000-0000-4000-8000-000000000001",
+      num_expediente: "123",
+      nombres: "MARIA",
+      apellido_paterno: "PRUEBA",
+      apellido_materno: null,
+      estatus: "ACTIVO",
+    });
+    fixture.detectChanges();
+
+    const form = fixture.debugElement.query(
+      By.directive(UserCreateFormComponent),
+    ).componentInstance as UserCreateFormComponent;
+
+    form.form.setValue({
+      email: "nuevo@example.test",
+      password: "ClaveInicialSegura2026",
+      password_confirmation: "ClaveInicialSegura2026",
+      administratorPassword: "ClaveAdministrador",
+    });
+
+    component.cancelCreateUser();
+
+    const values = form.form.getRawValue();
+
+    expect(values.password).toBe("");
+    expect(values.password_confirmation).toBe("");
+    expect(values.administratorPassword).toBe("");
+    expect(component.selectedPerson()).toBeNull();
+
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector("app-user-create-form"),
+    ).toBeNull();
+
+    expect(
+      http.match((request) =>
+        request.method === "POST" &&
+        request.url === "/api/usuarios",
+      ),
+    ).toHaveLength(0);
   });
 });

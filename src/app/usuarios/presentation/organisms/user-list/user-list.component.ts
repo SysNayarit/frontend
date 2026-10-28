@@ -147,7 +147,7 @@ import { UserSummary } from "../../../user.models";
                   </td>
 
                   <td class="px-5 py-4 text-[#615b5f]">
-                    {{ user.created_at.slice(0, 10) }}
+                    {{ registrationDate(user.created_at) }}
                   </td>
 
                   <td class="px-6 py-4 text-right">
@@ -186,4 +186,27 @@ export class UserListComponent {
 
   @Output()
   readonly userSelected = new EventEmitter<UserSummary>();
+
+  private readonly dateFormatter = new Intl.DateTimeFormat("es-MX", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  registrationDate(createdAt: string): string {
+    const date = new Date(createdAt);
+
+    if (Number.isNaN(date.getTime())) {
+      return "Fecha no disponible";
+    }
+
+    const parts = this.dateFormatter.formatToParts(date);
+
+    const year = parts.find((part) => part.type === "year")?.value;
+    const month = parts.find((part) => part.type === "month")?.value;
+    const day = parts.find((part) => part.type === "day")?.value;
+
+    return `${year}-${month}-${day}`;
+  }
 }
