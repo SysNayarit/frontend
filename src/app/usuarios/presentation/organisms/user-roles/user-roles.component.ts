@@ -25,20 +25,20 @@ import { UserRoleSelectorComponent } from "../../molecules/user-role-selector/us
   template: `
     <section
       aria-label="Roles del usuario"
-      class="rounded-2xl border border-[#611232]/10 bg-white p-4 shadow-sm sm:p-5"
+      class="overflow-hidden rounded-2xl border border-[#e7e2e3] bg-white p-5 shadow-sm sm:p-6"
     >
-      <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-[#ece7e8] pb-5">
         <div>
-          <p class="text-xs font-semibold uppercase tracking-widest text-[#9b2247]">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8b6874]">
             Administración de autorizaciones
           </p>
 
-          <h2 class="mt-2 text-xl font-bold text-[#611232]">
+          <h2 class="mt-1 text-xl font-semibold text-[#611232]">
             Roles asignados
           </h2>
 
           @if (user; as selected) {
-            <p data-testid="selected-user" class="mt-2 text-sm text-[#555555]">
+            <p data-testid="selected-user" class="mt-2 break-words text-sm font-medium text-[#61575c]">
               {{ selected.name }} — {{ selected.email }}
             </p>
           }
@@ -48,7 +48,7 @@ import { UserRoleSelectorComponent } from "../../molecules/user-role-selector/us
           <button
             type="button"
             data-testid="close-user-roles"
-            class="siga-focus rounded-lg border border-[#98989a]/30 px-4 py-2 text-sm font-semibold text-[#611232]"
+            class="siga-focus rounded-lg border border-[#e2d9dd] bg-white px-3 py-2 text-xs font-semibold text-[#611232] transition-colors hover:bg-[#f7f0f2]"
             (click)="close.emit()"
           >
             Cerrar detalle
@@ -61,7 +61,7 @@ import { UserRoleSelectorComponent } from "../../molecules/user-role-selector/us
           <button
             type="button"
             data-testid="assign-user-role"
-            class="siga-focus rounded-lg bg-[#611232] px-4 py-2 text-sm font-semibold text-white"
+            class="siga-focus rounded-lg bg-[#611232] px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#7d1a41] disabled:opacity-50"
             [attr.aria-expanded]="roleSelectorOpen"
               aria-controls="inline-role-catalog"
               [disabled]="roleOperationProcessing"
@@ -89,6 +89,26 @@ import { UserRoleSelectorComponent } from "../../molecules/user-role-selector/us
         </div>
       }
 
+      @if (
+        user &&
+        selectedRoleOperation === "assign" &&
+        selectedRoleForOperation &&
+        roleReauthenticationForm
+      ) {
+        <div data-testid="inline-assign-role-confirmation" class="mt-3">
+          <app-user-role-confirmation
+            [user]="user"
+            [role]="selectedRoleForOperation"
+            operation="assign"
+            [form]="roleReauthenticationForm"
+            [processing]="roleOperationProcessing"
+            [passwordError]="rolePasswordError"
+            [operationError]="roleOperationError"
+            (confirm)="confirmRoleOperation.emit()"
+            (cancel)="cancelRoleOperation.emit()"
+          />
+        </div>
+      }
       @if (!user) {
         <p
           data-testid="no-selected-user"
@@ -116,20 +136,20 @@ import { UserRoleSelectorComponent } from "../../molecules/user-role-selector/us
           Este usuario no tiene roles asignados.
         </p>
       } @else {
-        <ul data-testid="assigned-roles" class="mt-4 space-y-2">
+        <ul data-testid="assigned-roles" class="mt-5 grid gap-3">
           @for (role of roles; track role.id) {
-            <li class="rounded-xl border border-[#611232]/15 bg-[#fcfaf7] p-3 transition-colors hover:border-[#a57f2c]/40 sm:p-4">
-              <p class="font-semibold text-[#161a1d]">{{ role.name }}</p>
-              <p class="mt-1 text-xs text-[#555555]">{{ role.code }}</p>
+            <li class="rounded-xl border border-[#e9e2e5] bg-[#fcfbfb] p-4 transition-colors hover:border-[#bca2ac]">
+              <p class="text-sm font-semibold text-[#352b30]">{{ role.name }}</p>
+              <p class="mt-1 break-all text-xs tracking-wide text-[#82767c]">{{ role.code }}</p>
               @if (role.code === "ROL_ADMIN_SISTEMA") {
-                <p class="mt-3 inline-flex rounded-full bg-[#e6d194]/25 px-3 py-1 text-xs font-semibold text-[#611232]">
+                <p class="mt-3 inline-flex items-center rounded-full border border-[#e8d7aa] bg-[#faf3dc] px-3 py-1 text-xs font-semibold text-[#76561a]">
                   Rol administrativo protegido
                 </p>
               } @else if (canManageRoles) {
                 <button
                   type="button"
                   data-testid="remove-user-role"
-                  class="siga-focus mt-3 inline-flex items-center gap-2 rounded-lg border border-[#9b2247]/35 bg-[#9b2247]/5 px-4 py-2 text-sm font-semibold text-[#9b2247] transition-colors hover:bg-[#9b2247]/10"
+                  class="siga-focus mt-3 inline-flex items-center gap-2 rounded-lg border border-[#e5cbd3] bg-white px-3 py-2 text-xs font-semibold text-[#8b2948] transition-colors hover:bg-[#fff1f4] disabled:opacity-50"
                   [attr.aria-label]="'Retirar rol ' + role.name"
                   [attr.aria-expanded]="
                     selectedRoleOperation === 'remove' &&

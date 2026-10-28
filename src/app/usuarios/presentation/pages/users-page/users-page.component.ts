@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from "@angular/common";
 import {
   ChangeDetectionStrategy,
   Component,
@@ -21,18 +22,15 @@ import { UserRolesComponent } from "../../organisms/user-roles/user-roles.compon
 import {
   createUserRoleReauthenticationForm,
 } from "../../forms/user-role-reauthentication-form";
-import {
-  UserRoleConfirmationComponent,
-  UserRoleOperation,
-} from "../../organisms/user-role-confirmation/user-role-confirmation.component";import { UsersPaginationComponent } from "../../molecules/users-pagination/users-pagination.component";
+import { UserRoleOperation } from "../../organisms/user-role-confirmation/user-role-confirmation.component";import { UsersPaginationComponent } from "../../molecules/users-pagination/users-pagination.component";
 
 @Component({
   selector: "app-users-page",
   standalone: true,
   imports: [
+    NgTemplateOutlet,
     UserListComponent,
     UserRolesComponent,
-    UserRoleConfirmationComponent,
     UsersPaginationComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -85,10 +83,14 @@ import {
       @if (!loading() && !error()) {
         <app-user-list
           [users]="users()"
+          [selectedUserId]="selectedUser()?.id ?? null"
+          [detailTemplate]="detalleUsuario"
           (userSelected)="selectUser($event)"
         />
 
-        @if (selectedUser() && roleOperationNotice()) {
+        <ng-template #detalleUsuario>
+          <div class="rounded-xl border border-[#e7e2e3] bg-[#faf9f9] p-4">
+@if (selectedUser() && roleOperationNotice()) {
           <p
             role="status"
             data-testid="role-operation-notice"
@@ -127,23 +129,22 @@ import {
           />
         }
 
+
+          </div>
+        </ng-template>
         @if (
           selectedUser() &&
-          selectedRoleForOperation() &&
-          selectedRoleOperation() === "assign"
+          !users().some(user => user.id === selectedUser()!.id)
         ) {
-          <app-user-role-confirmation
-            [user]="selectedUser()!"
-            [role]="selectedRoleForOperation()!"
-            [operation]="selectedRoleOperation()"
-            [form]="roleReauthenticationForm"
-            [processing]="roleOperationProcessing()"
-            [passwordError]="rolePasswordError()"
-            [operationError]="roleOperationError()"
-            (confirm)="confirmRoleAssignment()"
-            (cancel)="closeRoleConfirmation()"
+          <ng-container [ngTemplateOutlet]="detalleUsuario" />
+        }
+
+        @if (selectedUser() && !selectedUserVisible()) {
+          <ng-container
+            [ngTemplateOutlet]="detalleUsuario"
           />
         }
+
         <app-users-pagination
           [currentPage]="currentPage()"
           [lastPage]="lastPage()"
@@ -194,6 +195,11 @@ export class UsersPageComponent implements OnInit {
 
   private roleCatalogRequestVersion = 0;
 
+  selectedUserVisible(): boolean {
+    const selected = this.selectedUser();
+    return selected !== null &&
+      this.users().some(user => user.id === selected.id);
+  }
   canManageRoles(): boolean {
     return this.authContext.hasPermission("usuarios.asignar_roles");
   }
@@ -557,6 +563,11 @@ export class UsersPageComponent implements OnInit {
   }
   selectUser(user: UserSummary): void {
     if (this.roleOperationProcessing()) {
+      return;
+    }
+
+    if (this.selectedUser()?.id === user.id) {
+      this.closeUserRoles();
       return;
     }
 

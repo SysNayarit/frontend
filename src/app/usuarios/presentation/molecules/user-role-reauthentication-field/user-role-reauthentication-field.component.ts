@@ -15,15 +15,15 @@ import {
   imports: [ReactiveFormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="mt-5 max-w-md">
-      <p class="text-sm leading-6 text-[#555555]">
+    <div class="mt-3 max-w-sm">
+      <p class="text-xs leading-5 text-[#555555]">
         Por seguridad, confirma tu contraseña antes de modificar
         los roles del usuario.
       </p>
 
       <label
         for="user-role-reauthentication-password"
-        class="mt-4 block text-sm font-semibold text-[#611232]"
+        class="mt-2 block text-xs font-semibold text-[#611232]"
       >
         Contraseña del administrador
       </label>
@@ -36,7 +36,7 @@ import {
         [formControl]="form.controls.password"
         [attr.aria-invalid]="passwordError ? 'true' : null"
         [attr.aria-describedby]="passwordError ? 'user-role-password-error' : null"
-        class="siga-focus mt-2 w-full rounded-lg border border-[#98989a]/40 bg-white px-4 py-3 text-[#161a1d]"
+        class="siga-focus mt-2 w-full rounded-lg border border-[#98989a]/40 bg-white px-3 py-2 text-sm text-[#161a1d]"
       />
 
       @if (passwordError) {
