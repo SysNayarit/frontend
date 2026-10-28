@@ -90,6 +90,48 @@ describe("UserRoleService", () => {
     );
   });
 
+  it("asigna masivamente un rol a usuarios seleccionados", () => {
+    service.assignRolesBulk(3, [15, 18]).subscribe();
+
+    const request = http.expectOne(
+      "/api/usuarios/roles/masivo",
+    );
+
+    expect(request.request.method).toBe("POST");
+    expect(request.request.body).toEqual({
+      role_id: 3,
+      user_ids: [15, 18],
+    });
+
+    request.flush({
+      role_id: 3,
+      result: {
+        selected: 2,
+        assigned: 2,
+        already_assigned: 0,
+      },
+    });
+  });
+
+  it("rechaza la asignacion masiva sin reautenticacion", () => {
+    let status: number | undefined;
+
+    service.assignRolesBulk(3, [15]).subscribe({
+      error: (error: { status: number }) => {
+        status = error.status;
+      },
+    });
+
+    http.expectOne("/api/usuarios/roles/masivo").flush(
+      { message: "Reauthentication required" },
+      {
+        status: 423,
+        statusText: "Locked",
+      },
+    );
+
+    expect(status).toBe(423);
+  });
   it("retira un rol mediante DELETE", () => {
     service.removeRole(15, 3).subscribe();
 
