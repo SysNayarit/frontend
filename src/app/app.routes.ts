@@ -9,7 +9,7 @@ import {
   usuariosViewGuard,
 } from "./auth/permission.guard";
 import { HomeComponent } from "./home.component";
-import { UsersPageComponent } from "./usuarios/presentation/pages/users-page/users-page.component";
+
 import { AuthenticatedLayoutComponent } from "./shell/presentation/templates/authenticated-layout/authenticated-layout.component";
 import { PersonImportPageComponent } from "./personas/presentation/pages/person-import-page/person-import-page.component";
 import { PersonasPageComponent } from "./personas/presentation/pages/personas-page/personas-page.component";
@@ -38,8 +38,35 @@ export const routes: Routes = [
         component: HomeComponent,
       },
       {
+        path: "usuarios/roles/masivo",
+        loadComponent: () =>
+          import("./usuarios/presentation/pages/bulk-role-assignment-page/bulk-role-assignment-page.component").then(
+            (module) => module.BulkRoleAssignmentPageComponent,
+          ),
+        canActivate: [usuariosViewGuard],
+      },
+      {
+        path: "usuarios/registro",
+        loadComponent: () =>
+          import("./usuarios/presentation/pages/user-registration-page/user-registration-page.component").then(
+            (module) => module.UserRegistrationPageComponent,
+          ),
+        canActivate: [usuariosViewGuard],
+      },
+      {
+        path: "usuarios/menu",
+        loadComponent: () =>
+          import("./usuarios/presentation/pages/users-management-page/users-management-page.component").then(
+            (module) => module.UsersManagementPageComponent,
+          ),
+        canActivate: [usuariosViewGuard],
+      },
+      {
         path: "usuarios",
-        component: UsersPageComponent,
+        loadComponent: () =>
+          import("./usuarios/presentation/pages/users-page/users-page.component").then(
+            (module) => module.UsersPageComponent,
+          ),
         canActivate: [usuariosViewGuard],
       },
       {

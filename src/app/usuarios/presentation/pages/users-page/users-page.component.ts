@@ -1,4 +1,6 @@
+﻿import { UsersModuleNavigationComponent } from "../../molecules/users-module-navigation/users-module-navigation.component";
 import { NgTemplateOutlet } from "@angular/common";
+import { ReactiveFormsModule } from "@angular/forms";
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,7 +8,6 @@ import {
   inject,
   OnInit,
   signal,
-  viewChild,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { switchMap, type Observable } from "rxjs";
@@ -14,38 +15,35 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { AuthContextService } from "../../../../auth/auth-context.service";
 import { AuthService } from "../../../../auth/auth.service";
 
-import { AvailablePerson, UserListResponse, UserSummary } from "../../../user.models";
-import { AvailablePersonSelectorComponent } from "../../organisms/available-person-selector/available-person-selector.component";
-import {
-  UserCreateFormComponent,
-  UserCreateFormValue,
-} from "../../organisms/user-create-form/user-create-form.component";
+import { UserListResponse, UserSummary } from "../../../user.models";
 import { UserRole } from "../../../user-role.models";
 import { UserRoleService } from "../../../user-role.service";
 import { UserService } from "../../../user.service";
 import { UserListComponent } from "../../organisms/user-list/user-list.component";
 import { UserRolesComponent } from "../../organisms/user-roles/user-roles.component";
-import {
-  createUserRoleReauthenticationForm,
-} from "../../forms/user-role-reauthentication-form";
-import { UserRoleOperation } from "../../organisms/user-role-confirmation/user-role-confirmation.component";import { UsersPaginationComponent } from "../../molecules/users-pagination/users-pagination.component";
+import { createUserRoleReauthenticationForm } from "../../forms/user-role-reauthentication-form";
+import { UserRoleOperation } from "../../organisms/user-role-confirmation/user-role-confirmation.component";
+import { UsersPaginationComponent } from "../../molecules/users-pagination/users-pagination.component";
 
 @Component({
   selector: "app-users-page",
   standalone: true,
   imports: [
+    UsersModuleNavigationComponent,
     NgTemplateOutlet,
+    ReactiveFormsModule,
     UserListComponent,
-    AvailablePersonSelectorComponent,
-    UserCreateFormComponent,
     UserRolesComponent,
     UsersPaginationComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6">
+      <app-users-module-navigation />
       <header class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-        <p class="text-xs font-semibold uppercase tracking-widest text-[#9b2247]">
+        <p
+          class="text-xs font-semibold uppercase tracking-widest text-[#9b2247]"
+        >
           Administración
         </p>
 
@@ -58,87 +56,6 @@ import { UserRoleOperation } from "../../organisms/user-role-confirmation/user-r
         </p>
       </header>
 
-      @if (canCreateUsers()) {
-        <div class="rounded-xl border border-[#e7e2e3] bg-white p-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 class="text-sm font-semibold text-[#611232]">
-                Registro de usuarios
-              </h2>
-              <p class="mt-1 text-xs text-gray-600">
-                Asocia una cuenta a una Persona registrada.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              data-testid="add-user"
-              class="siga-focus rounded-lg bg-[#611232] px-4 py-2 text-sm font-medium text-white"
-              (click)="togglePersonSelector()"
-            >
-              {{ personSelectorOpen() ? "Cancelar selección" : "Agregar usuario" }}
-            </button>
-          </div>
-
-          @if (personSelectorOpen()) {
-            <div class="mt-4">
-              <app-available-person-selector
-                (personSelected)="choosePerson($event)"
-              />
-            </div>
-          }
-
-          @if (selectedPerson()) {
-            <div
-              data-testid="selected-person"
-              class="mt-4 rounded-lg border border-[#a57f2c]/30 bg-[#faf9f7] p-3"
-            >
-              <p class="text-sm font-medium text-[#611232]">
-                Persona seleccionada:
-                {{ selectedPerson()!.nombres }}
-                {{ selectedPerson()!.apellido_paterno }}
-                {{ selectedPerson()!.apellido_materno }}
-              </p>
-              <p class="mt-1 text-xs text-gray-600">
-                Expediente: {{ selectedPerson()!.num_expediente }}
-              </p>
-              <p class="mt-2 text-xs text-gray-600">
-                La cuenta todavía no ha sido creada.
-              </p>
-            </div>
-          }
-        </div>
-      }
-      @if (createUserNotice()) {
-        <p
-          role="status"
-          data-testid="user-create-success"
-          class="rounded-xl border border-[#a57f2c]/30 bg-white p-4 text-sm text-[#611232]"
-        >
-          {{ createUserNotice() }}
-        </p>
-      }
-
-      @if (selectedPerson() && canCreateUsers()) {
-        <div class="space-y-3">
-          @if (createUserError()) {
-            <p
-              role="alert"
-              data-testid="user-create-error"
-              class="rounded-lg border border-red-200 bg-white p-3 text-sm text-red-700"
-            >
-              {{ createUserError() }}
-            </p>
-          }
-
-          <app-user-create-form
-            [person]="selectedPerson()!"
-            [processing]="creatingUser()"
-            (confirm)="confirmCreateUser($event)"
-            (cancel)="cancelCreateUser()"
-          />
-        </div>
-      }
       @if (loading()) {
         <p
           role="status"
@@ -170,6 +87,15 @@ import { UserRoleOperation } from "../../organisms/user-role-confirmation/user-r
       }
 
       @if (!loading() && !error()) {
+        <div class="mb-3">
+          <h2 class="text-base font-semibold text-[#611232]">
+            Usuarios registrados
+          </h2>
+          <p class="mt-1 text-xs text-gray-600">
+            Consulta las cuentas existentes y administra individualmente sus
+            roles, según tus permisos.
+          </p>
+        </div>
         <app-user-list
           [users]="users()"
           [selectedUserId]="selectedUser()?.id ?? null"
@@ -179,59 +105,55 @@ import { UserRoleOperation } from "../../organisms/user-role-confirmation/user-r
 
         <ng-template #detalleUsuario>
           <div class="rounded-xl border border-[#e7e2e3] bg-[#faf9f9] p-4">
-@if (selectedUser() && roleOperationNotice()) {
-          <p
-            role="status"
-            data-testid="role-operation-notice"
-            class="rounded-xl border border-[#a57f2c]/30 bg-white p-4 text-sm font-medium text-[#611232]"
-          >
-            {{ roleOperationNotice() }}
-          </p>
-        }
+            @if (selectedUser() && roleOperationNotice()) {
+              <p
+                role="status"
+                data-testid="role-operation-notice"
+                class="rounded-xl border border-[#a57f2c]/30 bg-white p-4 text-sm font-medium text-[#611232]"
+              >
+                {{ roleOperationNotice() }}
+              </p>
+            }
 
-        @if (selectedUser()) {
-          <app-user-roles
-            [user]="selectedUser()"
-            [roles]="selectedRoles()"
-            [canManageRoles]="canManageRoles()"
-            [loading]="rolesLoading()"
-            [error]="rolesError()"
-            (close)="closeUserRoles()"
-            (retry)="retryUserRoles()"
-            (assignRequested)="openRoleSelector()"
-            [roleSelectorOpen]="roleSelectorOpen()"
-            [roleCatalog]="roleCatalog()"
-            [roleCatalogLoading]="roleCatalogLoading()"
-            [roleCatalogError]="roleCatalogError()"
-            (availableRoleSelected)="selectRoleForAssignment($event)"
-            (roleCatalogRetry)="retryRoleCatalog()"
-            (roleCatalogCancel)="closeRoleSelector()"
-            (removeRequested)="openRoleRemoval($event)"
-            [selectedRoleOperation]="selectedRoleOperation()"
-            [selectedRoleForOperation]="selectedRoleForOperation()"
-            [roleReauthenticationForm]="roleReauthenticationForm"
-            [roleOperationProcessing]="roleOperationProcessing()"
-            [rolePasswordError]="rolePasswordError()"
-            [roleOperationError]="roleOperationError()"
-            (confirmRoleOperation)="confirmRoleAssignment()"
-            (cancelRoleOperation)="closeRoleConfirmation()"
-          />
-        }
-
-
+            @if (selectedUser()) {
+              <app-user-roles
+                [user]="selectedUser()"
+                [roles]="selectedRoles()"
+                [canManageRoles]="canManageRoles()"
+                [loading]="rolesLoading()"
+                [error]="rolesError()"
+                (close)="closeUserRoles()"
+                (retry)="retryUserRoles()"
+                (assignRequested)="openRoleSelector()"
+                [roleSelectorOpen]="roleSelectorOpen()"
+                [roleCatalog]="roleCatalog()"
+                [roleCatalogLoading]="roleCatalogLoading()"
+                [roleCatalogError]="roleCatalogError()"
+                (availableRoleSelected)="selectRoleForAssignment($event)"
+                (roleCatalogRetry)="retryRoleCatalog()"
+                (roleCatalogCancel)="closeRoleSelector()"
+                (removeRequested)="openRoleRemoval($event)"
+                [selectedRoleOperation]="selectedRoleOperation()"
+                [selectedRoleForOperation]="selectedRoleForOperation()"
+                [roleReauthenticationForm]="roleReauthenticationForm"
+                [roleOperationProcessing]="roleOperationProcessing()"
+                [rolePasswordError]="rolePasswordError()"
+                [roleOperationError]="roleOperationError()"
+                (confirmRoleOperation)="confirmRoleAssignment()"
+                (cancelRoleOperation)="closeRoleConfirmation()"
+              />
+            }
           </div>
         </ng-template>
         @if (
           selectedUser() &&
-          !users().some(user => user.id === selectedUser()!.id)
+          !users().some((user) => user.id === selectedUser()!.id)
         ) {
           <ng-container [ngTemplateOutlet]="detalleUsuario" />
         }
 
         @if (selectedUser() && !selectedUserVisible()) {
-          <ng-container
-            [ngTemplateOutlet]="detalleUsuario"
-          />
+          <ng-container [ngTemplateOutlet]="detalleUsuario" />
         }
 
         <app-users-pagination
@@ -252,144 +174,6 @@ export class UsersPageComponent implements OnInit {
   private readonly userRoleService = inject(UserRoleService);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly creatingUser = signal(false);
-  readonly createUserError = signal<string | null>(null);
-  readonly createUserNotice = signal<string | null>(null);
-
-  private readonly createForm = viewChild(UserCreateFormComponent);
-
-  private clearCreatePasswords(): void {
-    this.createForm()?.form.patchValue({
-      password: "",
-      password_confirmation: "",
-      administratorPassword: "",
-    });
-  }
-
-  confirmCreateUser(value: UserCreateFormValue): void {
-    const person = this.selectedPerson();
-
-    if (
-      person === null ||
-      !this.canCreateUsers() ||
-      this.creatingUser() ||
-      !value.email.trim() ||
-      value.password.length < 15 ||
-      value.password !== value.password_confirmation ||
-      !value.administratorPassword
-    ) {
-      return;
-    }
-
-    const payload = {
-      id_persona: person.id_persona,
-      email: value.email.trim().toLowerCase(),
-      password: value.password,
-      password_confirmation: value.password_confirmation,
-    };
-
-    let stage: "reauthentication" | "creation" = "reauthentication";
-
-    this.creatingUser.set(true);
-    this.createUserError.set(null);
-    this.createUserNotice.set(null);
-
-    this.authService
-      .reauthenticate(value.administratorPassword)
-      .pipe(
-        switchMap(() => {
-          stage = "creation";
-          return this.userService.create(payload);
-        }),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe({
-        next: () => {
-          this.clearCreatePasswords();
-          this.creatingUser.set(false);
-          this.selectedPerson.set(null);
-          this.personSelectorOpen.set(false);
-          this.createUserNotice.set(
-            "Usuario creado correctamente. Ya puedes administrar sus roles.",
-          );
-          this.reload();
-        },
-        error: (error: unknown) => {
-          this.clearCreatePasswords();
-          this.creatingUser.set(false);
-
-          if (stage === "reauthentication") {
-            this.createUserError.set(
-              "No fue posible confirmar la contraseña del administrador.",
-            );
-            return;
-          }
-
-          if (error instanceof HttpErrorResponse) {
-            if (error.status === 422) {
-              this.createUserError.set(
-                "Verifica el correo o si la Persona ya tiene una cuenta asociada.",
-              );
-              return;
-            }
-
-            if (error.status === 403) {
-              this.createUserError.set(
-                "No tienes permiso para crear usuarios.",
-              );
-              return;
-            }
-
-            if (error.status === 423) {
-              this.createUserError.set(
-                "La reautenticación ha caducado.",
-              );
-              return;
-            }
-          }
-
-          this.createUserError.set(
-            "No fue posible crear el usuario. Intenta nuevamente.",
-          );
-        },
-      });
-  }
-
-  cancelCreateUser(): void {
-    if (this.creatingUser()) return;
-
-    this.clearCreatePasswords();
-    this.selectedPerson.set(null);
-    this.createUserError.set(null);
-  }
-  readonly personSelectorOpen = signal(false);
-  readonly selectedPerson = signal<AvailablePerson | null>(null);
-
-  canCreateUsers(): boolean {
-    return this.authContext.hasPermission("usuarios.crear");
-  }
-
-  togglePersonSelector(): void {
-    if (!this.canCreateUsers()) {
-      return;
-    }
-
-    if (this.creatingUser()) return;
-
-    this.createUserError.set(null);
-    this.createUserNotice.set(null);
-    this.personSelectorOpen.update((open) => !open);
-    this.selectedPerson.set(null);
-  }
-
-  choosePerson(person: AvailablePerson): void {
-    if (!this.canCreateUsers() || !this.personSelectorOpen()) {
-      return;
-    }
-
-    this.selectedPerson.set(person);
-    this.personSelectorOpen.set(false);
-  }
   readonly users = signal<readonly UserSummary[]>([]);
   readonly currentPage = signal(1);
   readonly lastPage = signal(1);
@@ -424,8 +208,9 @@ export class UsersPageComponent implements OnInit {
 
   selectedUserVisible(): boolean {
     const selected = this.selectedUser();
-    return selected !== null &&
-      this.users().some(user => user.id === selected.id);
+    return (
+      selected !== null && this.users().some((user) => user.id === selected.id)
+    );
   }
   canManageRoles(): boolean {
     return this.authContext.hasPermission("usuarios.asignar_roles");
@@ -435,11 +220,7 @@ export class UsersPageComponent implements OnInit {
   }
 
   loadPage(page: number): void {
-    if (
-      this.loading() ||
-      page < 1 ||
-      page > this.lastPage()
-    ) {
+    if (this.loading() || page < 1 || page > this.lastPage()) {
       return;
     }
 
@@ -535,64 +316,62 @@ export class UsersPageComponent implements OnInit {
               ? this.userRoleService.removeRole(userId, roleId)
               : this.userRoleService.assignRole(userId, roleId);
 
-          roleRequest
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-              next: () => {
-                if (!this.isCurrentRoleOperation(version, userId, roleId)) {
+          roleRequest.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+            next: () => {
+              if (!this.isCurrentRoleOperation(version, userId, roleId)) {
+                return;
+              }
+
+              this.roleOperationProcessing.set(false);
+              this.closeRoleConfirmation();
+              this.roleOperationNotice.set(
+                operation === "remove"
+                  ? "Laravel confirmó el retiro. Actualizando los roles del usuario."
+                  : "Laravel confirmó la asignación. Actualizando los roles del usuario.",
+              );
+              this.loadUserRoles(userId);
+            },
+            error: (error: unknown) => {
+              if (!this.isCurrentRoleOperation(version, userId, roleId)) {
+                return;
+              }
+
+              this.roleOperationProcessing.set(false);
+
+              if (error instanceof HttpErrorResponse) {
+                if (error.status === 403) {
+                  this.roleOperationError.set(
+                    operation === "remove"
+                      ? "No tienes autorización para retirar este rol."
+                      : "No tienes autorización para asignar este rol.",
+                  );
                   return;
                 }
 
-                this.roleOperationProcessing.set(false);
-                this.closeRoleConfirmation();
-                this.roleOperationNotice.set(
-                  operation === "remove"
-                    ? "Laravel confirmó el retiro. Actualizando los roles del usuario."
-                    : "Laravel confirmó la asignación. Actualizando los roles del usuario.",
-                );
-                this.loadUserRoles(userId);
-              },
-              error: (error: unknown) => {
-                if (!this.isCurrentRoleOperation(version, userId, roleId)) {
+                if (error.status === 423) {
+                  this.roleOperationError.set(
+                    "La reautenticación ha caducado. Confirma nuevamente tu identidad.",
+                  );
                   return;
                 }
 
-                this.roleOperationProcessing.set(false);
-
-                if (error instanceof HttpErrorResponse) {
-                  if (error.status === 403) {
-                    this.roleOperationError.set(
-                      operation === "remove"
-                        ? "No tienes autorización para retirar este rol."
-                        : "No tienes autorización para asignar este rol.",
-                    );
-                    return;
-                  }
-
-                  if (error.status === 423) {
-                    this.roleOperationError.set(
-                      "La reautenticación ha caducado. Confirma nuevamente tu identidad.",
-                    );
-                    return;
-                  }
-
-                  if (error.status === 422) {
-                    this.roleOperationError.set(
-                      operation === "remove"
-                        ? "Laravel rechazó el retiro del rol seleccionado."
-                        : "Laravel rechazó la asignación del rol seleccionado.",
-                    );
-                    return;
-                  }
+                if (error.status === 422) {
+                  this.roleOperationError.set(
+                    operation === "remove"
+                      ? "Laravel rechazó el retiro del rol seleccionado."
+                      : "Laravel rechazó la asignación del rol seleccionado.",
+                  );
+                  return;
                 }
+              }
 
-                this.roleOperationError.set(
-                  operation === "remove"
-                    ? "No fue posible completar el retiro del rol."
-                    : "No fue posible completar la asignación del rol.",
-                );
-              },
-            });
+              this.roleOperationError.set(
+                operation === "remove"
+                  ? "No fue posible completar el retiro del rol."
+                  : "No fue posible completar la asignación del rol.",
+              );
+            },
+          });
         },
         error: (error: unknown) => {
           if (version !== this.roleOperationVersion) {
@@ -602,10 +381,7 @@ export class UsersPageComponent implements OnInit {
           this.roleReauthenticationForm.reset();
           this.roleOperationProcessing.set(false);
 
-          if (
-            error instanceof HttpErrorResponse &&
-            error.status === 422
-          ) {
+          if (error instanceof HttpErrorResponse && error.status === 422) {
             this.rolePasswordError.set(
               "No fue posible confirmar la contraseña.",
             );

@@ -12,6 +12,11 @@ export interface UserSummary {
   email: string;
   created_at: string;
   person: UserPersonSummary | null;
+  roles?: readonly {
+    id: number;
+    code: string;
+    name: string;
+  }[];
 }
 
 export interface UserPaginationMeta {
@@ -45,6 +50,8 @@ export interface AvailablePerson {
   apellido_paterno: string | null;
   apellido_materno: string | null;
   estatus: string;
+  fecha_registro?: string | null;
+  forma_registro?: "INDIVIDUAL" | "MASIVO" | "NO_DETERMINADO";
 }
 
 export interface AvailablePersonsResponse {

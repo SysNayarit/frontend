@@ -1,3 +1,4 @@
+﻿import { provideRouter } from "@angular/router";
 import { HttpClient, provideHttpClient } from "@angular/common/http";
 import {
   HttpTestingController,
@@ -19,6 +20,7 @@ describe("UsersPageComponent", () => {
     await TestBed.configureTestingModule({
       imports: [UsersPageComponent],
       providers: [
+        provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
       ],
@@ -42,11 +44,7 @@ describe("UsersPageComponent", () => {
     );
   }
 
-  function respond(
-    page: number,
-    lastPage: number,
-    total: number,
-  ): void {
+  function respond(page: number, lastPage: number, total: number): void {
     expectPage(page).flush({
       data: [
         {
@@ -80,9 +78,7 @@ describe("UsersPageComponent", () => {
     expect(component.users()[0].name).toBe("Usuario 1");
 
     expect(
-      fixture.nativeElement.querySelectorAll(
-        '[data-testid="user-row"]',
-      ).length,
+      fixture.nativeElement.querySelectorAll('[data-testid="user-row"]').length,
     ).toBe(1);
   });
 
@@ -91,10 +87,9 @@ describe("UsersPageComponent", () => {
     respond(1, 3, 45);
     fixture.detectChanges();
 
-    const next: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="next-page"]',
-      );
+    const next: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="next-page"]',
+    );
 
     next.click();
 
@@ -143,10 +138,9 @@ describe("UsersPageComponent", () => {
 
     fixture.detectChanges();
 
-    const retry: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="users-error"] button',
-      );
+    const retry: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="users-error"] button',
+    );
 
     retry.click();
 
@@ -186,10 +180,9 @@ describe("UsersPageComponent", () => {
     respond(1, 1, 1);
     fixture.detectChanges();
 
-    const button: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="view-user-roles"]',
-      );
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="view-user-roles"]',
+    );
 
     button.click();
     fixture.detectChanges();
@@ -215,9 +208,7 @@ describe("UsersPageComponent", () => {
 
     expect(component.rolesLoading()).toBe(false);
     expect(component.selectedRoles().length).toBe(1);
-    expect(
-      fixture.nativeElement.textContent,
-    ).toContain("Gestor de Personas");
+    expect(fixture.nativeElement.textContent).toContain("Gestor de Personas");
   });
 
   it("permite cerrar el detalle de roles", () => {
@@ -226,24 +217,20 @@ describe("UsersPageComponent", () => {
 
     component.selectUser(component.users()[0]);
 
-    http.expectOne("/api/usuarios/1/roles")
-      .flush({ data: [] });
+    http.expectOne("/api/usuarios/1/roles").flush({ data: [] });
 
     fixture.detectChanges();
 
-    const closeButton: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="close-user-roles"]',
-      );
+    const closeButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="close-user-roles"]',
+    );
 
     closeButton.click();
     fixture.detectChanges();
 
     expect(component.selectedUser()).toBeNull();
     expect(component.selectedRoles()).toEqual([]);
-    expect(
-      fixture.nativeElement.querySelector("app-user-roles"),
-    ).toBeNull();
+    expect(fixture.nativeElement.querySelector("app-user-roles")).toBeNull();
   });
 
   it("ignora respuestas atrasadas de otro usuario", () => {
@@ -261,15 +248,11 @@ describe("UsersPageComponent", () => {
 
     component.selectUser(firstUser);
 
-    const firstRequest = http.expectOne(
-      "/api/usuarios/1/roles",
-    );
+    const firstRequest = http.expectOne("/api/usuarios/1/roles");
 
     component.selectUser(secondUser);
 
-    const secondRequest = http.expectOne(
-      "/api/usuarios/2/roles",
-    );
+    const secondRequest = http.expectOne("/api/usuarios/2/roles");
 
     secondRequest.flush({
       data: [
@@ -295,14 +278,13 @@ describe("UsersPageComponent", () => {
 
     expect(component.selectedUser()?.id).toBe(2);
     expect(component.selectedRoles().length).toBe(1);
-    expect(component.selectedRoles()[0].code)
-      .toBe("ROL_CONSULTA_PERSONAS");
+    expect(component.selectedRoles()[0].code).toBe("ROL_CONSULTA_PERSONAS");
 
-    expect(fixture.nativeElement.textContent)
-      .toContain("Consulta de Personas");
+    expect(fixture.nativeElement.textContent).toContain("Consulta de Personas");
 
-    expect(fixture.nativeElement.textContent)
-      .not.toContain("Gestor de Personas");
+    expect(fixture.nativeElement.textContent).not.toContain(
+      "Gestor de Personas",
+    );
   });
 
   it("permite reintentar la consulta de roles", () => {
@@ -323,30 +305,24 @@ describe("UsersPageComponent", () => {
 
     expect(component.rolesError()).not.toBeNull();
 
-    const retryButton: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="roles-error"] button',
-      );
+    const retryButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="roles-error"] button',
+    );
 
     retryButton.click();
 
-    http.expectOne("/api/usuarios/1/roles")
-      .flush({ data: [] });
+    http.expectOne("/api/usuarios/1/roles").flush({ data: [] });
 
     fixture.detectChanges();
 
     expect(component.rolesError()).toBeNull();
     expect(component.rolesLoading()).toBe(false);
     expect(
-      fixture.nativeElement.querySelector(
-        '[data-testid="roles-empty"]',
-      ),
+      fixture.nativeElement.querySelector('[data-testid="roles-empty"]'),
     ).not.toBeNull();
   });
 
-  function loadAuthenticatedUser(
-    permissions: string[],
-  ): void {
+  function loadAuthenticatedUser(permissions: string[]): void {
     const context = TestBed.inject(AuthContextService);
 
     context.refresh().subscribe();
@@ -387,26 +363,18 @@ describe("UsersPageComponent", () => {
     expect(component.canManageRoles()).toBe(false);
 
     expect(
-      fixture.nativeElement.querySelector(
-        '[data-testid="assign-user-role"]',
-      ),
+      fixture.nativeElement.querySelector('[data-testid="assign-user-role"]'),
     ).toBeNull();
 
     expect(
-      fixture.nativeElement.querySelector(
-        '[data-testid="remove-user-role"]',
-      ),
+      fixture.nativeElement.querySelector('[data-testid="remove-user-role"]'),
     ).toBeNull();
 
-    expect(fixture.nativeElement.textContent)
-      .toContain("Gestor de Personas");
+    expect(fixture.nativeElement.textContent).toContain("Gestor de Personas");
   });
 
   it("muestra controles para roles ordinarios con permiso", () => {
-    loadAuthenticatedUser([
-      "usuarios.ver",
-      "usuarios.asignar_roles",
-    ]);
+    loadAuthenticatedUser(["usuarios.ver", "usuarios.asignar_roles"]);
 
     fixture.detectChanges();
     respond(1, 1, 1);
@@ -428,23 +396,16 @@ describe("UsersPageComponent", () => {
     expect(component.canManageRoles()).toBe(true);
 
     expect(
-      fixture.nativeElement.querySelector(
-        '[data-testid="assign-user-role"]',
-      ),
+      fixture.nativeElement.querySelector('[data-testid="assign-user-role"]'),
     ).not.toBeNull();
 
     expect(
-      fixture.nativeElement.querySelector(
-        '[data-testid="remove-user-role"]',
-      ),
+      fixture.nativeElement.querySelector('[data-testid="remove-user-role"]'),
     ).not.toBeNull();
   });
 
   it("protege el retiro del rol administrativo aun con permiso", () => {
-    loadAuthenticatedUser([
-      "usuarios.ver",
-      "usuarios.asignar_roles",
-    ]);
+    loadAuthenticatedUser(["usuarios.ver", "usuarios.asignar_roles"]);
 
     fixture.detectChanges();
     respond(1, 1, 1);
@@ -465,19 +426,16 @@ describe("UsersPageComponent", () => {
 
     expect(component.canManageRoles()).toBe(true);
 
-    expect(fixture.nativeElement.textContent)
-      .toContain("Rol administrativo protegido");
+    expect(fixture.nativeElement.textContent).toContain(
+      "Rol administrativo protegido",
+    );
 
     expect(
-      fixture.nativeElement.querySelector(
-        '[data-testid="remove-user-role"]',
-      ),
+      fixture.nativeElement.querySelector('[data-testid="remove-user-role"]'),
     ).toBeNull();
   });
 
-  function prepareUserForCatalog(
-    permissions: string[],
-  ): void {
+  function prepareUserForCatalog(permissions: string[]): void {
     loadAuthenticatedUser(permissions);
 
     fixture.detectChanges();
@@ -499,10 +457,9 @@ describe("UsersPageComponent", () => {
       "roles.ver",
     ]);
 
-    const button: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="assign-user-role"]',
-      );
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="assign-user-role"]',
+    );
 
     expect(button).not.toBeNull();
 
@@ -538,10 +495,7 @@ describe("UsersPageComponent", () => {
   });
 
   it("no consulta el catalogo cuando falta roles.ver", () => {
-    prepareUserForCatalog([
-      "usuarios.ver",
-      "usuarios.asignar_roles",
-    ]);
+    prepareUserForCatalog(["usuarios.ver", "usuarios.asignar_roles"]);
 
     component.openRoleSelector();
 
@@ -550,10 +504,7 @@ describe("UsersPageComponent", () => {
   });
 
   it("no consulta el catalogo sin permiso para asignar roles", () => {
-    prepareUserForCatalog([
-      "usuarios.ver",
-      "roles.ver",
-    ]);
+    prepareUserForCatalog(["usuarios.ver", "roles.ver"]);
 
     component.openRoleSelector();
 
@@ -582,10 +533,9 @@ describe("UsersPageComponent", () => {
 
     expect(component.roleCatalogError()).not.toBeNull();
 
-    const retryButton: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="retry-role-catalog"]',
-      );
+    const retryButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="retry-role-catalog"]',
+    );
 
     retryButton.click();
 
@@ -641,9 +591,7 @@ describe("UsersPageComponent", () => {
     expect(component.roleCatalogLoading()).toBe(false);
 
     expect(
-      fixture.nativeElement.querySelector(
-        "app-user-role-selector",
-      ),
+      fixture.nativeElement.querySelector("app-user-role-selector"),
     ).toBeNull();
   });
 
@@ -699,10 +647,9 @@ describe("UsersPageComponent", () => {
 
     fixture.detectChanges();
 
-    const roleButton: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="select-available-role"]',
-      );
+    const roleButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="select-available-role"]',
+    );
 
     roleButton.click();
     fixture.detectChanges();
@@ -715,13 +662,10 @@ describe("UsersPageComponent", () => {
     expect(component.selectedRoleForOperation()?.id).toBe(3);
 
     expect(
-      fixture.nativeElement.querySelector(
-        "app-user-role-confirmation",
-      ),
+      fixture.nativeElement.querySelector("app-user-role-confirmation"),
     ).not.toBeNull();
 
-    expect(fixture.nativeElement.textContent)
-      .toContain("Confirmar asignación");
+    expect(fixture.nativeElement.textContent).toContain("Confirmar asignación");
 
     expect(
       fixture.nativeElement.querySelector(
@@ -739,24 +683,19 @@ describe("UsersPageComponent", () => {
 
     fixture.detectChanges();
 
-    const cancelButton: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="cancel-user-role-operation"]',
-      );
+    const cancelButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="cancel-user-role-operation"]',
+    );
 
     cancelButton.click();
     fixture.detectChanges();
 
     expect(component.selectedRoleForOperation()).toBeNull();
 
-    expect(
-      component.roleReauthenticationForm.controls.password.value,
-    ).toBe("");
+    expect(component.roleReauthenticationForm.controls.password.value).toBe("");
 
     expect(
-      fixture.nativeElement.querySelector(
-        "app-user-role-confirmation",
-      ),
+      fixture.nativeElement.querySelector("app-user-role-confirmation"),
     ).toBeNull();
   });
 
@@ -785,14 +724,10 @@ describe("UsersPageComponent", () => {
     expect(component.selectedUser()?.id).toBe(2);
     expect(component.selectedRoleForOperation()).toBeNull();
 
-    expect(
-      component.roleReauthenticationForm.controls.password.value,
-    ).toBe("");
+    expect(component.roleReauthenticationForm.controls.password.value).toBe("");
 
     expect(
-      fixture.nativeElement.querySelector(
-        "app-user-role-confirmation",
-      ),
+      fixture.nativeElement.querySelector("app-user-role-confirmation"),
     ).toBeNull();
   });
 
@@ -809,14 +744,10 @@ describe("UsersPageComponent", () => {
     expect(component.selectedUser()).toBeNull();
     expect(component.selectedRoleForOperation()).toBeNull();
 
-    expect(
-      component.roleReauthenticationForm.controls.password.value,
-    ).toBe("");
+    expect(component.roleReauthenticationForm.controls.password.value).toBe("");
 
     expect(
-      fixture.nativeElement.querySelector(
-        "app-user-role-confirmation",
-      ),
+      fixture.nativeElement.querySelector("app-user-role-confirmation"),
     ).toBeNull();
   });
 
@@ -838,9 +769,7 @@ describe("UsersPageComponent", () => {
     expect(component.selectedRoleForOperation()).toBeNull();
 
     expect(
-      fixture.nativeElement.querySelector(
-        "app-user-role-confirmation",
-      ),
+      fixture.nativeElement.querySelector("app-user-role-confirmation"),
     ).toBeNull();
   });
 
@@ -853,10 +782,9 @@ describe("UsersPageComponent", () => {
 
     fixture.detectChanges();
 
-    const button: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="confirm-user-role-operation"]',
-      );
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="confirm-user-role-operation"]',
+    );
 
     button.click();
 
@@ -871,9 +799,7 @@ describe("UsersPageComponent", () => {
 
     request.flush(null);
 
-    expect(
-      component.roleReauthenticationForm.controls.password.value,
-    ).toBe("");
+    expect(component.roleReauthenticationForm.controls.password.value).toBe("");
 
     expect(component.roleOperationProcessing()).toBe(true);
 
@@ -930,9 +856,7 @@ describe("UsersPageComponent", () => {
     expect(component.roleOperationProcessing()).toBe(false);
     expect(component.rolePasswordError()).not.toBeNull();
 
-    expect(
-      component.roleReauthenticationForm.controls.password.value,
-    ).toBe("");
+    expect(component.roleReauthenticationForm.controls.password.value).toBe("");
 
     expect(http.match("/api/usuarios/1/roles").length).toBe(0);
   });
@@ -1043,9 +967,7 @@ describe("UsersPageComponent", () => {
     expect(component.selectedRoleForOperation()?.id).toBe(3);
 
     expect(
-      fixture.nativeElement.querySelector(
-        "app-user-role-confirmation",
-      ),
+      fixture.nativeElement.querySelector("app-user-role-confirmation"),
     ).not.toBeNull();
 
     expect(component.roleOperationProcessing()).toBe(true);
@@ -1102,9 +1024,7 @@ describe("UsersPageComponent", () => {
 
     expect(component.selectedUser()?.id).toBe(25);
     expect(component.roleOperationProcessing()).toBe(false);
-    expect(
-      component.roleReauthenticationForm.controls.password.value,
-    ).toBe("");
+    expect(component.roleReauthenticationForm.controls.password.value).toBe("");
   });
 
   function startPendingRoleAssignment() {
@@ -1141,9 +1061,7 @@ describe("UsersPageComponent", () => {
     fixture.detectChanges();
 
     expect(component.roleOperationProcessing()).toBe(false);
-    expect(component.roleOperationError()).toContain(
-      "No tienes autorización",
-    );
+    expect(component.roleOperationError()).toContain("No tienes autorización");
     expect(component.selectedRoles()).toEqual([]);
     expect(component.selectedRoleForOperation()?.id).toBe(3);
   });
@@ -1162,9 +1080,7 @@ describe("UsersPageComponent", () => {
     fixture.detectChanges();
 
     expect(component.roleOperationProcessing()).toBe(false);
-    expect(component.roleOperationError()).toContain(
-      "rechazó la asignación",
-    );
+    expect(component.roleOperationError()).toContain("rechazó la asignación");
     expect(component.selectedRoles()).toEqual([]);
   });
 
@@ -1182,13 +1098,9 @@ describe("UsersPageComponent", () => {
     fixture.detectChanges();
 
     expect(component.roleOperationProcessing()).toBe(false);
-    expect(component.roleOperationError()).toContain(
-      "ha caducado",
-    );
+    expect(component.roleOperationError()).toContain("ha caducado");
 
-    expect(
-      component.roleReauthenticationForm.controls.password.value,
-    ).toBe("");
+    expect(component.roleReauthenticationForm.controls.password.value).toBe("");
 
     expect(component.selectedRoles()).toEqual([]);
   });
@@ -1310,8 +1222,7 @@ describe("UsersPageComponent", () => {
 
     return http.expectOne(
       (request) =>
-        request.method === "GET" &&
-        request.url === "/api/usuarios/1/roles",
+        request.method === "GET" && request.url === "/api/usuarios/1/roles",
     );
   }
 
@@ -1327,10 +1238,9 @@ describe("UsersPageComponent", () => {
 
     fixture.detectChanges();
 
-    const notice: HTMLElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="role-operation-notice"]',
-      );
+    const notice: HTMLElement = fixture.nativeElement.querySelector(
+      '[data-testid="role-operation-notice"]',
+    );
 
     expect(notice).not.toBeNull();
     expect(notice.getAttribute("role")).toBe("status");
@@ -1373,9 +1283,7 @@ describe("UsersPageComponent", () => {
     ).not.toBeNull();
 
     expect(
-      fixture.nativeElement.querySelector(
-        '[data-testid="roles-error"]',
-      ),
+      fixture.nativeElement.querySelector('[data-testid="roles-error"]'),
     ).not.toBeNull();
   });
 
@@ -1392,17 +1300,15 @@ describe("UsersPageComponent", () => {
 
     fixture.detectChanges();
 
-    const retryButton: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="roles-error"] button',
-      );
+    const retryButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="roles-error"] button',
+    );
 
     retryButton.click();
 
     const retry = http.expectOne(
       (request) =>
-        request.method === "GET" &&
-        request.url === "/api/usuarios/1/roles",
+        request.method === "GET" && request.url === "/api/usuarios/1/roles",
     );
 
     retry.flush({
@@ -1420,11 +1326,12 @@ describe("UsersPageComponent", () => {
     expect(component.rolesError()).toBeNull();
     expect(component.selectedRoles()[0].id).toBe(3);
 
-    expect(http.match(
-      (request) =>
-        request.method === "POST" &&
-        request.url === "/api/usuarios/1/roles",
-    ).length).toBe(0);
+    expect(
+      http.match(
+        (request) =>
+          request.method === "POST" && request.url === "/api/usuarios/1/roles",
+      ).length,
+    ).toBe(0);
 
     expect(component.roleOperationNotice()).toContain(
       "Laravel confirmó la asignación",
@@ -1453,9 +1360,7 @@ describe("UsersPageComponent", () => {
 
     expect(component.roleOperationNotice()).toBeNull();
 
-    component.roleOperationNotice.set(
-      "Mensaje temporal de confirmación.",
-    );
+    component.roleOperationNotice.set("Mensaje temporal de confirmación.");
 
     component.closeUserRoles();
 
@@ -1492,9 +1397,7 @@ describe("UsersPageComponent", () => {
     expect(component.selectedRoleForOperation()).toEqual(role);
 
     expect(
-      fixture.nativeElement.querySelector(
-        "app-user-role-confirmation",
-      ),
+      fixture.nativeElement.querySelector("app-user-role-confirmation"),
     ).not.toBeNull();
 
     expect(http.match("/reauthenticate").length).toBe(0);
@@ -1525,9 +1428,7 @@ describe("UsersPageComponent", () => {
     expect(component.selectedRoleForOperation()).toBeNull();
     expect(component.selectedRoles()).toEqual([role]);
 
-    expect(
-      component.roleReauthenticationForm.controls.password.value,
-    ).toBe("");
+    expect(component.roleReauthenticationForm.controls.password.value).toBe("");
 
     expect(http.match("/reauthenticate").length).toBe(0);
     expect(http.match("/api/usuarios/1/roles").length).toBe(0);
@@ -1610,9 +1511,7 @@ describe("UsersPageComponent", () => {
 
     reauthentication.flush(null);
 
-    const removal = http.expectOne(
-      "/api/usuarios/1/roles/3",
-    );
+    const removal = http.expectOne("/api/usuarios/1/roles/3");
 
     expect(removal.request.method).toBe("DELETE");
     expect(removal.request.body).toBeNull();
@@ -1629,15 +1528,11 @@ describe("UsersPageComponent", () => {
 
     component.confirmRoleAssignment();
 
-    expect(
-      http.match("/api/usuarios/1/roles/3").length,
-    ).toBe(0);
+    expect(http.match("/api/usuarios/1/roles/3").length).toBe(0);
 
     http.expectOne("/reauthenticate").flush(null);
 
-    const removal = http.expectOne(
-      "/api/usuarios/1/roles/3",
-    );
+    const removal = http.expectOne("/api/usuarios/1/roles/3");
 
     expect(removal.request.method).toBe("DELETE");
     expect(removal.request.body).toBeNull();
@@ -1647,8 +1542,7 @@ describe("UsersPageComponent", () => {
 
     const refresh = http.expectOne(
       (request) =>
-        request.method === "GET" &&
-        request.url === "/api/usuarios/1/roles",
+        request.method === "GET" && request.url === "/api/usuarios/1/roles",
     );
 
     refresh.flush({ data: [] });
@@ -1672,21 +1566,18 @@ describe("UsersPageComponent", () => {
     expect(component.selectedUser()?.id).toBe(1);
     expect(component.roleOperationProcessing()).toBe(true);
 
-    expect(
-      http.match("/api/usuarios/1/roles/3").length,
-    ).toBe(0);
+    expect(http.match("/api/usuarios/1/roles/3").length).toBe(0);
 
-    expect(
-      http.match("/reauthenticate").length,
-    ).toBe(0);
+    expect(http.match("/reauthenticate").length).toBe(0);
 
     removal.flush(null);
 
-    http.expectOne(
-      (request) =>
-        request.method === "GET" &&
-        request.url === "/api/usuarios/1/roles",
-    ).flush({ data: [] });
+    http
+      .expectOne(
+        (request) =>
+          request.method === "GET" && request.url === "/api/usuarios/1/roles",
+      )
+      .flush({ data: [] });
 
     expect(component.roleOperationProcessing()).toBe(false);
   });
@@ -1721,9 +1612,7 @@ describe("UsersPageComponent", () => {
     );
 
     expect(component.roleOperationProcessing()).toBe(false);
-    expect(component.roleOperationError()).toContain(
-      "rechazó el retiro",
-    );
+    expect(component.roleOperationError()).toContain("rechazó el retiro");
     expect(component.selectedRoles()[0].id).toBe(3);
   });
 
@@ -1739,13 +1628,9 @@ describe("UsersPageComponent", () => {
     );
 
     expect(component.roleOperationProcessing()).toBe(false);
-    expect(component.roleOperationError()).toContain(
-      "ha caducado",
-    );
+    expect(component.roleOperationError()).toContain("ha caducado");
 
-    expect(
-      component.roleReauthenticationForm.controls.password.value,
-    ).toBe("");
+    expect(component.roleReauthenticationForm.controls.password.value).toBe("");
 
     expect(component.selectedRoles()[0].id).toBe(3);
   });
@@ -1757,8 +1642,7 @@ describe("UsersPageComponent", () => {
 
     const refresh = http.expectOne(
       (request) =>
-        request.method === "GET" &&
-        request.url === "/api/usuarios/1/roles",
+        request.method === "GET" && request.url === "/api/usuarios/1/roles",
     );
 
     refresh.flush(
@@ -1776,11 +1660,12 @@ describe("UsersPageComponent", () => {
 
     component.retryUserRoles();
 
-    http.expectOne(
-      (request) =>
-        request.method === "GET" &&
-        request.url === "/api/usuarios/1/roles",
-    ).flush({ data: [] });
+    http
+      .expectOne(
+        (request) =>
+          request.method === "GET" && request.url === "/api/usuarios/1/roles",
+      )
+      .flush({ data: [] });
 
     expect(
       http.match(
@@ -1801,8 +1686,9 @@ describe("UsersPageComponent", () => {
     respond(1, 1, 1);
     fixture.detectChanges();
 
-    const button: HTMLButtonElement =
-      fixture.nativeElement.querySelector('[data-testid="add-user"]');
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="add-user"]',
+    );
 
     expect(button).not.toBeNull();
     button.click();
@@ -1835,24 +1721,22 @@ describe("UsersPageComponent", () => {
 
     fixture.detectChanges();
 
-    const select: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        "app-available-person-selector button[type='button']",
-      );
+    const select: HTMLButtonElement = fixture.nativeElement.querySelector(
+      "app-available-person-selector button[type='button']",
+    );
 
     select.click();
     fixture.detectChanges();
 
-    expect(component.selectedPerson()?.id_persona)
-      .toBe(person.id_persona);
+    expect(component.selectedPerson()?.id_persona).toBe(person.id_persona);
 
     expect(
       fixture.nativeElement.querySelector('[data-testid="selected-person"]'),
     ).not.toBeNull();
 
     expect(
-      http.match((item) =>
-        item.method === "POST" && item.url === "/api/usuarios",
+      http.match(
+        (item) => item.method === "POST" && item.url === "/api/usuarios",
       ),
     ).toHaveLength(0);
   });
@@ -1895,9 +1779,7 @@ describe("UsersPageComponent", () => {
     expect(component.creatingUser()).toBe(true);
 
     expect(
-      http.match((r) =>
-        r.method === "POST" && r.url === "/api/usuarios",
-      ),
+      http.match((r) => r.method === "POST" && r.url === "/api/usuarios"),
     ).toHaveLength(0);
 
     const reauth = http.expectOne("/reauthenticate");
@@ -1917,12 +1799,15 @@ describe("UsersPageComponent", () => {
       password_confirmation: "ClaveInicialSegura2026",
     });
 
-    create.flush({
-      id: 25,
-      id_persona: person.id_persona,
-      name: "MARIA PRUEBA",
-      email: "nuevo@example.test",
-    }, { status: 201, statusText: "Created" });
+    create.flush(
+      {
+        id: 25,
+        id_persona: person.id_persona,
+        name: "MARIA PRUEBA",
+        email: "nuevo@example.test",
+      },
+      { status: 201, statusText: "Created" },
+    );
 
     respond(1, 1, 1);
 
@@ -1952,15 +1837,15 @@ describe("UsersPageComponent", () => {
       administratorPassword: "Incorrecta",
     });
 
-    http.expectOne("/reauthenticate").flush(
-      { message: "Credenciales invalidas" },
-      { status: 422, statusText: "Unprocessable Content" },
-    );
+    http
+      .expectOne("/reauthenticate")
+      .flush(
+        { message: "Credenciales invalidas" },
+        { status: 422, statusText: "Unprocessable Content" },
+      );
 
     expect(
-      http.match((r) =>
-        r.method === "POST" && r.url === "/api/usuarios",
-      ),
+      http.match((r) => r.method === "POST" && r.url === "/api/usuarios"),
     ).toHaveLength(0);
 
     expect(component.creatingUser()).toBe(false);
@@ -2042,8 +1927,7 @@ describe("UsersPageComponent", () => {
       fixture.detectChanges();
 
       expect(component.creatingUser()).toBe(false);
-      expect(component.selectedPerson()?.id_persona)
-        .toBe(person.id_persona);
+      expect(component.selectedPerson()?.id_persona).toBe(person.id_persona);
       expect(component.createUserError()).not.toBeNull();
       expect(component.createUserNotice()).toBeNull();
 
@@ -2085,10 +1969,12 @@ describe("UsersPageComponent", () => {
 
     http.expectOne("/reauthenticate").flush({});
 
-    http.expectOne("/api/usuarios").flush(
-      { message: "Datos rechazados" },
-      { status: 422, statusText: "Unprocessable Content" },
-    );
+    http
+      .expectOne("/api/usuarios")
+      .flush(
+        { message: "Datos rechazados" },
+        { status: 422, statusText: "Unprocessable Content" },
+      );
 
     const values = form.form.getRawValue();
 
@@ -2142,10 +2028,1008 @@ describe("UsersPageComponent", () => {
     ).toBeNull();
 
     expect(
-      http.match((request) =>
-        request.method === "POST" &&
-        request.url === "/api/usuarios",
+      http.match(
+        (request) =>
+          request.method === "POST" && request.url === "/api/usuarios",
       ),
     ).toHaveLength(0);
+  });
+
+  function linkedBulkUser(id: number) {
+    return {
+      id,
+      id_persona: `00000000-0000-4000-8000-${String(id).padStart(12, "0")}`,
+      name: `Usuario ${id}`,
+      email: `usuario${id}@example.test`,
+      created_at: "2026-10-28T12:00:00Z",
+      person: {
+        id_persona: `00000000-0000-4000-8000-${String(id).padStart(12, "0")}`,
+        nombres: `PERSONA ${id}`,
+        apellido_paterno: "PRUEBA",
+        apellido_materno: null,
+      },
+    };
+  }
+
+  it("habilita la seleccion masiva con permisos", () => {
+    loadAuthenticatedUser([
+      "usuarios.ver",
+      "usuarios.asignar_roles",
+      "roles.ver",
+    ]);
+
+    fixture.detectChanges();
+    respond(1, 1, 1);
+    fixture.detectChanges();
+
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="toggle-bulk-selection"]',
+    );
+
+    expect(button).not.toBeNull();
+
+    button.click();
+
+    const catalogRequest = http.expectOne("/api/roles");
+    expect(catalogRequest.request.method).toBe("GET");
+
+    catalogRequest.flush({
+      data: [
+        {
+          id: 3,
+          code: "ROL_CONSULTA_PERSONAS",
+          name: "Consulta de Personas",
+        },
+      ],
+    });
+
+    fixture.detectChanges();
+
+    expect(component.bulkSelectionEnabled()).toBe(true);
+    expect(component.bulkCatalogOpen()).toBe(true);
+    expect(http.match("/api/roles")).toEqual([]);
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="bulk-selected-count"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("oculta la seleccion masiva sin permiso", () => {
+    loadAuthenticatedUser(["usuarios.ver"]);
+
+    fixture.detectChanges();
+    respond(1, 1, 1);
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="toggle-bulk-selection"]',
+      ),
+    ).toBeNull();
+
+    component.toggleBulkSelection();
+
+    expect(component.bulkSelectionEnabled()).toBe(false);
+  });
+
+  it("conserva usuarios seleccionados al cambiar de pagina", () => {
+    loadAuthenticatedUser([
+      "usuarios.ver",
+      "usuarios.asignar_roles",
+      "roles.ver",
+    ]);
+
+    fixture.detectChanges();
+    respond(1, 2, 21);
+
+    component.users.set([linkedBulkUser(11)]);
+    component.toggleBulkSelection();
+    component.updateBulkSelection({
+      user: component.users()[0],
+      selected: true,
+    });
+
+    expect(component.selectedBulkUserIds()).toEqual([11]);
+
+    component.loadPage(2);
+    respond(2, 2, 21);
+
+    component.users.set([linkedBulkUser(22)]);
+    component.updateBulkSelection({
+      user: component.users()[0],
+      selected: true,
+    });
+
+    expect(component.selectedBulkUserIds()).toEqual([11, 22]);
+    expect(component.currentPage()).toBe(2);
+  });
+
+  it("permite excluir usuarios y cancelar toda la seleccion", () => {
+    loadAuthenticatedUser([
+      "usuarios.ver",
+      "usuarios.asignar_roles",
+      "roles.ver",
+    ]);
+
+    fixture.detectChanges();
+    respond(1, 1, 2);
+
+    component.users.set([linkedBulkUser(11), linkedBulkUser(12)]);
+    component.toggleBulkSelection();
+
+    component.updateBulkSelection({
+      user: component.users()[0],
+      selected: true,
+    });
+
+    component.updateBulkSelection({
+      user: component.users()[1],
+      selected: true,
+    });
+
+    component.updateBulkSelection({
+      user: component.users()[0],
+      selected: false,
+    });
+
+    expect(component.selectedBulkUserIds()).toEqual([12]);
+
+    component.toggleBulkSelection();
+
+    expect(component.bulkSelectionEnabled()).toBe(false);
+    expect(component.selectedBulkUserIds()).toEqual([]);
+  });
+
+  it("impide seleccionar mas de cien usuarios", () => {
+    loadAuthenticatedUser([
+      "usuarios.ver",
+      "usuarios.asignar_roles",
+      "roles.ver",
+    ]);
+
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.toggleBulkSelection();
+
+    component.selectedBulkUserIds.set(
+      Array.from({ length: 100 }, (_, index) => index + 1),
+    );
+
+    const candidate = linkedBulkUser(101);
+    component.users.set([candidate]);
+
+    component.updateBulkSelection({
+      user: candidate,
+      selected: true,
+    });
+
+    expect(component.selectedBulkUserIds().length).toBe(100);
+    expect(component.selectedBulkUserIds()).not.toContain(101);
+  });
+
+  it("muestra la vista previa del personal seleccionado", () => {
+    loadAuthenticatedUser([
+      "usuarios.ver",
+      "usuarios.asignar_roles",
+      "roles.ver",
+    ]);
+
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    const user = linkedBulkUser(25);
+    component.users.set([user]);
+    component.toggleBulkSelection();
+    component.updateBulkSelection({ user, selected: true });
+
+    fixture.detectChanges();
+
+    const preview: HTMLElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-selection-preview"]',
+    );
+
+    expect(preview).not.toBeNull();
+    expect(preview.textContent).toContain("PERSONA 25");
+    expect(preview.textContent).toContain("usuario25@example.test");
+    expect(component.selectedBulkUsers()).toEqual([user]);
+  });
+
+  it("conserva la vista previa al cambiar de pagina", () => {
+    loadAuthenticatedUser([
+      "usuarios.ver",
+      "usuarios.asignar_roles",
+      "roles.ver",
+    ]);
+
+    fixture.detectChanges();
+    respond(1, 2, 21);
+
+    const first = linkedBulkUser(25);
+    component.users.set([first]);
+    component.toggleBulkSelection();
+    component.updateBulkSelection({
+      user: first,
+      selected: true,
+    });
+
+    component.loadPage(2);
+    respond(2, 2, 21);
+
+    const second = linkedBulkUser(26);
+    component.users.set([second]);
+    component.updateBulkSelection({
+      user: second,
+      selected: true,
+    });
+
+    fixture.detectChanges();
+
+    const preview: HTMLElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-selection-preview"]',
+    );
+
+    expect(preview.textContent).toContain("PERSONA 25");
+    expect(preview.textContent).toContain("PERSONA 26");
+    expect(component.selectedBulkUserIds()).toEqual([25, 26]);
+  });
+
+  it("excluye personal desde la vista previa", () => {
+    loadAuthenticatedUser([
+      "usuarios.ver",
+      "usuarios.asignar_roles",
+      "roles.ver",
+    ]);
+
+    fixture.detectChanges();
+    respond(1, 1, 2);
+
+    const first = linkedBulkUser(25);
+    const second = linkedBulkUser(26);
+
+    component.users.set([first, second]);
+    component.toggleBulkSelection();
+    component.updateBulkSelection({
+      user: first,
+      selected: true,
+    });
+    component.updateBulkSelection({
+      user: second,
+      selected: true,
+    });
+
+    fixture.detectChanges();
+
+    const exclude: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[aria-label="Excluir a Usuario 25"]',
+    );
+
+    expect(exclude).not.toBeNull();
+
+    exclude.click();
+    fixture.detectChanges();
+
+    expect(component.selectedBulkUserIds()).toEqual([26]);
+    expect(component.selectedBulkUsers()).toEqual([second]);
+
+    const preview: HTMLElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-selection-preview"]',
+    );
+
+    expect(preview.textContent).not.toContain("PERSONA 25");
+    expect(preview.textContent).toContain("PERSONA 26");
+  });
+
+  function prepareBulkRoleSelection(): void {
+    loadAuthenticatedUser([
+      "usuarios.ver",
+      "usuarios.asignar_roles",
+      "roles.ver",
+    ]);
+
+    fixture.detectChanges();
+    respond(1, 1, 1);
+    fixture.detectChanges();
+
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="toggle-bulk-selection"]',
+    );
+
+    button.click();
+
+    const request = http.expectOne("/api/roles");
+    expect(request.request.method).toBe("GET");
+
+    request.flush({
+      data: [
+        {
+          id: 3,
+          code: "ROL_CONSULTA_PERSONAS",
+          name: "Consulta de Personas",
+        },
+      ],
+    });
+
+    fixture.detectChanges();
+  }
+
+  it("consulta el catalogo para asignacion masiva", () => {
+    prepareBulkRoleSelection();
+
+    expect(http.match("/api/roles")).toEqual([]);
+
+    expect(component.bulkCatalogOpen()).toBe(true);
+
+    const select: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-select-role"]',
+    );
+
+    expect(select).not.toBeNull();
+
+    select.click();
+    fixture.detectChanges();
+
+    expect(component.bulkSelectedRole()?.id).toBe(3);
+
+    const catalog: HTMLElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-role-catalog"]',
+    );
+
+    expect(catalog).not.toBeNull();
+
+    const selectedRole: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-select-role"]',
+    );
+
+    expect(selectedRole.getAttribute("aria-pressed")).toBe("true");
+    expect(selectedRole.textContent).toContain("Seleccionado");
+    expect(component.bulkCatalogOpen()).toBe(true);
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+  });
+
+  it("excluye el rol administrador del catalogo masivo", () => {
+    prepareBulkRoleSelection();
+
+    component.loadBulkRoleCatalog();
+
+    http.expectOne("/api/roles").flush({
+      data: [
+        {
+          id: 1,
+          code: "ROL_ADMIN_SISTEMA",
+          name: "Administrador del Sistema",
+        },
+        {
+          id: 3,
+          code: "ROL_CONSULTA_PERSONAS",
+          name: "Consulta de Personas",
+        },
+      ],
+    });
+
+    expect(component.bulkAvailableRoles().map((role) => role.code)).toEqual([
+      "ROL_CONSULTA_PERSONAS",
+    ]);
+
+    component.selectBulkRole({
+      id: 1,
+      code: "ROL_ADMIN_SISTEMA",
+      name: "Administrador del Sistema",
+    });
+
+    expect(component.bulkSelectedRole()).toBeNull();
+  });
+
+  it("muestra error cuando falla el catalogo masivo", () => {
+    prepareBulkRoleSelection();
+
+    component.loadBulkRoleCatalog();
+
+    http.expectOne("/api/roles").flush(
+      { message: "Error temporal" },
+      {
+        status: 503,
+        statusText: "Service Unavailable",
+      },
+    );
+
+    fixture.detectChanges();
+
+    expect(component.bulkCatalogLoading()).toBe(false);
+    expect(component.bulkCatalogError()).not.toBeNull();
+
+    const alert: HTMLElement =
+      fixture.nativeElement.querySelector('[role="alert"]');
+
+    expect(alert).not.toBeNull();
+  });
+
+  it("ignora el catalogo masivo recibido despues de cancelar", () => {
+    prepareBulkRoleSelection();
+
+    component.loadBulkRoleCatalog();
+
+    const request = http.expectOne("/api/roles");
+
+    component.toggleBulkSelection();
+
+    request.flush({
+      data: [
+        {
+          id: 3,
+          code: "ROL_CONSULTA_PERSONAS",
+          name: "Consulta de Personas",
+        },
+      ],
+    });
+
+    expect(component.bulkSelectionEnabled()).toBe(false);
+    expect(component.bulkCatalogOpen()).toBe(false);
+    expect(component.bulkAvailableRoles()).toEqual([]);
+    expect(component.bulkSelectedRole()).toBeNull();
+  });
+
+  function prepareBulkConfirmation(): void {
+    prepareBulkRoleSelection();
+
+    const user = linkedBulkUser(25);
+    component.users.set([user]);
+
+    component.updateBulkSelection({
+      user,
+      selected: true,
+    });
+
+    component.bulkSelectedRole.set({
+      id: 3,
+      code: "ROL_CONSULTA_PERSONAS",
+      name: "Consulta de Personas",
+    });
+
+    fixture.detectChanges();
+  }
+
+  it("abre la confirmacion administrativa masiva", () => {
+    prepareBulkConfirmation();
+
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-open-confirmation"]',
+    );
+
+    expect(button).not.toBeNull();
+
+    button.click();
+    fixture.detectChanges();
+
+    expect(component.bulkConfirmationOpen()).toBe(true);
+
+    const confirmation: HTMLElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-confirmation"]',
+    );
+
+    expect(confirmation.textContent).toContain("Consulta de Personas");
+
+    expect(confirmation.textContent).toContain("Usuarios seleccionados:");
+
+    const confirmButton: HTMLButtonElement =
+      fixture.nativeElement.querySelector(
+        '[data-testid="bulk-confirm-assignment"]',
+      );
+
+    expect(confirmButton).not.toBeNull();
+    expect(confirmButton.disabled).toBe(true);
+    expect(component.bulkProcessing()).toBe(false);
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+  });
+
+  it("cancela la confirmacion y limpia la contrasena", () => {
+    prepareBulkConfirmation();
+
+    component.openBulkConfirmation();
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalPrueba123!",
+    );
+
+    expect(component.bulkReauthenticationForm.controls.password.value).not.toBe(
+      "",
+    );
+
+    component.cancelBulkConfirmation();
+
+    expect(component.bulkConfirmationOpen()).toBe(false);
+
+    expect(
+      component.bulkReauthenticationForm.controls.password.value,
+    ).toBeFalsy();
+
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+  });
+
+  it("invalida la confirmacion al excluir personal", () => {
+    prepareBulkConfirmation();
+
+    component.openBulkConfirmation();
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalPrueba123!",
+    );
+
+    const user = component.users()[0];
+
+    component.updateBulkSelection({
+      user,
+      selected: false,
+    });
+
+    expect(component.selectedBulkUserIds()).toEqual([]);
+    expect(component.bulkConfirmationOpen()).toBe(false);
+
+    expect(
+      component.bulkReauthenticationForm.controls.password.value,
+    ).toBeFalsy();
+
+    component.openBulkConfirmation();
+
+    expect(component.bulkConfirmationOpen()).toBe(false);
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+  });
+
+  it("rea autentica antes de asignar roles masivamente", () => {
+    prepareBulkConfirmation();
+    component.openBulkConfirmation();
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalDePrueba",
+    );
+
+    component.confirmBulkAssignment();
+
+    expect(component.bulkProcessing()).toBe(true);
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+
+    const authRequest = http.expectOne("/reauthenticate");
+
+    expect(authRequest.request.method).toBe("POST");
+    expect(authRequest.request.body).toEqual({
+      password: "ClaveTemporalDePrueba",
+    });
+
+    authRequest.flush(null);
+
+    const bulkRequest = http.expectOne("/api/usuarios/roles/masivo");
+
+    expect(bulkRequest.request.method).toBe("POST");
+    expect(bulkRequest.request.body).toEqual({
+      role_id: 3,
+      user_ids: [25],
+    });
+
+    expect(bulkRequest.request.body).not.toHaveProperty("password");
+
+    bulkRequest.flush({
+      role_id: 3,
+      result: {
+        selected: 1,
+        assigned: 1,
+        already_assigned: 0,
+      },
+    });
+
+    expect(component.bulkProcessing()).toBe(false);
+    expect(component.selectedBulkUserIds()).toEqual([]);
+    expect(component.bulkNotice()).toContain("Laravel confirmó 1 asignaciones");
+  });
+
+  it("impide solicitudes simultaneas de asignacion masiva", () => {
+    prepareBulkConfirmation();
+    component.openBulkConfirmation();
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalDePrueba",
+    );
+
+    component.confirmBulkAssignment();
+
+    const authRequest = http.expectOne("/reauthenticate");
+
+    component.confirmBulkAssignment();
+
+    expect(http.match("/reauthenticate")).toEqual([]);
+    expect(component.bulkProcessing()).toBe(true);
+
+    authRequest.flush(null);
+
+    const bulkRequest = http.expectOne("/api/usuarios/roles/masivo");
+
+    component.confirmBulkAssignment();
+
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+
+    bulkRequest.flush({
+      role_id: 3,
+      result: {
+        selected: 1,
+        assigned: 1,
+        already_assigned: 0,
+      },
+    });
+
+    expect(component.bulkProcessing()).toBe(false);
+  });
+
+  it("no asigna roles cuando falla la reautenticacion masiva", () => {
+    prepareBulkConfirmation();
+    component.openBulkConfirmation();
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalDePrueba",
+    );
+
+    component.confirmBulkAssignment();
+
+    http.expectOne("/reauthenticate").flush(
+      { message: "Contraseña incorrecta" },
+      {
+        status: 422,
+        statusText: "Unprocessable Content",
+      },
+    );
+
+    expect(component.bulkProcessing()).toBe(false);
+    expect(component.bulkError()).not.toBeNull();
+    expect(
+      component.bulkReauthenticationForm.controls.password.value,
+    ).toBeFalsy();
+
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+  });
+
+  it("conserva la seleccion cuando Laravel rechaza el lote", () => {
+    prepareBulkConfirmation();
+    component.openBulkConfirmation();
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalDePrueba",
+    );
+
+    component.confirmBulkAssignment();
+
+    http.expectOne("/reauthenticate").flush(null);
+
+    http.expectOne("/api/usuarios/roles/masivo").flush(
+      { message: "Lote invalido" },
+      {
+        status: 422,
+        statusText: "Unprocessable Content",
+      },
+    );
+
+    expect(component.bulkProcessing()).toBe(false);
+    expect(component.bulkError()).not.toBeNull();
+    expect(component.selectedBulkUserIds()).toEqual([25]);
+    expect(component.bulkConfirmationOpen()).toBe(true);
+    expect(
+      component.bulkReauthenticationForm.controls.password.value,
+    ).toBeFalsy();
+  });
+
+  it("bloquea modificaciones durante reautenticacion masiva", () => {
+    prepareBulkConfirmation();
+    component.openBulkConfirmation();
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalDePrueba",
+    );
+
+    component.confirmBulkAssignment();
+
+    const pendingAuth = http.expectOne("/reauthenticate");
+    const originalRole = component.bulkSelectedRole();
+
+    expect(component.bulkProcessing()).toBe(true);
+
+    component.cancelBulkConfirmation();
+    component.toggleBulkSelection();
+    component.updateBulkSelection({
+      user: component.users()[0],
+      selected: false,
+    });
+    component.loadBulkRoleCatalog();
+
+    component.selectBulkRole({
+      id: 4,
+      code: "ROL_GESTOR_PERSONAS",
+      name: "Gestor de Personas",
+    });
+
+    expect(component.bulkConfirmationOpen()).toBe(true);
+    expect(component.bulkSelectionEnabled()).toBe(true);
+    expect(component.selectedBulkUserIds()).toEqual([25]);
+    expect(component.bulkSelectedRole()).toEqual(originalRole);
+    expect(http.match("/api/roles")).toEqual([]);
+
+    fixture.detectChanges();
+
+    const cancel: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-cancel-confirmation"]',
+    );
+
+    const password: HTMLInputElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-admin-password"]',
+    );
+
+    expect(cancel.disabled).toBe(true);
+    expect(password.disabled).toBe(true);
+
+    pendingAuth.flush(
+      { message: "Contraseña incorrecta" },
+      {
+        status: 422,
+        statusText: "Unprocessable Content",
+      },
+    );
+
+    expect(component.bulkProcessing()).toBe(false);
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+  });
+
+  it("bloquea cambios mientras Laravel procesa el lote masivo", () => {
+    prepareBulkConfirmation();
+    component.openBulkConfirmation();
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalDePrueba",
+    );
+
+    component.confirmBulkAssignment();
+
+    http.expectOne("/reauthenticate").flush(null);
+
+    const pendingBulk = http.expectOne("/api/usuarios/roles/masivo");
+
+    expect(component.bulkProcessing()).toBe(true);
+
+    component.cancelBulkConfirmation();
+    component.toggleBulkSelection();
+    component.updateBulkSelection({
+      user: component.users()[0],
+      selected: false,
+    });
+
+    expect(component.bulkConfirmationOpen()).toBe(true);
+    expect(component.bulkSelectionEnabled()).toBe(true);
+    expect(component.selectedBulkUserIds()).toEqual([25]);
+
+    fixture.detectChanges();
+
+    const toggle: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="toggle-bulk-selection"]',
+    );
+
+    const checkbox: HTMLInputElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-user-checkbox"]',
+    );
+
+    expect(toggle.disabled).toBe(true);
+    expect(checkbox.disabled).toBe(true);
+
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+
+    pendingBulk.flush({
+      role_id: 3,
+      result: {
+        selected: 1,
+        assigned: 1,
+        already_assigned: 0,
+      },
+    });
+
+    expect(component.bulkProcessing()).toBe(false);
+    expect(component.bulkSelectionEnabled()).toBe(false);
+    expect(component.selectedBulkUserIds()).toEqual([]);
+  });
+
+  it("muestra error 403 en la asignacion masiva", () => {
+    prepareBulkConfirmation();
+    component.openBulkConfirmation();
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalDePrueba",
+    );
+
+    component.confirmBulkAssignment();
+
+    http.expectOne("/reauthenticate").flush(null);
+
+    http.expectOne("/api/usuarios/roles/masivo").flush(
+      { message: "No autorizado" },
+      {
+        status: 403,
+        statusText: "Forbidden",
+      },
+    );
+
+    fixture.detectChanges();
+
+    expect(component.bulkProcessing()).toBe(false);
+    expect(component.bulkError()).toContain("autorización");
+    expect(component.bulkConfirmationOpen()).toBe(true);
+    expect(component.selectedBulkUserIds()).toEqual([25]);
+    expect(
+      component.bulkReauthenticationForm.controls.password.value,
+    ).toBeFalsy();
+
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+  });
+
+  it("muestra error 423 cuando caduca la reautenticacion masiva", () => {
+    prepareBulkConfirmation();
+    component.openBulkConfirmation();
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalDePrueba",
+    );
+
+    component.confirmBulkAssignment();
+
+    http.expectOne("/reauthenticate").flush(null);
+
+    http.expectOne("/api/usuarios/roles/masivo").flush(
+      { message: "Reautenticacion requerida" },
+      {
+        status: 423,
+        statusText: "Locked",
+      },
+    );
+
+    fixture.detectChanges();
+
+    expect(component.bulkProcessing()).toBe(false);
+    expect(component.bulkError()).toContain("caducado");
+    expect(component.bulkConfirmationOpen()).toBe(true);
+    expect(component.selectedBulkUserIds()).toEqual([25]);
+    expect(
+      component.bulkReauthenticationForm.controls.password.value,
+    ).toBeFalsy();
+
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+  });
+
+  it("muestra el resultado confirmado de la asignacion masiva", () => {
+    prepareBulkConfirmation();
+    component.openBulkConfirmation();
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalDePrueba",
+    );
+
+    component.confirmBulkAssignment();
+
+    http.expectOne("/reauthenticate").flush(null);
+
+    const request = http.expectOne("/api/usuarios/roles/masivo");
+
+    expect(request.request.body).toEqual({
+      role_id: 3,
+      user_ids: [25],
+    });
+
+    request.flush({
+      role_id: 3,
+      result: {
+        selected: 1,
+        assigned: 0,
+        already_assigned: 1,
+      },
+    });
+
+    expect(component.bulkProcessing()).toBe(false);
+    expect(component.bulkConfirmationOpen()).toBe(false);
+    expect(component.bulkSelectionEnabled()).toBe(false);
+    expect(component.selectedBulkUserIds()).toEqual([]);
+    expect(component.selectedBulkUsers()).toEqual([]);
+
+    expect(component.bulkNotice()).toContain("Laravel confirmó 0 asignaciones");
+    expect(component.bulkNotice()).toContain("1 usuarios ya tenían el rol");
+
+    expect(
+      component.bulkReauthenticationForm.controls.password.value,
+    ).toBeFalsy();
+
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+  });
+
+  it("confirma asignacion masiva desde el formulario", () => {
+    prepareBulkConfirmation();
+    component.openBulkConfirmation();
+    fixture.detectChanges();
+
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-confirm-assignment"]',
+    );
+
+    expect(button).not.toBeNull();
+    expect(button.disabled).toBe(true);
+
+    component.bulkReauthenticationForm.controls.password.setValue(
+      "ClaveTemporalDePrueba",
+    );
+
+    fixture.detectChanges();
+
+    expect(button.disabled).toBe(false);
+
+    button.click();
+
+    expect(component.bulkProcessing()).toBe(true);
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+
+    const authRequest = http.expectOne("/reauthenticate");
+
+    expect(authRequest.request.body).toEqual({
+      password: "ClaveTemporalDePrueba",
+    });
+
+    authRequest.flush(null);
+
+    const bulkRequest = http.expectOne("/api/usuarios/roles/masivo");
+
+    expect(bulkRequest.request.body).toEqual({
+      role_id: 3,
+      user_ids: [25],
+    });
+
+    expect(bulkRequest.request.body).not.toHaveProperty("password");
+
+    bulkRequest.flush({
+      role_id: 3,
+      result: {
+        selected: 1,
+        assigned: 1,
+        already_assigned: 0,
+      },
+    });
+
+    fixture.detectChanges();
+
+    expect(component.bulkProcessing()).toBe(false);
+    expect(component.bulkSelectionEnabled()).toBe(false);
+
+    const notice: HTMLElement = fixture.nativeElement.querySelector(
+      '[data-testid="bulk-result"]',
+    );
+
+    expect(notice).not.toBeNull();
+    expect(notice.getAttribute("role")).toBe("status");
+    expect(notice.textContent).toContain("Laravel confirmó 1 asignaciones");
+
+    expect(http.match("/api/usuarios/roles/masivo")).toEqual([]);
+  });
+
+  it("excluye usuarios seleccionados de paginas anteriores", () => {
+    prepareBulkRoleSelection();
+
+    const user = linkedBulkUser(25);
+    component.users.set([user]);
+    component.updateBulkSelection({ user, selected: true });
+
+    expect(component.selectedBulkUserIds()).toEqual([25]);
+
+    // El usuario deja de estar en la pagina actual.
+    component.users.set([]);
+
+    // La exclusion debe seguir funcionando desde la vista previa.
+    component.updateBulkSelection({ user, selected: false });
+
+    expect(component.selectedBulkUserIds()).toEqual([]);
+    expect(component.selectedBulkUsers()).toEqual([]);
+
+    // No se permite volver a agregarlo sin estar en la pagina actual.
+    component.updateBulkSelection({ user, selected: true });
+
+    expect(component.selectedBulkUserIds()).toEqual([]);
+    expect(component.selectedBulkUsers()).toEqual([]);
   });
 });

@@ -15,15 +15,11 @@ export class UserRoleService {
   private readonly http = inject(HttpClient);
 
   listRoles(): Observable<UserRoleListResponse> {
-    return this.http.get<UserRoleListResponse>(
-      "/api/roles",
-    );
+    return this.http.get<UserRoleListResponse>("/api/roles");
   }
 
   listUserRoles(userId: number): Observable<UserRoleListResponse> {
-    return this.http.get<UserRoleListResponse>(
-      `/api/usuarios/${userId}/roles`,
-    );
+    return this.http.get<UserRoleListResponse>(`/api/usuarios/${userId}/roles`);
   }
 
   assignRole(
@@ -47,6 +43,8 @@ export class UserRoleService {
       selected: number;
       assigned: number;
       already_assigned: number;
+      assigned_user_ids: number[];
+      already_assigned_user_ids: number[];
     };
   }> {
     return this.http.post<{
@@ -55,8 +53,37 @@ export class UserRoleService {
         selected: number;
         assigned: number;
         already_assigned: number;
+        assigned_user_ids: number[];
+        already_assigned_user_ids: number[];
       };
     }>("/api/usuarios/roles/masivo", {
+      role_id: roleId,
+      user_ids: [...userIds],
+    });
+  }
+  removeRolesBulk(
+    roleId: number,
+    userIds: readonly number[],
+  ): Observable<{
+    role_id: number;
+    result: {
+      selected: number;
+      removed: number;
+      already_absent: number;
+      removed_user_ids: number[];
+      already_absent_user_ids: number[];
+    };
+  }> {
+    return this.http.post<{
+      role_id: number;
+      result: {
+        selected: number;
+        removed: number;
+        already_absent: number;
+        removed_user_ids: number[];
+        already_absent_user_ids: number[];
+      };
+    }>("/api/usuarios/roles/retiro-masivo", {
       role_id: roleId,
       user_ids: [...userIds],
     });

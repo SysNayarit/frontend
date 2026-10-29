@@ -44,49 +44,58 @@ describe("routes", () => {
   });
   it("protege la importacion de personas con personas.importar", () => {
     const authenticatedRoute = routes.find(
-      (route) =>
-        route.path === "" &&
-        Array.isArray(route.children),
+      (route) => route.path === "" && Array.isArray(route.children),
     );
 
-    const importRoute =
-      authenticatedRoute?.children?.find(
-        (route) =>
-          route.path ===
-          "personas/importaciones",
-      );
+    const importRoute = authenticatedRoute?.children?.find(
+      (route) => route.path === "personas/importaciones",
+    );
 
     expect(importRoute).toBeDefined();
 
-    expect(
-      importRoute?.component,
-    ).toBeDefined();
+    expect(importRoute?.component).toBeDefined();
 
-    expect(
-      importRoute?.canActivate,
-    ).toEqual([
-      personasImportGuard,
-    ]);
+    expect(importRoute?.canActivate).toEqual([personasImportGuard]);
   });
 
+  it("carga usuarios de forma diferida sin eliminar su guard", async () => {
+    const authenticatedRoute = routes.find(
+      (route) => route.path === "" && Array.isArray(route.children),
+    );
+
+    const usersRoute = authenticatedRoute?.children?.find(
+      (route) => route.path === "usuarios",
+    );
+
+    expect(usersRoute?.canActivate).toEqual([usuariosViewGuard]);
+    expect(usersRoute?.loadComponent).toBeDefined();
+
+    const load = usersRoute?.loadComponent;
+
+    if (!load) {
+      throw new Error("Falta el cargador diferido de Usuarios.");
+    }
+
+    const component = await load();
+
+    expect(component).toBeDefined();
+    expect(typeof component).toBe("function");
+  });
   it("protege usuarios con usuarios.ver dentro del area autenticada", () => {
     const authenticatedRoute = routes.find(
-      (route) =>
-        route.path === "" &&
-        Array.isArray(route.children),
+      (route) => route.path === "" && Array.isArray(route.children),
     );
 
     expect(authenticatedRoute).toBeDefined();
-    expect(authenticatedRoute?.canActivateChild)
-      .toEqual([authGuard]);
+    expect(authenticatedRoute?.canActivateChild).toEqual([authGuard]);
 
     const usersRoute = authenticatedRoute?.children?.find(
       (route) => route.path === "usuarios",
     );
 
     expect(usersRoute).toBeDefined();
-    expect(usersRoute?.component).toBeDefined();
-    expect(usersRoute?.canActivate)
-      .toEqual([usuariosViewGuard]);
+    expect(usersRoute?.component).toBeUndefined();
+    expect(usersRoute?.loadComponent).toBeDefined();
+    expect(usersRoute?.canActivate).toEqual([usuariosViewGuard]);
   });
 });

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
+﻿import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
 import { RouterLink, RouterLinkActive } from "@angular/router";
 
 @Component({
@@ -43,7 +43,7 @@ import { RouterLink, RouterLinkActive } from "@angular/router";
           <a
             routerLink="/usuarios"
             routerLinkActive="bg-[#611232] text-white shadow-sm"
-            [routerLinkActiveOptions]="{ exact: true }"
+            [routerLinkActiveOptions]="{ exact: false }"
             data-testid="users-navigation"
             class="siga-focus flex items-center gap-3 rounded-xl border border-[#98989a]/20 px-4 py-3 font-semibold text-[#611232] transition hover:border-[#a57f2c]/40 hover:bg-[#e6d194]/15"
           >
