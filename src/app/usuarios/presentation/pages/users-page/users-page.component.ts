@@ -1,4 +1,6 @@
-﻿import { UsersModuleNavigationComponent } from "../../molecules/users-module-navigation/users-module-navigation.component";
+import { UsersModuleNavigationComponent } from "../../molecules/users-module-navigation/users-module-navigation.component";
+import { UserAccessPanelComponent } from "../../organisms/user-access-panel/user-access-panel.component";
+import { UserAccessResponse } from "../../../user-access.models";
 import { NgTemplateOutlet } from "@angular/common";
 import { ReactiveFormsModule } from "@angular/forms";
 import {
@@ -30,6 +32,7 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
   standalone: true,
   imports: [
     UsersModuleNavigationComponent,
+    UserAccessPanelComponent,
     NgTemplateOutlet,
     ReactiveFormsModule,
     UserListComponent,
@@ -116,10 +119,11 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
             }
 
             @if (selectedUser()) {
+              <app-user-access-panel [user]="selectedUser()!" [blocked]="roleOperationProcessing()" (busy)="accessProcessing.set($event)" (changed)="accessChanged($event)" />
               <app-user-roles
                 [user]="selectedUser()"
                 [roles]="selectedRoles()"
-                [canManageRoles]="canManageRoles()"
+                [canManageRoles]="canManageRoles() && !accessProcessing()"
                 [loading]="rolesLoading()"
                 [error]="rolesError()"
                 (close)="closeUserRoles()"
@@ -145,13 +149,6 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
             }
           </div>
         </ng-template>
-        @if (
-          selectedUser() &&
-          !users().some((user) => user.id === selectedUser()!.id)
-        ) {
-          <ng-container [ngTemplateOutlet]="detalleUsuario" />
-        }
-
         @if (selectedUser() && !selectedUserVisible()) {
           <ng-container [ngTemplateOutlet]="detalleUsuario" />
         }
@@ -173,6 +170,12 @@ export class UsersPageComponent implements OnInit {
   private readonly userService = inject(UserService);
   private readonly userRoleService = inject(UserRoleService);
   private readonly destroyRef = inject(DestroyRef);
+
+  readonly accessProcessing = signal(false);
+  accessChanged(response: UserAccessResponse): void {
+    this.users.update(users => users.map(user => user.id === response.id ? { ...user, access_status: response.access_status } : user));
+    this.selectedUser.update(user => user?.id === response.id ? { ...user, access_status: response.access_status } : user);
+  }
 
   readonly users = signal<readonly UserSummary[]>([]);
   readonly currentPage = signal(1);
@@ -275,7 +278,7 @@ export class UsersPageComponent implements OnInit {
     const password = this.roleReauthenticationForm.controls.password.value;
 
     if (
-      this.roleOperationProcessing() ||
+      (this.roleOperationProcessing() || this.accessProcessing()) ||
       user === null ||
       role === null ||
       !this.canManageRoles() ||
@@ -396,7 +399,7 @@ export class UsersPageComponent implements OnInit {
   }
   openRoleRemoval(role: UserRole): void {
     if (
-      this.roleOperationProcessing() ||
+      (this.roleOperationProcessing() || this.accessProcessing()) ||
       this.selectedUser() === null ||
       !this.canManageRoles() ||
       this.rolesLoading() ||
@@ -424,7 +427,7 @@ export class UsersPageComponent implements OnInit {
     const user = this.selectedUser();
 
     if (
-      this.roleOperationProcessing() ||
+      (this.roleOperationProcessing() || this.accessProcessing()) ||
       user === null ||
       !this.canManageRoles() ||
       role.code === "ROL_ADMIN_SISTEMA" ||
@@ -439,7 +442,7 @@ export class UsersPageComponent implements OnInit {
   }
 
   closeRoleConfirmation(): void {
-    if (this.roleOperationProcessing()) {
+    if ((this.roleOperationProcessing() || this.accessProcessing())) {
       return;
     }
 
@@ -451,7 +454,7 @@ export class UsersPageComponent implements OnInit {
     this.roleOperationError.set(null);
   }
   openRoleSelector(): void {
-    if (this.roleOperationProcessing()) {
+    if ((this.roleOperationProcessing() || this.accessProcessing())) {
       return;
     }
 
@@ -461,7 +464,7 @@ export class UsersPageComponent implements OnInit {
     }
 
     if (
-      this.roleOperationProcessing() ||
+      (this.roleOperationProcessing() || this.accessProcessing()) ||
       this.selectedRoleForOperation() !== null ||
       !this.canManageRoles() ||
       !this.authContext.hasPermission("roles.ver") ||
@@ -565,7 +568,7 @@ export class UsersPageComponent implements OnInit {
       });
   }
   selectUser(user: UserSummary): void {
-    if (this.roleOperationProcessing()) {
+    if ((this.roleOperationProcessing() || this.accessProcessing())) {
       return;
     }
 
@@ -583,7 +586,7 @@ export class UsersPageComponent implements OnInit {
   }
 
   closeUserRoles(): void {
-    if (this.roleOperationProcessing()) {
+    if ((this.roleOperationProcessing() || this.accessProcessing())) {
       return;
     }
 

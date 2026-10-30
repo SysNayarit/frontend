@@ -173,4 +173,29 @@ describe("AuthContextService", () => {
 
     expect(context.user()).toEqual(auth.user);
   });
+
+  it("descarta el usuario recibido despues de limpiar una sesion", () => {
+    const response = new Subject<AuthenticatedUser>();
+    auth.currentUserResult = response.asObservable();
+    let emitted = false;
+    context.refresh().subscribe(() => emitted = true);
+    context.clear();
+    response.next(auth.user);
+    response.complete();
+    expect(emitted).toBe(false);
+    expect(context.user()).toBeNull();
+  });
+
+  it("una respuesta antigua no sobrescribe el contexto renovado", () => {
+    const response = new Subject<AuthenticatedUser>();
+    auth.currentUserResult = response.asObservable();
+    context.refresh().subscribe();
+    context.clear();
+    const renewed = { ...auth.user, name: "Sesion nueva" };
+    auth.currentUserResult = of(renewed);
+    context.refresh().subscribe();
+    response.next(auth.user);
+    response.complete();
+    expect(context.user()?.name).toBe("Sesion nueva");
+  });
 });

@@ -17,19 +17,18 @@ import {
   template: `
     <div class="mt-3 max-w-sm">
       <p class="text-xs leading-5 text-[#555555]">
-        Por seguridad, confirma tu contraseña antes de modificar
-        los roles del usuario.
+        Por seguridad, confirma tu contraseña antes de {{ purpose }}.
       </p>
 
       <label
-        for="user-role-reauthentication-password"
+        [attr.for]="passwordId"
         class="mt-2 block text-xs font-semibold text-[#611232]"
       >
         Contraseña del administrador
       </label>
 
       <input
-        id="user-role-reauthentication-password"
+        [id]="passwordId"
         data-testid="user-role-reauthentication-password"
         type="password"
         autocomplete="current-password"
@@ -58,4 +57,7 @@ export class UserRoleReauthenticationFieldComponent {
 
   @Input()
   passwordError: string | null = null;
+
+  @Input() purpose = "modificar los roles del usuario";
+  @Input() passwordId = "user-role-reauthentication-password";
 }

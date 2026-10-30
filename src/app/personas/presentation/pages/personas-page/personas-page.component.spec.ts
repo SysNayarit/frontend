@@ -4141,4 +4141,17 @@ describe('PersonasPageComponent', () => {
       ),
     ).toBeNull();
   });
+
+  it('explica la proteccion del ultimo administrador al rechazar una baja', () => {
+    vi.spyOn(service, 'withdraw').mockReturnValue(throwError(() => ({ status: 409, error: { code: 'LAST_ENABLED_ADMIN' } })));
+    const fixture = createFixture();
+    const component = fixture.componentInstance;
+    component.openWithdrawForm(service.response.data[0]);
+    component.withdrawForm.controls.password.setValue('ClaveAdministrativa');
+    component.submitWithdrawForm();
+    expect(component.withdrawErrorMessage()).toContain('último administrador habilitado');
+    expect(component.withdrawForm.controls.password.value).toBe('');
+    expect(component.withdrawFormOpen()).toBe(true);
+    expect(service.response.data[0].estatus).toBe('ACTIVO');
+  });
 });

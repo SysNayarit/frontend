@@ -6,6 +6,7 @@ import {
   Observable,
   of,
   shareReplay,
+  filter,
   tap,
   throwError,
 } from "rxjs";
@@ -21,23 +22,27 @@ export class AuthContextService {
 
   private readonly currentUserState = signal<AuthenticatedUser | null>(null);
 
+  private generation = 0;
+
   private inFlight: Observable<AuthenticatedUser> | null = null;
 
   readonly user = this.currentUserState.asReadonly();
+
+  get revision(): number { return this.generation; }
 
   refresh(): Observable<AuthenticatedUser> {
     if (this.inFlight !== null) {
       return this.inFlight;
     }
 
+    const generation = this.generation;
     let request: Observable<AuthenticatedUser>;
 
     request = this.auth.currentUser().pipe(
-      tap((user) => {
-        this.currentUserState.set(user);
-      }),
+      filter(() => generation === this.generation),
+      tap((user) => this.currentUserState.set(user)),
       catchError((error: unknown) => {
-        if (error instanceof HttpErrorResponse && error.status === 401) {
+        if (generation === this.generation && error instanceof HttpErrorResponse && error.status === 401) {
           this.clear();
         }
 
@@ -74,6 +79,8 @@ export class AuthContextService {
   }
 
   clear(): void {
+    this.generation++;
+    this.inFlight = null;
     this.currentUserState.set(null);
   }
 }

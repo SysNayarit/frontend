@@ -582,9 +582,15 @@ export class PersonasPageComponent implements OnInit {
           const response =
             this.lifecycleErrorSource(error) as {
               status?: number;
+              error?: { code?: string };
             };
 
           this.withdrawForm.controls.password.reset();
+
+          if (response.status === 409 && response.error?.code === 'LAST_ENABLED_ADMIN') {
+            this.withdrawErrorMessage.set('No se puede dar de baja a la Persona del último administrador habilitado.');
+            return;
+          }
 
           if (response.status === 423) {
             this.withdrawErrorMessage.set(
@@ -670,7 +676,7 @@ export class PersonasPageComponent implements OnInit {
           this.activeFlow.set(null);
 
           this.reinstateSuccessMessage.set(
-            'Persona reingresada correctamente',
+            'Persona reingresada correctamente. Su cuenta requiere habilitación expresa para recuperar el acceso.',
           );
 
           this.loadPage(currentPage);

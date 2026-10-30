@@ -1,4 +1,4 @@
-﻿import { UsersModuleNavigationComponent } from "../../molecules/users-module-navigation/users-module-navigation.component";
+import { UsersModuleNavigationComponent } from "../../molecules/users-module-navigation/users-module-navigation.component";
 import { HttpErrorResponse } from "@angular/common/http";
 import {
   ChangeDetectionStrategy,
@@ -222,7 +222,7 @@ export class UserRegistrationPageComponent {
           this.selectedPerson.set(null);
           this.personSelectorOpen.set(true);
           this.createUserNotice.set(
-            "Usuario creado correctamente. Puedes registrar otra Persona o consultar Usuarios registrados.",
+            "Usuario creado correctamente. La cuenta queda PENDIENTE de habilitación y todavía no permite iniciar sesión. Puedes registrar otra Persona o consultar Usuarios registrados.",
           );
         },
         error: (error: unknown) => {

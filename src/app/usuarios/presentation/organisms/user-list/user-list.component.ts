@@ -9,11 +9,12 @@ import {
 import { NgTemplateOutlet } from "@angular/common";
 import { TemplateRef } from "@angular/core";
 import { UserSummary } from "../../../user.models";
+import { UserAccessStatusBadgeComponent } from "../../atoms/user-access-status-badge/user-access-status-badge.component";
 
 @Component({
   selector: "app-user-list",
   standalone: true,
-  imports: [NgTemplateOutlet],
+  imports: [NgTemplateOutlet, UserAccessStatusBadgeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section
@@ -164,6 +165,7 @@ import { UserSummary } from "../../../user.models";
                   />
                 </th>
 
+                <th scope="col" class="px-5 py-3 font-semibold">Estado de cuenta</th>
                 @if (!bulkSelectionEnabled) {
                   <th scope="col" class="px-6 py-3 text-right font-semibold">
                     Acciones
@@ -275,6 +277,7 @@ import { UserSummary } from "../../../user.models";
                     {{ registrationDate(user.created_at) }}
                   </td>
 
+                  <td class="px-5 py-4"><app-user-access-status-badge [status]="user.access_status" /></td>
                   @if (!bulkSelectionEnabled) {
                     <td class="px-6 py-4 text-right">
                       <button
@@ -293,7 +296,7 @@ import { UserSummary } from "../../../user.models";
                 </tr>
                 @if (selectedUserId === user.id && detailTemplate) {
                   <tr data-testid="user-inline-detail">
-                    <td [attr.colspan]="4" class="px-4 pb-4 pt-0">
+                    <td [attr.colspan]="5" class="px-4 pb-4 pt-0">
                       <ng-container [ngTemplateOutlet]="detailTemplate" />
                     </td>
                   </tr>

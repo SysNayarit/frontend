@@ -1,3 +1,5 @@
+import { By } from "@angular/platform-browser";
+import { UserCreateFormComponent } from "../../organisms/user-create-form/user-create-form.component";
 import { provideHttpClient } from "@angular/common/http";
 import {
   HttpTestingController,
@@ -208,5 +210,50 @@ describe("UserRegistrationPageComponent", () => {
     expect(component.createUserError()).toContain(
       "Persona ya tiene una cuenta",
     );
+  });
+
+  it("selecciona Persona desde la interfaz sin crear cuenta anticipadamente", async () => {
+    const fixture = await prepare(true);
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector("app-available-person-selector tbody button[type='button']");
+    button.click(); await fixture.whenStable(); fixture.detectChanges();
+    expect(component.selectedPerson()?.id_persona).toBe(person.id_persona);
+    expect(fixture.nativeElement.querySelector('app-user-create-form')).not.toBeNull();
+    http.expectNone(req => req.method === "POST");
+  });
+
+  for (const status of [403, 422, 423, 503]) {
+    it(`conserva Persona y borra credenciales ante rechazo HTTP ${status}`, async () => {
+      const fixture = await prepare(true); selectPerson(); fixture.detectChanges();
+      const form = fixture.debugElement.query(By.directive(UserCreateFormComponent)).componentInstance as UserCreateFormComponent;
+      form.form.setValue(values);
+      component.confirmCreateUser(values);
+      http.expectOne("/reauthenticate").flush(null);
+      http.expectOne("/api/usuarios").flush({}, { status, statusText: "Rejected" });
+      expect(component.selectedPerson()).not.toBeNull();
+      expect(component.createUserError()).not.toBeNull();
+      expect(form.form.controls.password.value).toBe("");
+      expect(form.form.controls.password_confirmation.value).toBe("");
+      expect(form.form.controls.administratorPassword.value).toBe("");
+    });
+  }
+
+  it("cancelar descarta credenciales sin enviar solicitudes de creacion", async () => {
+    const fixture = await prepare(true); selectPerson(); fixture.detectChanges();
+    const form = fixture.debugElement.query(By.directive(UserCreateFormComponent)).componentInstance as UserCreateFormComponent;
+    form.form.setValue(values); component.cancelCreateUser();
+    expect(component.selectedPerson()).toBeNull();
+    expect(form.form.controls.password.value).toBe("");
+    expect(form.form.controls.password_confirmation.value).toBe("");
+    expect(form.form.controls.administratorPassword.value).toBe("");
+    http.expectNone(req => req.method === "POST");
+    // Se mantiene la selección de Persona como acción explícita.
+  });
+
+  it("informa que la nueva cuenta queda pendiente de habilitacion", async () => {
+    await prepare(true); selectPerson(); component.confirmCreateUser(values);
+    http.expectOne("/reauthenticate").flush(null);
+    http.expectOne("/api/usuarios").flush({ id: 44, id_persona: person.id_persona, name: "PERSONA", email: values.email, access_status: "PENDIENTE" });
+    expect(component.createUserNotice()).toContain("PENDIENTE");
+    expect(component.createUserNotice()).toContain("todavía no permite iniciar sesión");
   });
 });

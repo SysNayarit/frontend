@@ -5,7 +5,10 @@ export interface UserPersonSummary {
   apellido_materno: string | null;
 }
 
+import { UserAccessStatus } from "./user-access.models";
+
 export interface UserSummary {
+  access_status?: UserAccessStatus;
   id: number;
   id_persona: string | null;
   name: string;
@@ -38,6 +41,7 @@ export interface UserCreateRequest {
 }
 
 export interface UserCreateResponse {
+  access_status?: UserAccessStatus;
   id: number;
   id_persona: string;
   name: string;

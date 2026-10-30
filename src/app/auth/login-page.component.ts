@@ -1,4 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+
+import { ActivatedRoute } from '@angular/router';
 
 import { LoginComponent } from './login.component';
 
@@ -119,6 +121,11 @@ import { LoginComponent } from './login.component';
                 aria-hidden="true"
               ></div>
 
+              @if (sessionEnded) {
+                <p role="status" data-testid="session-ended" class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  La sesión finalizó o el acceso de la cuenta fue revocado. Ingresa nuevamente; si no puedes acceder, contacta al administrador.
+                </p>
+              }
               <app-login />
 
               <footer
@@ -137,4 +144,9 @@ import { LoginComponent } from './login.component';
     </main>
   `,
 })
-export class LoginPageComponent {}
+export class LoginPageComponent {
+  private readonly route = inject(ActivatedRoute);
+  get sessionEnded(): boolean {
+    return this.route.snapshot.queryParamMap.get('estado') === 'sesion-finalizada';
+  }
+}

@@ -101,6 +101,11 @@ import { authenticatedUserDisplayName } from "./auth/authenticated-user-display-
           Las funciones disponibles se habilitan según los permisos efectivos
           validados por SIGA.
         </p>
+        @if (user() && user()!.permissions.length === 0) {
+          <p role="status" data-testid="no-functional-permissions" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            Tu cuenta no tiene permisos funcionales asignados. Contacta al administrador. Puedes cerrar tu sesión desde el encabezado.
+          </p>
+        }
       </section>
     </div>
   `,
