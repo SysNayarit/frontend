@@ -20,13 +20,21 @@ export const sessionRevocationInterceptor: HttpInterceptorFn = (
       if (
         protectedRequest &&
         revision === context.revision &&
-        error instanceof HttpErrorResponse &&
-        error.status === 401
+        error instanceof HttpErrorResponse
       ) {
-        context.clear();
-        void router.navigateByUrl("/acceso?estado=sesion-finalizada", {
-          replaceUrl: true,
-        });
+        if (error.status === 401) {
+          context.clear();
+          void router.navigateByUrl("/acceso?estado=sesion-finalizada", {
+            replaceUrl: true,
+          });
+        } else if (error.status === 403 && request.url !== "/api/user") {
+          // Revalidar permisos sin repetir la operacion rechazada.
+          context.refresh().subscribe({
+            error: () => {
+              // Conservar el error HTTP original.
+            },
+          });
+        }
       }
       // Las mutaciones nunca se repiten automáticamente.
       return throwError(() => error);

@@ -17,9 +17,15 @@ import { UserRole } from "../../../user-role.models";
       aria-label="Selección de rol"
       class="rounded-xl border border-[#98989a]/30 bg-white p-5"
     >
-      <h3 class="text-lg font-bold text-[#611232]">
-        Seleccionar rol para asignar
-      </h3>
+      @if (showHeading) {
+        <h3 class="text-lg font-bold text-[#611232]">
+          {{
+            operation === "assign"
+              ? "Seleccionar rol para asignar"
+              : "Seleccionar rol para retirar"
+          }}
+        </h3>
+      }
 
       @if (loading) {
         <p role="status" class="mt-4 text-sm">
@@ -38,11 +44,12 @@ import { UserRole } from "../../../user-role.models";
           </button>
         </div>
       } @else if (availableRoles.length === 0) {
-        <p
-          data-testid="no-available-roles"
-          class="mt-4 text-sm text-[#555555]"
-        >
-          No hay roles ordinarios disponibles para asignar.
+        <p data-testid="no-available-roles" class="mt-4 text-sm text-[#555555]">
+          {{
+            operation === "assign"
+              ? "No hay roles ordinarios disponibles para asignar."
+              : "No hay roles ordinarios disponibles para retirar."
+          }}
         </p>
       } @else {
         <div class="mt-4 space-y-3">
@@ -51,7 +58,9 @@ import { UserRole } from "../../../user-role.models";
               type="button"
               data-testid="select-available-role"
               class="siga-focus flex w-full items-center justify-between rounded-lg border border-[#98989a]/30 p-4 text-left hover:bg-[#e6d194]/15"
-              (click)="roleSelected.emit(role)"
+              [attr.aria-pressed]="selectedRoleId === role.id"
+              [disabled]="disabled"
+              (click)="selectRole(role)"
             >
               <span>
                 <span class="block font-semibold text-[#611232]">
@@ -62,27 +71,37 @@ import { UserRole } from "../../../user-role.models";
                 </span>
               </span>
               <span class="text-sm font-semibold text-[#611232]">
-                Seleccionar
+                {{
+                  selectedRoleId === role.id ? "Seleccionado" : "Seleccionar"
+                }}
               </span>
             </button>
           }
         </div>
       }
 
-      <button
-        type="button"
-        data-testid="cancel-role-selection"
-        class="siga-focus mt-5 rounded-lg border border-[#98989a]/40 px-4 py-2 text-sm font-semibold text-[#611232]"
-        (click)="cancel.emit()"
-      >
-        Cancelar
-      </button>
+      @if (showCancel) {
+        <button
+          type="button"
+          data-testid="cancel-role-selection"
+          class="siga-focus mt-5 rounded-lg border border-[#98989a]/40 px-4 py-2 text-sm font-semibold text-[#611232]"
+          [disabled]="disabled"
+          (click)="cancel.emit()"
+        >
+          Cancelar
+        </button>
+      }
     </section>
   `,
 })
 export class UserRoleSelectorComponent {
   @Input() roles: readonly UserRole[] = [];
   @Input() assignedRoles: readonly UserRole[] = [];
+  @Input() operation: "assign" | "remove" = "assign";
+  @Input() selectedRoleId: number | null = null;
+  @Input() disabled = false;
+  @Input() showCancel = true;
+  @Input() showHeading = true;
   @Input() loading = false;
   @Input() error: string | null = null;
 
@@ -90,15 +109,23 @@ export class UserRoleSelectorComponent {
   @Output() readonly retry = new EventEmitter<void>();
   @Output() readonly cancel = new EventEmitter<void>();
 
+  selectRole(role: UserRole): void {
+    if (
+      this.disabled ||
+      role.code === "ROL_ADMIN_SISTEMA" ||
+      !this.availableRoles.some((available) => available.id === role.id)
+    ) {
+      return;
+    }
+
+    this.roleSelected.emit(role);
+  }
+
   get availableRoles(): readonly UserRole[] {
-    const assignedIds = new Set(
-      this.assignedRoles.map((role) => role.id),
-    );
+    const assignedIds = new Set(this.assignedRoles.map((role) => role.id));
 
     return this.roles.filter(
-      (role) =>
-        role.code !== "ROL_ADMIN_SISTEMA" &&
-        !assignedIds.has(role.id),
+      (role) => role.code !== "ROL_ADMIN_SISTEMA" && !assignedIds.has(role.id),
     );
   }
 }

@@ -64,9 +64,7 @@ describe("UserRoleSelectorComponent", () => {
     );
 
     expect(buttons.length).toBe(1);
-    expect(buttons[0].textContent).toContain(
-      "Consulta de Personas",
-    );
+    expect(buttons[0].textContent).toContain("Consulta de Personas");
   });
 
   it("excluye siempre el rol administrador protegido", () => {
@@ -81,9 +79,7 @@ describe("UserRoleSelectorComponent", () => {
     );
 
     expect(buttons.length).toBe(1);
-    expect(buttons[0].textContent).not.toContain(
-      "Administrador del Sistema",
-    );
+    expect(buttons[0].textContent).not.toContain("Administrador del Sistema");
   });
 
   it("emite el rol ordinario seleccionado", () => {
@@ -114,9 +110,7 @@ describe("UserRoleSelectorComponent", () => {
     fixture.detectChanges();
 
     expect(
-      fixture.nativeElement.querySelector(
-        '[data-testid="no-available-roles"]',
-      ),
+      fixture.nativeElement.querySelector('[data-testid="no-available-roles"]'),
     ).not.toBeNull();
 
     expect(
@@ -162,16 +156,87 @@ describe("UserRoleSelectorComponent", () => {
       "No fue posible consultar el catálogo.",
     );
 
-    const button: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="retry-role-catalog"]',
-      );
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="retry-role-catalog"]',
+    );
 
     button.click();
 
     expect(retries).toBe(1);
   });
 
+  it("muestra contexto de retirada sin modificar el filtrado individual", () => {
+    fixture.componentRef.setInput("roles", [ordinaryRole]);
+    fixture.componentRef.setInput("operation", "remove");
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      "Seleccionar rol para retirar",
+    );
+
+    expect(fixture.nativeElement.textContent).toContain(ordinaryRole.name);
+  });
+
+  it("identifica el rol seleccionado", () => {
+    fixture.componentRef.setInput("roles", [ordinaryRole]);
+    fixture.componentRef.setInput("selectedRoleId", ordinaryRole.id);
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector(
+      '[data-testid="select-available-role"]',
+    ) as HTMLButtonElement;
+
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect(button.textContent).toContain("Seleccionado");
+  });
+
+  it("bloquea seleccion durante procesamiento", () => {
+    fixture.componentRef.setInput("roles", [ordinaryRole]);
+    fixture.componentRef.setInput("disabled", true);
+    fixture.detectChanges();
+
+    const selected = vi.fn();
+    component.roleSelected.subscribe(selected);
+
+    const button = fixture.nativeElement.querySelector(
+      '[data-testid="select-available-role"]',
+    ) as HTMLButtonElement;
+
+    expect(button.disabled).toBe(true);
+
+    component.selectRole(ordinaryRole);
+
+    expect(selected).not.toHaveBeenCalled();
+  });
+  it("permite ocultar cancelar sin afectar la selección", () => {
+    fixture.componentRef.setInput("roles", [ordinaryRole]);
+    fixture.componentRef.setInput("showCancel", false);
+    fixture.detectChanges();
+
+    const cancel = fixture.nativeElement.querySelector(
+      '[data-testid="cancel-role-selection"]',
+    );
+
+    const select = fixture.nativeElement.querySelector(
+      '[data-testid="select-available-role"]',
+    );
+
+    expect(cancel).toBeNull();
+    expect(select).not.toBeNull();
+  });
+  it("permite ocultar el encabezado sin afectar los roles", () => {
+    fixture.componentRef.setInput("roles", [ordinaryRole]);
+    fixture.componentRef.setInput("showHeading", false);
+    fixture.detectChanges();
+
+    const heading = fixture.nativeElement.querySelector("h3");
+    const select = fixture.nativeElement.querySelector(
+      '[data-testid="select-available-role"]',
+    );
+
+    expect(heading).toBeNull();
+    expect(select).not.toBeNull();
+  });
   it("emite cancelacion del selector", () => {
     let cancellations = 0;
 
@@ -181,10 +246,9 @@ describe("UserRoleSelectorComponent", () => {
 
     fixture.detectChanges();
 
-    const button: HTMLButtonElement =
-      fixture.nativeElement.querySelector(
-        '[data-testid="cancel-role-selection"]',
-      );
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[data-testid="cancel-role-selection"]',
+    );
 
     button.click();
 
