@@ -1683,12 +1683,99 @@ describe("UsersPageComponent", () => {
     component.selectUser(component.users()[0]);
     http.expectOne("/api/usuarios/1/roles").flush({ data: [] });
     component.accessChanged({ id: 1, id_persona: null, access_status: "DESHABILITADO", access_version: 2 });
+    const refreshed = http.expectOne(
+      request =>
+        request.method === "GET" &&
+        request.url === "/api/usuarios" &&
+        request.params.get("page") === "1"
+    );
+
+    refreshed.flush({
+      data: [
+        { ...component.users()[0], access_status: "DESHABILITADO" }
+      ],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: 1
+      }
+    });
+
+    expect(component.accessRefreshError()).toBeNull();
     expect(component.users()[0].access_status).toBe("DESHABILITADO");
     expect(component.selectedUser()?.access_status).toBe("DESHABILITADO");
     expect(component.selectedRoles()).toEqual([]);
     http.expectNone(req => req.method === "POST");
   });
 
+  it("conserva el estado confirmado si falla la consulta posterior", () => {
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.selectUser(component.users()[0]);
+    http.expectOne("/api/usuarios/1/roles").flush({ data: [] });
+
+    component.accessChanged({
+      id: 1,
+      id_persona: null,
+      access_status: "DESHABILITADO",
+      access_version: 2
+    });
+
+    expectPage(1).flush(
+      { message: "Service Unavailable" },
+      { status: 503, statusText: "Service Unavailable" }
+    );
+
+    expect(component.users()[0].access_status).toBe("DESHABILITADO");
+    expect(component.accessRefreshError()).toContain("HTTP 503");
+
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="access-refresh-warning"]'
+      )
+    ).not.toBeNull();
+
+    http.expectNone(request => request.method === "POST");
+  });
+
+  it("advierte si la consulta posterior muestra otro estado", () => {
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.selectUser(component.users()[0]);
+    http.expectOne("/api/usuarios/1/roles").flush({ data: [] });
+
+    component.accessChanged({
+      id: 1,
+      id_persona: null,
+      access_status: "HABILITADO",
+      access_version: 2
+    });
+
+    expectPage(1).flush({
+      data: [
+        {
+          ...component.users()[0],
+          access_status: "PENDIENTE"
+        }
+      ],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: 1
+      }
+    });
+
+    expect(component.accessRefreshError()).toContain("no coincide");
+    expect(component.users()[0].access_status).toBe("HABILITADO");
+
+    http.expectNone(request => request.method === "POST");
+  });
   it("bloquea cambiar o cerrar detalle durante una transicion de acceso", () => {
     fixture.detectChanges(); respond(1, 1, 1);
     component.selectUser(component.users()[0]);

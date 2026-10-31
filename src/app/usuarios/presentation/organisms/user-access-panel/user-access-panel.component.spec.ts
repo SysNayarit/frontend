@@ -219,6 +219,275 @@ describe("UserAccessPanelComponent", () => {
       replaceUrl: true,
     });
   });
+  it("explica los estados y las acciones disponibles", () => {
+    expect(component.statusExplanation()).toContain(
+      "aún no se ha autorizado"
+    );
+
+    expect(component.canEnable()).toBe(true);
+    expect(component.canDisable()).toBe(true);
+
+    fixture.componentRef.setInput("user", {
+      ...user,
+      access_status: "HABILITADO",
+    });
+
+    fixture.detectChanges();
+
+    expect(component.statusExplanation()).toContain("puede iniciar sesión");
+    expect(component.canEnable()).toBe(false);
+    expect(component.canDisable()).toBe(true);
+
+    fixture.componentRef.setInput("user", {
+      ...user,
+      access_status: "DESHABILITADO",
+    });
+
+    fixture.detectChanges();
+
+    expect(component.statusExplanation()).toContain("acceso está retirado");
+    expect(component.canEnable()).toBe(true);
+    expect(component.canDisable()).toBe(false);
+  });
+
+  it("impide habilitar cuando no se pueden consultar los roles", () => {
+    fixture.componentRef.setInput("rolesLoading", true);
+    fixture.detectChanges();
+
+    expect(component.canEnable()).toBe(false);
+
+    fixture.componentRef.setInput("rolesLoading", false);
+    fixture.componentRef.setInput(
+      "rolesError",
+      "No fue posible consultar los roles."
+    );
+
+    fixture.detectChanges();
+
+    expect(component.canEnable()).toBe(false);
+
+    fixture.componentRef.setInput("rolesError", null);
+    fixture.detectChanges();
+
+    expect(component.canEnable()).toBe(true);
+  });
+
+  it("muestra los roles asignados antes de habilitar", () => {
+    fixture.componentRef.setInput("roles", [
+      {
+        id: 7,
+        code: "ROL_CONSULTA_PERSONAS",
+        name: "Consulta de personas",
+      },
+    ]);
+
+    fixture.detectChanges();
+
+    component.open("enable");
+    fixture.detectChanges();
+
+    const roles = fixture.nativeElement.querySelector(
+      '[data-testid="access-assigned-roles"]'
+    );
+
+    expect(roles).not.toBeNull();
+    expect(roles.textContent).toContain("ROL_CONSULTA_PERSONAS");
+    expect(roles.textContent).toContain("Consulta de personas");
+
+    http.expectNone("/reauthenticate");
+  });
+
+  it("permite deshabilitar una cuenta pendiente", () => {
+    expect(component.canDisable()).toBe(true);
+
+    start("disable").flush(null);
+
+    const peticion = http.expectOne(
+      "/api/usuarios/25/deshabilitar"
+    );
+
+    expect(peticion.request.method).toBe("POST");
+
+    peticion.flush({
+      id: 25,
+      id_persona: "persona-25",
+      access_status: "DESHABILITADO",
+      access_version: 2,
+    });
+
+    expect(component.notice()).toContain("revocadas");
+    http.expectNone("/api/usuarios/25/pendiente");
+  });
+
+  it("permite rehabilitar una cuenta deshabilitada", () => {
+    fixture.componentRef.setInput("user", {
+      ...user,
+      access_status: "DESHABILITADO",
+    });
+
+    fixture.detectChanges();
+
+    expect(component.canEnable()).toBe(true);
+
+    start("enable").flush(null);
+
+    const peticion = http.expectOne(
+      "/api/usuarios/25/habilitar"
+    );
+
+    expect(peticion.request.body).toEqual({
+      roles_revisados: true,
+    });
+
+    peticion.flush({
+      id: 25,
+      id_persona: "persona-25",
+      access_status: "HABILITADO",
+      access_version: 3,
+    });
+
+    expect(component.notice()).toContain("Cuenta habilitada");
+  });
+  it("envia reautenticacion mediante el evento submit nativo", () => {
+    const changed = vi.spyOn(component.changed, "emit");
+
+    component.open("enable");
+
+    component.reviewed.setValue(true);
+
+    component.form.controls.password.setValue(
+      "ClaveAdministrativa"
+    );
+
+    fixture.detectChanges();
+
+    const boton: HTMLButtonElement =
+      fixture.nativeElement.querySelector(
+        '[data-testid="confirm-user-access"]'
+      );
+
+    expect(boton).not.toBeNull();
+    expect(boton.disabled).toBe(false);
+
+    const form: HTMLFormElement =
+      fixture.nativeElement.querySelector("form");
+
+    expect(form).not.toBeNull();
+
+    const evento = new Event("submit", {
+      bubbles: true,
+      cancelable: true
+    });
+
+    form.dispatchEvent(evento);
+
+    expect(evento.defaultPrevented).toBe(true);
+
+    const reauth = http.expectOne("/reauthenticate");
+
+    expect(reauth.request.method).toBe("POST");
+
+    expect(reauth.request.body).toEqual({
+      password: "ClaveAdministrativa"
+    });
+
+    http.expectNone("/api/usuarios/25/habilitar");
+
+    expect(changed).not.toHaveBeenCalled();
+
+    reauth.flush(null);
+
+    const habilitar = http.expectOne(
+      "/api/usuarios/25/habilitar"
+    );
+
+    expect(habilitar.request.method).toBe("POST");
+
+    expect(habilitar.request.body).toEqual({
+      roles_revisados: true
+    });
+
+    habilitar.flush({
+      id: 25,
+      id_persona: "persona-25",
+      access_status: "HABILITADO",
+      access_version: 2
+    });
+
+    expect(changed).toHaveBeenCalledOnce();
+
+    expect(component.notice()).toContain(
+      "Cuenta habilitada"
+    );
+
+    expect(component.processing()).toBe(false);
+  });
+  it("muestra el identificador de la cuenta seleccionada", () => {
+    fixture.detectChanges();
+
+    const identificador = fixture.nativeElement.querySelector(
+      '[data-testid="access-target-id"]'
+    );
+
+    expect(identificador).not.toBeNull();
+    expect(identificador.textContent).toContain("#25");
+  });
+
+  it("informa la etapa de cada solicitud y vuelve a estado idle", () => {
+    const reauth = start();
+
+    expect(component.requestStage()).toBe("reauthentication");
+
+    reauth.flush(null);
+
+    expect(component.requestStage()).toBe("transition");
+
+    http.expectOne("/api/usuarios/25/habilitar").flush({
+      id: 25,
+      id_persona: "persona-25",
+      access_status: "HABILITADO",
+      access_version: 2
+    });
+
+    expect(component.requestStage()).toBe("idle");
+    expect(component.httpDiagnostic()).toBeNull();
+  });
+
+  it("identifica HTTP 419 durante reautenticacion", () => {
+    start().flush(
+      { message: "Page Expired" },
+      { status: 419, statusText: "Page Expired" }
+    );
+
+    fixture.detectChanges();
+
+    expect(component.error()).toContain("CSRF");
+    expect(component.httpDiagnostic()).toContain("HTTP 419");
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="access-http-diagnostic"]'
+      ).textContent
+    ).toContain("Reautenticación");
+
+    http.expectNone("/api/usuarios/25/habilitar");
+  });
+
+  it("no comunica exito si la respuesta de cambio no es verificable", () => {
+    start().flush(null);
+
+    http.expectOne("/api/usuarios/25/habilitar").flush({
+      id: 25,
+      id_persona: "persona-25",
+      access_status: "PENDIENTE",
+      access_version: 1
+    });
+
+    expect(component.notice()).toBeNull();
+    expect(component.httpDiagnostic()).toContain(
+      "respuesta no verificable"
+    );
+  });
   it("destruir el formulario cancela reautenticacion sin enviar mutacion", () => {
     const req = start();
     fixture.destroy();

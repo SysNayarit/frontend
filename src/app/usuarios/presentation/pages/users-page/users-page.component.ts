@@ -59,6 +59,51 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
         </p>
       </header>
 
+      <section
+        aria-label="Estados de acceso de usuarios"
+        data-testid="user-access-states-guide"
+        class="rounded-xl border border-[#e7e2e3] bg-white p-4"
+      >
+        <h2 class="text-sm font-semibold text-[#611232]">
+          Estados de acceso
+        </h2>
+
+        <div class="mt-3 grid gap-3 md:grid-cols-3">
+          <div class="rounded-lg bg-amber-50 p-3">
+            <p class="text-sm font-medium text-amber-900">
+              Pendiente de habilitación
+            </p>
+            <p class="mt-1 text-xs text-gray-700">
+              Cuenta registrada, a la espera de autorización inicial.
+            </p>
+          </div>
+
+          <div class="rounded-lg bg-green-50 p-3">
+            <p class="text-sm font-medium text-green-900">
+              Habilitado
+            </p>
+            <p class="mt-1 text-xs text-gray-700">
+              Acceso autorizado, sujeto a los permisos efectivos.
+            </p>
+          </div>
+
+          <div class="rounded-lg bg-red-50 p-3">
+            <p class="text-sm font-medium text-red-900">
+              Deshabilitado
+            </p>
+            <p class="mt-1 text-xs text-gray-700">
+              Acceso retirado, conservando la cuenta y su historial.
+            </p>
+          </div>
+        </div>
+
+        <p class="mt-3 text-xs leading-5 text-gray-600">
+          Las cuentas nuevas inician pendientes.
+          Las acciones administrativas permiten habilitar o deshabilitar.
+          No existe una acción ordinaria para regresar a Pendiente.
+          Las transiciones requieren autorización y reautenticación.
+        </p>
+      </section>
       @if (loading()) {
         <p
           role="status"
@@ -99,6 +144,15 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
             roles, según tus permisos.
           </p>
         </div>
+        @if (accessRefreshError()) {
+          <p
+            role="alert"
+            data-testid="access-refresh-warning"
+            class="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+          >
+            {{ accessRefreshError() }}
+          </p>
+        }
         <app-user-list
           [users]="users()"
           [selectedUserId]="selectedUser()?.id ?? null"
@@ -119,7 +173,7 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
             }
 
             @if (selectedUser()) {
-              <app-user-access-panel [user]="selectedUser()!" [blocked]="roleOperationProcessing()" (busy)="accessProcessing.set($event)" (changed)="accessChanged($event)" />
+              <app-user-access-panel [user]="selectedUser()!" [roles]="selectedRoles()" [rolesLoading]="rolesLoading()" [rolesError]="rolesError()" [blocked]="roleOperationProcessing()" (busy)="accessProcessing.set($event)" (changed)="accessChanged($event)" />
               <app-user-roles
                 [user]="selectedUser()"
                 [roles]="selectedRoles()"
@@ -172,9 +226,83 @@ export class UsersPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly accessProcessing = signal(false);
+  readonly accessRefreshError = signal<string | null>(null);
+  private accessRefreshVersion = 0;
   accessChanged(response: UserAccessResponse): void {
-    this.users.update(users => users.map(user => user.id === response.id ? { ...user, access_status: response.access_status } : user));
-    this.selectedUser.update(user => user?.id === response.id ? { ...user, access_status: response.access_status } : user);
+    this.users.update(users =>
+      users.map(user =>
+        user.id === response.id
+          ? { ...user, access_status: response.access_status }
+          : user
+      )
+    );
+
+    this.selectedUser.update(user =>
+      user?.id === response.id
+        ? { ...user, access_status: response.access_status }
+        : user
+    );
+
+    this.accessRefreshError.set(null);
+
+    const version = ++this.accessRefreshVersion;
+    const page = this.currentPage();
+
+    // Solo GET. No repetir habilitacion ni deshabilitacion.
+    this.userService
+      .list(page)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (fresh) => {
+          if (
+            version !== this.accessRefreshVersion ||
+            page !== this.currentPage()
+          ) {
+            return;
+          }
+
+          const confirmed = fresh.data.find(
+            user => user.id === response.id
+          );
+
+          if (
+            !confirmed ||
+            confirmed.access_status !== response.access_status
+          ) {
+            this.accessRefreshError.set(
+              "La consulta posterior no coincide con el cambio confirmado. " +
+              "Actualiza el listado y verifica el estado antes de repetir."
+            );
+            return;
+          }
+
+          this.users.set(fresh.data);
+
+          this.selectedUser.update(current =>
+            current?.id === response.id ? confirmed : current
+          );
+
+          this.currentPage.set(fresh.meta.current_page);
+          this.lastPage.set(fresh.meta.last_page);
+          this.total.set(fresh.meta.total);
+          this.accessRefreshError.set(null);
+        },
+        error: (error: unknown) => {
+          if (version !== this.accessRefreshVersion) {
+            return;
+          }
+
+          const codigo = error instanceof HttpErrorResponse
+            ? ` HTTP ${error.status}.`
+            : "";
+
+          this.accessRefreshError.set(
+            "Laravel confirmó el cambio, pero no se pudo actualizar " +
+            "el listado." + codigo +
+            " Consulta nuevamente antes de repetir la operación."
+          );
+        },
+      });
   }
 
   readonly users = signal<readonly UserSummary[]>([]);
