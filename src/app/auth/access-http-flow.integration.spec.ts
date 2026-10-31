@@ -132,10 +132,25 @@ describe("Integracion HTTP de control de acceso SIGA", () => {
         },
       );
 
+      if (caso.status === 403) {
+        const refresh = http.expectOne("/api/user");
+
+        expect(refresh.request.method).toBe("GET");
+
+        refresh.flush({
+          id: 1,
+          name: "Responsable de prueba",
+          permissions: ["usuarios.deshabilitar"],
+        });
+      }
+
       expect(captured).toBeInstanceOf(HttpErrorResponse);
       expect((captured as HttpErrorResponse).status).toBe(caso.status);
 
-      expect(context.hasPermission("usuarios.habilitar")).toBe(true);
+      expect(context.hasPermission("usuarios.habilitar")).toBe(
+        caso.status !== 403,
+      );
+      expect(context.hasPermission("usuarios.deshabilitar")).toBe(true);
       expect(context.user()).not.toBeNull();
       expect(navigate).not.toHaveBeenCalled();
 
