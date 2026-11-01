@@ -58,6 +58,62 @@ describe("Integracion HTTP de control de acceso SIGA", () => {
     http.verify();
   });
 
+  it("descarta una confirmacion administrativa posterior al cierre de sesion", () => {
+    let confirmed = false;
+
+    access.change(25, "enable").subscribe({
+      next: () => { confirmed = true; },
+    });
+
+    const pending = http.expectOne("/api/usuarios/25/habilitar");
+
+    // La sesion se invalida mientras la solicitud esta en curso.
+    context.clear();
+
+    pending.flush({
+      id: 25,
+      id_persona: "persona-prueba-25",
+      access_status: "HABILITADO",
+      access_version: 3,
+    });
+
+    expect(confirmed).toBe(false);
+    expect(context.user()).toBeNull();
+    expect(context.hasPermission("usuarios.habilitar")).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+    http.expectNone("/api/usuarios/25/habilitar");
+  });
+
+  it("descarta confirmaciones antiguas tras revalidar permisos", () => {
+    let confirmed = false;
+
+    access.change(25, "disable").subscribe({
+      next: () => { confirmed = true; },
+    });
+
+    const pending = http.expectOne("/api/usuarios/25/deshabilitar");
+
+    context.revalidate().subscribe();
+
+    http.expectOne("/api/user").flush({
+      id: 1,
+      name: "Responsable de prueba",
+      permissions: [],
+    });
+
+    pending.flush({
+      id: 25,
+      id_persona: "persona-prueba-25",
+      access_status: "DESHABILITADO",
+      access_version: 4,
+    });
+
+    expect(confirmed).toBe(false);
+    expect(context.user()).not.toBeNull();
+    expect(context.hasPermission("usuarios.deshabilitar")).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+    http.expectNone("/api/usuarios/25/deshabilitar");
+  });
   for (const caso of [
     { operation: "enable" as const, endpoint: "habilitar" },
     { operation: "disable" as const, endpoint: "deshabilitar" },

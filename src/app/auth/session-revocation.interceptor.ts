@@ -1,7 +1,7 @@
 import { HttpErrorResponse, HttpInterceptorFn } from "@angular/common/http";
 import { inject } from "@angular/core";
 import { Router } from "@angular/router";
-import { catchError, throwError } from "rxjs";
+import { catchError, filter, throwError } from "rxjs";
 import { AuthContextService } from "./auth-context.service";
 
 export const sessionRevocationInterceptor: HttpInterceptorFn = (
@@ -16,6 +16,10 @@ export const sessionRevocationInterceptor: HttpInterceptorFn = (
     request.url === "/reauthenticate" ||
     request.url === "/logout";
   return next(request).pipe(
+    // No entregar respuestas de operaciones protegidas iniciadas
+    // bajo un contexto de autenticacion que ya fue invalidado.
+    // Esto no cancela ni revierte operaciones procesadas en Laravel.
+    filter(() => !protectedRequest || revision === context.revision),
     catchError((error: unknown) => {
       if (
         protectedRequest &&
