@@ -53,7 +53,35 @@ describe("UserAccessPanelComponent", () => {
     fixture.detectChanges();
     http = TestBed.inject(HttpTestingController);
   });
-  afterEach(() => http.verify());
+  afterEach(() => {
+    const pending = http.match(
+      (request) =>
+        request.method === "GET" &&
+        /^\/api\/usuarios\/\d+\/restricciones$/.test(request.url),
+    );
+
+    for (const request of pending) {
+      const match = request.request.url.match(
+        /^\/api\/usuarios\/(\d+)\/restricciones$/,
+      );
+
+      if (request.cancelled) {
+        continue;
+      }
+
+      request.flush({
+        id: Number(match?.[1]),
+        access_status: "PENDIENTE",
+        access_version: 1,
+        access_security_blocked: false,
+        access_suspended_until: null,
+        access_valid_from: null,
+        access_valid_until: null,
+      });
+    }
+
+    http.verify();
+  });
   function start(operation: "enable" | "disable" = "enable") {
     component.open(operation);
     component.reviewed.setValue(true);
