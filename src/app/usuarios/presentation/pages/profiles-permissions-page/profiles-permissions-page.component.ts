@@ -1,4 +1,5 @@
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
+import { UserRolePermissionsBrowserComponent } from "../../organisms/user-role-permissions-browser/user-role-permissions-browser.component";
 import {
   ChangeDetectionStrategy,
   Component,
@@ -34,6 +35,7 @@ type Catalog = "groups" | "profiles" | "roles" | "permissions";
     UsersModuleNavigationComponent,
     UserProfileAdministrationComponent,
     RolePermissionsInspectorComponent,
+    UserRolePermissionsBrowserComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -59,7 +61,22 @@ type Catalog = "groups" | "profiles" | "roles" | "permissions";
           ¿Qué necesitas hacer?
         </h2>
 
-        <div class="grid gap-3 md:grid-cols-3">
+        <div class="grid gap-3 md:grid-cols-4">
+          @if (canViewUserProfiles() && canViewRoles()) {
+            <button type="button"
+              data-testid="action-users-roles"
+              (click)="showSection('users')"
+              [attr.aria-pressed]="activeSection() === 'users'"
+              class="siga-focus rounded-xl border-2 border-[#611232] bg-white p-5 text-left shadow-sm hover:bg-[#f7f0f2]">
+              <span class="block text-xs font-bold text-[#9b2247]">USUARIOS</span>
+              <span class="mt-2 block text-lg font-bold text-[#611232]">
+                Usuarios y sus roles
+              </span>
+              <span class="mt-2 block text-sm text-gray-600">
+                Seleccionar usuario, abrir rol y ver sus permisos.
+              </span>
+            </button>
+          }
           <button
             type="button"
             data-testid="action-assign-profile"
@@ -124,6 +141,10 @@ type Catalog = "groups" | "profiles" | "roles" | "permissions";
         </div>
       </section>
 
+      @if (activeSection() === 'users' &&
+          canViewUserProfiles() && canViewRoles()) {
+        <app-user-role-permissions-browser />
+      }
       @if (activeSection() === 'assign') {
         <section class="space-y-3"
           data-testid="workspace-assign-profile">
@@ -350,9 +371,9 @@ type Catalog = "groups" | "profiles" | "roles" | "permissions";
   `,
 })
 export class ProfilesPermissionsPageComponent implements OnInit {
-  readonly activeSection = signal<"assign" | "roles" | "catalogs">("assign");
+  readonly activeSection = signal<"users" | "assign" | "roles" | "catalogs">("users");
 
-  showSection(section: "assign" | "roles" | "catalogs"): void {
+  showSection(section: "users" | "assign" | "roles" | "catalogs"): void {
     if (section === "roles" && !this.canViewRoles()) return;
     this.activeSection.set(section);
   }
@@ -403,6 +424,9 @@ export class ProfilesPermissionsPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    if (!this.canViewUserProfiles() || !this.canViewRoles()) {
+      this.activeSection.set("assign");
+    }
     this.reload();
   }
 
