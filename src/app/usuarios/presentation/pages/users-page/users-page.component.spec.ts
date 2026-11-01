@@ -226,6 +226,113 @@ describe("UsersPageComponent", () => {
     http.expectNone(item => item.method === "PUT");
     http.expectNone(item => item.method === "POST");
   });
+  it("cierra el detalle al cambiar el filtro administrativo", () => {
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.selectUser(component.users()[0]);
+    http.expectOne("/api/usuarios/1/roles").flush({ data: [] });
+
+    expect(component.selectedUser()?.id).toBe(1);
+
+    component.applyStatusFilter("HABILITADO");
+
+    expect(component.selectedUser()).toBeNull();
+
+    http.expectOne(
+      request =>
+        request.method === "GET" &&
+        request.url === "/api/usuarios" &&
+        request.params.get("page") === "1" &&
+        request.params.get("access_status") === "HABILITADO"
+    ).flush({
+      data: [],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: 0,
+      },
+    });
+
+    expect(component.users()).toEqual([]);
+  });
+
+  it("impide cambiar filtros durante una operacion de acceso", () => {
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.accessProcessing.set(true);
+    component.applyStatusFilter("DESHABILITADO");
+    component.applyRestrictionFilter("blocked");
+
+    expect(component.serverStatus()).toBe("");
+    expect(component.serverRestriction()).toBe("");
+
+    http.expectNone(request =>
+      request.method === "GET" &&
+      request.url === "/api/usuarios"
+    );
+  });
+
+  it("ignora refrescos de acceso anteriores a una nueva consulta", () => {
+    fixture.detectChanges();
+    respond(1, 2, 25);
+
+    component.accessChanged({
+      id: 1,
+      id_persona: null,
+      access_status: "DESHABILITADO",
+      access_version: 2,
+    });
+
+    const outdated = http.expectOne(
+      request =>
+        request.method === "GET" &&
+        request.url === "/api/usuarios" &&
+        request.params.get("page") === "1"
+    );
+
+    component.loadPage(2);
+
+    const current = http.expectOne(
+      request =>
+        request.method === "GET" &&
+        request.url === "/api/usuarios" &&
+        request.params.get("page") === "2"
+    );
+
+    current.flush({
+      data: [{
+        id: 2,
+        id_persona: null,
+        name: "Usuario 2",
+        email: "usuario2@example.test",
+        created_at: "2026-10-26T12:00:00Z",
+        person: null,
+      }],
+      meta: {
+        current_page: 2,
+        last_page: 2,
+        per_page: 20,
+        total: 25,
+      },
+    });
+
+    outdated.flush({
+      data: [],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: 0,
+      },
+    });
+
+    expect(component.currentPage()).toBe(2);
+    expect(component.users()[0].id).toBe(2);
+    expect(component.accessRefreshError()).toBeNull();
+  });
   it("consulta la primera pagina al iniciar", () => {
     fixture.detectChanges();
 

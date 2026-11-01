@@ -378,19 +378,31 @@ export class UsersPageComponent implements OnInit {
   readonly serverRestriction = signal("");
 
   applyStatusFilter(value: string): void {
-    if (this.loading() || value === this.serverStatus()) {
+    if (
+      this.loading() ||
+      this.roleOperationProcessing() ||
+      this.accessProcessing() ||
+      value === this.serverStatus()
+    ) {
       return;
     }
 
+    this.closeUserRoles();
     this.serverStatus.set(value);
     this.loadPage(1);
   }
 
   applyRestrictionFilter(value: string): void {
-    if (this.loading() || value === this.serverRestriction()) {
+    if (
+      this.loading() ||
+      this.roleOperationProcessing() ||
+      this.accessProcessing() ||
+      value === this.serverRestriction()
+    ) {
       return;
     }
 
+    this.closeUserRoles();
     this.serverRestriction.set(value);
     this.loadPage(1);
   }
@@ -444,6 +456,10 @@ export class UsersPageComponent implements OnInit {
     if (this.loading() || page < 1 || page > this.lastPage()) {
       return;
     }
+
+    // Una navegación nueva invalida cualquier refresco
+    // de acceso correspondiente a una vista anterior.
+    this.accessRefreshVersion++;
 
     this.loading.set(true);
     this.error.set(null);
