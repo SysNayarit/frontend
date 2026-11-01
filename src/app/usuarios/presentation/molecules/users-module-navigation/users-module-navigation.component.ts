@@ -1,4 +1,4 @@
-﻿import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
+import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
 import { RouterLink, RouterLinkActive } from "@angular/router";
 
 import { AuthContextService } from "../../../../auth/auth-context.service";
@@ -13,7 +13,20 @@ import { AuthContextService } from "../../../../auth/auth-context.service";
       aria-label="Submenú de gestión de usuarios"
       class="rounded-xl border border-[#e7e2e3] bg-white p-2"
     >
-      <div class="grid gap-2 sm:grid-cols-3">
+      <div class="grid gap-2 sm:grid-cols-4">
+        @if (canViewProfilesAndPermissions()) {
+          <a
+            routerLink="/usuarios/perfiles-permisos"
+            routerLinkActive="!bg-[#611232] !text-white shadow-sm ring-2 ring-[#a57f2c]"
+            [routerLinkActiveOptions]="{ exact: true }"
+            #catalogos="routerLinkActive"
+            [attr.aria-current]="catalogos.isActive ? 'page' : null"
+            data-testid="users-nav-profiles-permissions"
+            class="siga-focus rounded-lg border border-[#e7e2e3] px-4 py-3 text-center text-sm font-medium text-[#611232] transition-colors hover:bg-[#f7f0f2]"
+          >
+            Perfiles y permisos
+          </a>
+        }
         @if (canViewUsers()) {
           <a
             routerLink="/usuarios"
@@ -65,6 +78,12 @@ import { AuthContextService } from "../../../../auth/auth-context.service";
 export class UsersModuleNavigationComponent {
   private readonly authContext = inject(AuthContextService);
 
+  canViewProfilesAndPermissions(): boolean {
+    return (
+      this.authContext.hasPermission("perfiles.ver") &&
+      this.authContext.hasPermission("roles.ver")
+    );
+  }
   canViewUsers(): boolean {
     return this.authContext.hasPermission("usuarios.ver");
   }

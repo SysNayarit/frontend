@@ -6,6 +6,7 @@ import { LoginPageComponent } from "./auth/login-page.component";
 import {
   personasImportGuard,
   personasViewGuard,
+  perfilesViewGuard,
   usuariosViewGuard,
 } from "./auth/permission.guard";
 import { HomeComponent } from "./home.component";
@@ -36,6 +37,14 @@ export const routes: Routes = [
       {
         path: "inicio",
         component: HomeComponent,
+      },
+      {
+        path: "usuarios/perfiles-permisos",
+        loadComponent: () =>
+          import("./usuarios/presentation/pages/profiles-permissions-page/profiles-permissions-page.component").then(
+            (module) => module.ProfilesPermissionsPageComponent,
+          ),
+        canActivate: [perfilesViewGuard],
       },
       {
         path: "usuarios/roles/masivo",
