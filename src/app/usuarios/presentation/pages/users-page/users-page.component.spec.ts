@@ -89,6 +89,143 @@ describe("UsersPageComponent", () => {
     });
   }
 
+  it("aplica filtro global y reinicia la paginacion", () => {
+    fixture.detectChanges();
+    respond(1, 3, 45);
+
+    component.loadPage(2);
+    respond(2, 3, 45);
+
+    component.applyStatusFilter("HABILITADO");
+
+    const request = http.expectOne(
+      item =>
+        item.method === "GET" &&
+        item.url === "/api/usuarios" &&
+        item.params.get("page") === "1" &&
+        item.params.get("access_status") === "HABILITADO"
+    );
+
+    request.flush({
+      data: [],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: 0,
+      },
+    });
+
+    expect(component.serverStatus()).toBe("HABILITADO");
+    expect(component.currentPage()).toBe(1);
+    expect(component.total()).toBe(0);
+  });
+
+  it("conserva filtros globales al cambiar de pagina", () => {
+    fixture.detectChanges();
+    respond(1, 3, 45);
+
+    component.applyRestrictionFilter("blocked");
+
+    http.expectOne(
+      item =>
+        item.method === "GET" &&
+        item.url === "/api/usuarios" &&
+        item.params.get("page") === "1" &&
+        item.params.get("restriction") === "blocked"
+    ).flush({
+      data: [],
+      meta: {
+        current_page: 1,
+        last_page: 2,
+        per_page: 20,
+        total: 25,
+      },
+    });
+
+    component.loadPage(2);
+
+    const request = http.expectOne(
+      item =>
+        item.method === "GET" &&
+        item.url === "/api/usuarios" &&
+        item.params.get("page") === "2" &&
+        item.params.get("restriction") === "blocked"
+    );
+
+    request.flush({
+      data: [],
+      meta: {
+        current_page: 2,
+        last_page: 2,
+        per_page: 20,
+        total: 25,
+      },
+    });
+
+    expect(component.currentPage()).toBe(2);
+    expect(component.serverRestriction()).toBe("blocked");
+  });
+
+  it("no informa error cuando un cambio confirmado excluye al usuario del filtro", () => {
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.applyStatusFilter("HABILITADO");
+
+    http.expectOne(
+      item =>
+        item.method === "GET" &&
+        item.url === "/api/usuarios" &&
+        item.params.get("access_status") === "HABILITADO"
+    ).flush({
+      data: [{
+        id: 1,
+        id_persona: null,
+        name: "Usuario 1",
+        email: "usuario1@example.test",
+        created_at: "2026-10-26T12:00:00Z",
+        person: null,
+        access_status: "HABILITADO",
+      }],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: 1,
+      },
+    });
+
+    component.accessChanged({
+      id: 1,
+      id_persona: null,
+      access_status: "DESHABILITADO",
+      access_version: 2,
+    });
+
+    http.expectOne(
+      item =>
+        item.method === "GET" &&
+        item.url === "/api/usuarios" &&
+        item.params.get("access_status") === "HABILITADO"
+    ).flush({
+      data: [],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: 0,
+      },
+    });
+
+    expect(component.accessRefreshError()).toBeNull();
+    expect(component.users()).toEqual([]);
+    expect(component.total()).toBe(0);
+    expect(component.serverStatus()).toBe("HABILITADO");
+
+    http.expectNone(item => item.method === "PUT");
+    http.expectNone(item => item.method === "POST");
+  });
   it("consulta la primera pagina al iniciar", () => {
     fixture.detectChanges();
 

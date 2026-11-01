@@ -316,6 +316,24 @@ export class UsersPageComponent implements OnInit {
             user => user.id === response.id
           );
 
+          // Un cambio confirmado puede sacar al usuario
+          // del filtro administrativo activo.
+          if (
+            !confirmed &&
+            this.serverStatus() !== "" &&
+            this.serverStatus() !== response.access_status
+          ) {
+            this.users.set(fresh.data);
+            this.selectedUser.update(current =>
+              current?.id === response.id ? null : current
+            );
+            this.currentPage.set(fresh.meta.current_page);
+            this.lastPage.set(fresh.meta.last_page);
+            this.total.set(fresh.meta.total);
+            this.accessRefreshError.set(null);
+            return;
+          }
+
           if (
             !confirmed ||
             confirmed.access_status !== response.access_status
