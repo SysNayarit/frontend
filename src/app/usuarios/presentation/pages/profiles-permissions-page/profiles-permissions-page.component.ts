@@ -1,4 +1,5 @@
 import { HttpClient } from "@angular/common/http";
+import { RolePermissionsInspectorComponent } from "../../organisms/role-permissions-inspector/role-permissions-inspector.component";
 import { UserProfileAdministrationComponent } from "../../organisms/user-profile-administration/user-profile-administration.component";
 import {
   ChangeDetectionStrategy,
@@ -27,7 +28,7 @@ interface ApiList<T> {
 @Component({
   selector: "app-profiles-permissions-page",
   standalone: true,
-  imports: [UsersModuleNavigationComponent, UserProfileAdministrationComponent],
+  imports: [UsersModuleNavigationComponent, UserProfileAdministrationComponent, RolePermissionsInspectorComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="space-y-5">
@@ -147,6 +148,8 @@ interface ApiList<T> {
             </ul>
           </section>
         </div>
+
+        <app-role-permissions-inspector [roles]="roles()" />
 
         <app-user-profile-administration />
 
