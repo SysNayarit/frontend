@@ -8,6 +8,7 @@ import {
   provideHttpClientTesting,
 } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
+import { of } from "rxjs";
 import { provideRouter, Router } from "@angular/router";
 import { AuthContextService } from "./auth-context.service";
 import { sessionRevocationInterceptor } from "./session-revocation.interceptor";
@@ -15,10 +16,18 @@ import { sessionRevocationInterceptor } from "./session-revocation.interceptor";
 describe("sessionRevocationInterceptor", () => {
   let http: HttpTestingController;
   let client: HttpClient;
-  let context: { revision: number; clear: ReturnType<typeof vi.fn> };
+  let context: {
+    revision: number;
+    clear: ReturnType<typeof vi.fn>;
+    revalidate: ReturnType<typeof vi.fn>;
+  };
   let navigate: ReturnType<typeof vi.spyOn>;
   beforeEach(() => {
-    context = { revision: 0, clear: vi.fn(() => context.revision++) };
+    context = {
+      revision: 0,
+      clear: vi.fn(() => context.revision++),
+      revalidate: vi.fn(() => of(null)),
+    };
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([sessionRevocationInterceptor])),

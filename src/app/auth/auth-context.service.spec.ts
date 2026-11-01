@@ -53,6 +53,39 @@ describe("AuthContextService", () => {
     auth = TestBed.inject(AuthService) as unknown as AuthServiceStub;
   });
 
+  it("descarta una respuesta de permisos anterior a la revalidacion", () => {
+    const anterior = new Subject<AuthenticatedUser>();
+    auth.currentUserResult = anterior.asObservable();
+
+    let respuestaAntigua = false;
+
+    context.refresh().subscribe({
+      next: () => { respuestaAntigua = true; },
+      error: () => undefined,
+    });
+
+    const renovado = {
+      ...auth.user,
+      permissions: [] as string[],
+    };
+
+    auth.currentUserResult = of(renovado);
+
+    let respuestaNueva: AuthenticatedUser | undefined;
+
+    context.revalidate().subscribe({
+      next: user => { respuestaNueva = user; },
+    });
+
+    anterior.next(auth.user);
+    anterior.complete();
+
+    expect(auth.currentUserCalls).toBe(2);
+    expect(respuestaAntigua).toBe(false);
+    expect(respuestaNueva).toEqual(renovado);
+    expect(context.user()).toEqual(renovado);
+    expect(context.hasPermission("personas.ver")).toBe(false);
+  });
   it("refresca el usuario desde el backend", () => {
     let received: AuthenticatedUser | undefined;
 

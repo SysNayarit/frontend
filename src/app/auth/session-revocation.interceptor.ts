@@ -29,7 +29,7 @@ export const sessionRevocationInterceptor: HttpInterceptorFn = (
           });
         } else if (error.status === 403 && request.url !== "/api/user") {
           // Revalidar permisos sin repetir la operacion rechazada.
-          context.refresh().subscribe({
+          context.revalidate().subscribe({
             error: () => {
               // Conservar el error HTTP original.
             },

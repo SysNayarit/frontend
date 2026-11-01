@@ -64,6 +64,15 @@ export class AuthContextService {
     return request;
   }
 
+  revalidate(): Observable<AuthenticatedUser> {
+    // La denegacion del servidor invalida las respuestas anteriores.
+    // No equivale a cerrar la sesion ni a repetir la mutacion.
+    this.generation++;
+    this.inFlight = null;
+    this.currentUserState.set(null);
+    return this.refresh();
+  }
+
   ensureCurrent(): Observable<AuthenticatedUser> {
     const current = this.currentUserState();
 

@@ -95,6 +95,49 @@ describe("Actualizacion de permisos tras HTTP 403", () => {
     expect(navigations).toEqual([]);
   });
 
+  it("una respuesta antigua no restaura permisos despues de HTTP 403", () => {
+    let recibioContextoAntiguo = false;
+
+    context.refresh().subscribe({
+      next: () => { recibioContextoAntiguo = true; },
+      error: () => undefined,
+    });
+
+    const solicitudAntigua = requests.expectOne("/api/user");
+
+    let estadoOperacion = 0;
+
+    http.post("/api/usuarios/roles/masivo", {
+      role_id: 2,
+      user_ids: [12],
+    }).subscribe({
+      error: (error: HttpErrorResponse) => {
+        estadoOperacion = error.status;
+      },
+    });
+
+    requests.expectOne("/api/usuarios/roles/masivo").flush(
+      { message: "Prohibido" },
+      { status: 403, statusText: "Forbidden" },
+    );
+
+    const solicitudNueva = requests.expectOne("/api/user");
+    solicitudNueva.flush({
+      id: 12,
+      permissions: [],
+    });
+
+    solicitudAntigua.flush({
+      id: 12,
+      permissions: ["usuarios.asignar_roles"],
+    });
+
+    expect(estadoOperacion).toBe(403);
+    expect(recibioContextoAntiguo).toBe(false);
+    expect(context.user()?.id).toBe(12);
+    expect(context.hasPermission("usuarios.asignar_roles")).toBe(false);
+    expect(navigations).toEqual([]);
+  });
   it("no provoca recargas recursivas cuando API user devuelve 403", () => {
     let status = 0;
 
