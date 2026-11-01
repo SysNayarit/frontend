@@ -9,6 +9,11 @@ import { UserAccessStatus } from "./user-access.models";
 
 export interface UserSummary {
   access_status?: UserAccessStatus;
+  access_version?: number;
+  access_security_blocked?: boolean;
+  access_suspended_until?: string | null;
+  access_valid_from?: string | null;
+  access_valid_until?: string | null;
   id: number;
   id_persona: string | null;
   name: string;

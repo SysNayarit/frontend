@@ -277,7 +277,45 @@ import { UserAccessStatusBadgeComponent } from "../../atoms/user-access-status-b
                     {{ registrationDate(user.created_at) }}
                   </td>
 
-                  <td class="px-5 py-4"><app-user-access-status-badge [status]="user.access_status" /></td>
+                  <td class="px-5 py-4">
+                    <app-user-access-status-badge [status]="user.access_status" />
+                    <div
+                      class="mt-2 space-y-1 text-xs text-gray-700"
+                      data-testid="user-access-restrictions"
+                    >
+                      @if (user.access_security_blocked) {
+                        <p class="font-semibold text-red-700">
+                          Bloqueo de seguridad
+                        </p>
+                      }
+                      @if (user.access_suspended_until) {
+                        <p>
+                          Suspensión registrada hasta:
+                          {{ user.access_suspended_until }}
+                        </p>
+                      }
+                      @if (user.access_valid_from) {
+                        <p>
+                          Vigencia desde:
+                          {{ user.access_valid_from }}
+                        </p>
+                      }
+                      @if (user.access_valid_until) {
+                        <p>
+                          Vigencia hasta:
+                          {{ user.access_valid_until }}
+                        </p>
+                      }
+                      @if (
+                        user.access_security_blocked === false &&
+                        !user.access_suspended_until &&
+                        !user.access_valid_from &&
+                        !user.access_valid_until
+                      ) {
+                        <p>Sin restricciones administrativas configuradas</p>
+                      }
+                    </div>
+                  </td>
                   @if (!bulkSelectionEnabled) {
                     <td class="px-6 py-4 text-right">
                       <button

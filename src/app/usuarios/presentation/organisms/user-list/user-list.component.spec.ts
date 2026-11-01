@@ -40,6 +40,60 @@ describe("UserListComponent", () => {
     component = fixture.componentInstance;
   });
 
+  it("distingue bloqueo de seguridad del estado de cuenta", () => {
+    component.users = [{
+      ...users[1],
+      access_status: "HABILITADO",
+      access_security_blocked: true,
+      access_suspended_until: null,
+      access_valid_from: null,
+      access_valid_until: null,
+    }];
+
+    fixture.detectChanges();
+
+    const cell: HTMLElement = fixture.nativeElement.querySelector(
+      '[data-testid="user-access-restrictions"]',
+    );
+
+    expect(cell.textContent).toContain("Bloqueo de seguridad");
+    expect(fixture.nativeElement.textContent).toContain("Habilitado");
+  });
+
+  it("muestra vigencia y suspension sin afirmar que siguen activas", () => {
+    component.users = [{
+      ...users[1],
+      access_status: "HABILITADO",
+      access_security_blocked: false,
+      access_suspended_until: "2026-11-12T00:00:00Z",
+      access_valid_from: "2026-11-01T00:00:00Z",
+      access_valid_until: "2026-12-01T00:00:00Z",
+    }];
+
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+
+    expect(text).toContain("Suspensión registrada hasta:");
+    expect(text).toContain("Vigencia desde:");
+    expect(text).toContain("Vigencia hasta:");
+  });
+
+  it("distingue cuentas sin restricciones configuradas", () => {
+    component.users = [{
+      ...users[1],
+      access_security_blocked: false,
+      access_suspended_until: null,
+      access_valid_from: null,
+      access_valid_until: null,
+    }];
+
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      "Sin restricciones administrativas configuradas",
+    );
+  });
   it("muestra nombres y correos de los usuarios", () => {
     component.users = users;
     fixture.detectChanges();
