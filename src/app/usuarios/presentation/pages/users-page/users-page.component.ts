@@ -312,21 +312,48 @@ export class UsersPageComponent implements OnInit {
             return;
           }
 
+          const lastValidPage = Math.max(1, fresh.meta.last_page);
+
+          // Una operacion confirmada puede eliminar la ultima
+          // fila de la pagina actual bajo el filtro activo.
+          if (page > lastValidPage) {
+            this.closeUserRoles();
+
+            if (fresh.meta.total === 0) {
+              this.users.set([]);
+              this.currentPage.set(1);
+              this.lastPage.set(1);
+              this.total.set(0);
+              this.accessRefreshError.set(null);
+              return;
+            }
+
+            this.lastPage.set(lastValidPage);
+            this.accessRefreshError.set(null);
+
+            // La consulta ordinaria recupera la pagina valida.
+            // No se repite la operacion administrativa.
+            this.loadPage(lastValidPage);
+            return;
+          }
+
           const confirmed = fresh.data.find(
             user => user.id === response.id
           );
 
-          // Un cambio confirmado puede sacar al usuario
-          // del filtro administrativo activo.
-          if (
+          // La cuenta puede dejar de cumplir el estado o la
+          // restriccion seleccionada tras el cambio confirmado.
+          const excludedByActiveFilter =
             !confirmed &&
-            this.serverStatus() !== "" &&
-            this.serverStatus() !== response.access_status
-          ) {
-            this.users.set(fresh.data);
-            this.selectedUser.update(current =>
-              current?.id === response.id ? null : current
+            (
+              (this.serverStatus() !== "" &&
+                this.serverStatus() !== response.access_status) ||
+              this.serverRestriction() !== ""
             );
+
+          if (excludedByActiveFilter) {
+            this.closeUserRoles();
+            this.users.set(fresh.data);
             this.currentPage.set(fresh.meta.current_page);
             this.lastPage.set(fresh.meta.last_page);
             this.total.set(fresh.meta.total);

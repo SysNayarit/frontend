@@ -440,6 +440,146 @@ describe("UsersPageComponent", () => {
       request.url === "/api/usuarios"
     );
   });
+  it("recupera la pagina valida tras un cambio de acceso confirmado", () => {
+    fixture.detectChanges();
+    respond(1, 3, 45);
+
+    component.loadPage(3);
+    respond(3, 3, 45);
+
+    component.accessChanged({
+      id: 3,
+      id_persona: null,
+      access_status: "DESHABILITADO",
+      access_version: 2,
+    });
+
+    expectPage(3).flush({
+      data: [],
+      meta: {
+        current_page: 3,
+        last_page: 2,
+        per_page: 20,
+        total: 25,
+      },
+    });
+
+    expectPage(2).flush({
+      data: [{
+        id: 2,
+        id_persona: null,
+        name: "Usuario 2",
+        email: "usuario2@example.test",
+        created_at: "2026-10-26T12:00:00Z",
+        person: null,
+      }],
+      meta: {
+        current_page: 2,
+        last_page: 2,
+        per_page: 20,
+        total: 25,
+      },
+    });
+
+    expect(component.currentPage()).toBe(2);
+    expect(component.users()[0].id).toBe(2);
+    expect(component.accessRefreshError()).toBeNull();
+
+    http.expectNone(request =>
+      ["POST", "PUT", "DELETE"].includes(request.method)
+    );
+  });
+
+  it("acepta que un cambio confirmado excluya al usuario por restriccion", () => {
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.applyRestrictionFilter("blocked");
+
+    http.expectOne(request =>
+      request.method === "GET" &&
+      request.url === "/api/usuarios" &&
+      request.params.get("restriction") === "blocked"
+    ).flush({
+      data: [{
+        id: 1,
+        id_persona: null,
+        name: "Usuario 1",
+        email: "usuario1@example.test",
+        created_at: "2026-10-26T12:00:00Z",
+        person: null,
+        access_status: "HABILITADO",
+        access_security_blocked: true,
+      }],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: 1,
+      },
+    });
+
+    component.accessChanged({
+      id: 1,
+      id_persona: null,
+      access_status: "HABILITADO",
+      access_version: 2,
+    });
+
+    http.expectOne(request =>
+      request.method === "GET" &&
+      request.url === "/api/usuarios" &&
+      request.params.get("restriction") === "blocked"
+    ).flush({
+      data: [],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: 0,
+      },
+    });
+
+    expect(component.users()).toEqual([]);
+    expect(component.total()).toBe(0);
+    expect(component.accessRefreshError()).toBeNull();
+  });
+
+  it("normaliza el resultado vacio posterior al cambio de acceso", () => {
+    fixture.detectChanges();
+    respond(1, 2, 25);
+
+    component.loadPage(2);
+    respond(2, 2, 25);
+
+    component.accessChanged({
+      id: 2,
+      id_persona: null,
+      access_status: "DESHABILITADO",
+      access_version: 2,
+    });
+
+    expectPage(2).flush({
+      data: [],
+      meta: {
+        current_page: 2,
+        last_page: 1,
+        per_page: 20,
+        total: 0,
+      },
+    });
+
+    expect(component.currentPage()).toBe(1);
+    expect(component.lastPage()).toBe(1);
+    expect(component.total()).toBe(0);
+    expect(component.users()).toEqual([]);
+    expect(component.accessRefreshError()).toBeNull();
+
+    http.expectNone(request =>
+      request.method === "GET" &&
+      request.url === "/api/usuarios"
+    );
+  });
   it("consulta la primera pagina al iniciar", () => {
     fixture.detectChanges();
 
