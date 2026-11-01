@@ -122,6 +122,7 @@ export class AuthenticatedLayoutComponent implements OnInit {
     this.auth.logout().subscribe({
       next: () => {
         this.context.clear();
+        this.context.notifyOtherTabs("logout");
 
         void this.router.navigateByUrl("/acceso");
       },

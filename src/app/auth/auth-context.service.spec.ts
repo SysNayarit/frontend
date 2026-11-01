@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from "@angular/common/http";
 import { TestBed } from "@angular/core/testing";
+import { provideRouter, Router } from "@angular/router";
 import { Observable, of, Subject, throwError } from "rxjs";
 
 import { AuthenticatedUser } from "./auth.models";
@@ -41,6 +42,7 @@ describe("AuthContextService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
+        provideRouter([]),
         {
           provide: AuthService,
           useClass: AuthServiceStub,
@@ -53,6 +55,52 @@ describe("AuthContextService", () => {
     auth = TestBed.inject(AuthService) as unknown as AuthServiceStub;
   });
 
+  it("una revocacion desde otra pestana limpia el contexto", () => {
+    context.refresh().subscribe();
+
+    expect(context.hasPermission("personas.ver")).toBe(true);
+
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, "navigateByUrl")
+      .mockResolvedValue(true);
+
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: "siga:auth:cross-tab",
+      newValue: JSON.stringify({
+        type: "logout",
+        nonce: "prueba-externa",
+      }),
+    }));
+
+    expect(context.user()).toBeNull();
+    expect(context.hasPermission("personas.ver")).toBe(false);
+    expect(navigate).toHaveBeenCalledWith(
+      "/acceso?estado=sesion-finalizada",
+      { replaceUrl: true },
+    );
+  });
+
+  it("otra pestana solicita permisos actualizados a Laravel", () => {
+    context.refresh().subscribe();
+
+    expect(context.hasPermission("personas.ver")).toBe(true);
+
+    auth.currentUserResult = of({
+      ...auth.user,
+      permissions: [],
+    });
+
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: "siga:auth:cross-tab",
+      newValue: JSON.stringify({
+        type: "permissions",
+        nonce: "prueba-permisos",
+      }),
+    }));
+
+    expect(auth.currentUserCalls).toBe(2);
+    expect(context.hasPermission("personas.ver")).toBe(false);
+  });
   it("descarta una respuesta de permisos anterior a la revalidacion", () => {
     const anterior = new Subject<AuthenticatedUser>();
     auth.currentUserResult = anterior.asObservable();

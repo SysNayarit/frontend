@@ -20,6 +20,7 @@ describe("sessionRevocationInterceptor", () => {
     revision: number;
     clear: ReturnType<typeof vi.fn>;
     revalidate: ReturnType<typeof vi.fn>;
+    notifyOtherTabs: ReturnType<typeof vi.fn>;
   };
   let navigate: ReturnType<typeof vi.spyOn>;
   beforeEach(() => {
@@ -27,6 +28,7 @@ describe("sessionRevocationInterceptor", () => {
       revision: 0,
       clear: vi.fn(() => context.revision++),
       revalidate: vi.fn(() => of(null)),
+      notifyOtherTabs: vi.fn(),
     };
     TestBed.configureTestingModule({
       providers: [
