@@ -1,4 +1,5 @@
 import { HttpClient } from "@angular/common/http";
+import { UserProfileAdministrationComponent } from "../../organisms/user-profile-administration/user-profile-administration.component";
 import {
   ChangeDetectionStrategy,
   Component,
@@ -26,7 +27,7 @@ interface ApiList<T> {
 @Component({
   selector: "app-profiles-permissions-page",
   standalone: true,
-  imports: [UsersModuleNavigationComponent],
+  imports: [UsersModuleNavigationComponent, UserProfileAdministrationComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="space-y-5">
@@ -146,6 +147,8 @@ interface ApiList<T> {
             </ul>
           </section>
         </div>
+
+        <app-user-profile-administration />
 
         <p class="text-xs text-gray-600">
           Consulta de solo lectura. La edición y asignación
