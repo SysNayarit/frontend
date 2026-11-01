@@ -15,11 +15,26 @@ import {
 export class UserService {
   private readonly http = inject(HttpClient);
 
-  list(page = 1, roleId?: number): Observable<UserListResponse> {
+  list(
+    page = 1,
+    roleId?: number,
+    filters: {
+      accessStatus?: string;
+      restriction?: string;
+    } = {},
+  ): Observable<UserListResponse> {
     let params = new HttpParams().set("page", page);
 
     if (roleId !== undefined) {
       params = params.set("role_id", roleId);
+    }
+
+    if (filters.accessStatus) {
+      params = params.set("access_status", filters.accessStatus);
+    }
+
+    if (filters.restriction) {
+      params = params.set("restriction", filters.restriction);
     }
 
     return this.http.get<UserListResponse>("/api/usuarios", { params });

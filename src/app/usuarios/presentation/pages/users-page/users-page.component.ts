@@ -153,6 +153,54 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
             {{ accessRefreshError() }}
           </p>
         }
+        <section
+          aria-label="Filtros globales de acceso"
+          class="mb-4 rounded-xl border border-[#e7e2e3] bg-white p-4"
+        >
+          <h3 class="text-sm font-semibold text-[#611232]">
+            Filtros institucionales
+          </h3>
+          <p class="mt-1 text-xs text-gray-600">
+            Estos filtros consultan todas las cuentas en Laravel,
+            antes de aplicar la paginación.
+          </p>
+
+          <div class="mt-3 grid gap-3 md:grid-cols-2">
+            <label class="text-xs font-medium text-gray-700">
+              Estado administrativo
+              <select
+                data-testid="users-server-status"
+                class="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm"
+                [value]="serverStatus()"
+                [disabled]="loading()"
+                (change)="applyStatusFilter($any($event.target).value)"
+              >
+                <option value="">Todos</option>
+                <option value="PENDIENTE">Pendiente</option>
+                <option value="HABILITADO">Habilitado</option>
+                <option value="DESHABILITADO">Deshabilitado</option>
+              </select>
+            </label>
+
+            <label class="text-xs font-medium text-gray-700">
+              Restricción administrativa
+              <select
+                data-testid="users-server-restriction"
+                class="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm"
+                [value]="serverRestriction()"
+                [disabled]="loading()"
+                (change)="applyRestrictionFilter($any($event.target).value)"
+              >
+                <option value="">Todas</option>
+                <option value="blocked">Bloqueo de seguridad</option>
+                <option value="suspended">Suspensión vigente</option>
+                <option value="validity_future">Vigencia futura</option>
+                <option value="validity_expired">Vigencia vencida</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
         <app-user-list
           [users]="users()"
           [selectedUserId]="selectedUser()?.id ?? null"
@@ -250,7 +298,10 @@ export class UsersPageComponent implements OnInit {
 
     // Solo GET. No repetir habilitacion ni deshabilitacion.
     this.userService
-      .list(page)
+      .list(page, undefined, {
+        accessStatus: this.serverStatus(),
+        restriction: this.serverRestriction(),
+      })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (fresh) => {
@@ -303,6 +354,27 @@ export class UsersPageComponent implements OnInit {
           );
         },
       });
+  }
+
+  readonly serverStatus = signal("");
+  readonly serverRestriction = signal("");
+
+  applyStatusFilter(value: string): void {
+    if (this.loading() || value === this.serverStatus()) {
+      return;
+    }
+
+    this.serverStatus.set(value);
+    this.loadPage(1);
+  }
+
+  applyRestrictionFilter(value: string): void {
+    if (this.loading() || value === this.serverRestriction()) {
+      return;
+    }
+
+    this.serverRestriction.set(value);
+    this.loadPage(1);
   }
 
   readonly users = signal<readonly UserSummary[]>([]);
@@ -361,7 +433,10 @@ export class UsersPageComponent implements OnInit {
     const version = ++this.requestVersion;
 
     this.userService
-      .list(page)
+      .list(page, undefined, {
+        accessStatus: this.serverStatus(),
+        restriction: this.serverRestriction(),
+      })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response: UserListResponse) => {

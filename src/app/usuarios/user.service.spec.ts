@@ -28,6 +28,54 @@ describe("UserService", () => {
     http.verify();
   });
 
+  it("envia los filtros globales al servidor", () => {
+    service.list(2, undefined, {
+      accessStatus: "HABILITADO",
+      restriction: "suspended",
+    }).subscribe();
+
+    const request = http.expectOne(
+      (item) =>
+        item.url === "/api/usuarios" &&
+        item.params.get("page") === "2" &&
+        item.params.get("access_status") === "HABILITADO" &&
+        item.params.get("restriction") === "suspended",
+    );
+
+    expect(request.request.method).toBe("GET");
+
+    request.flush({
+      data: [],
+      meta: {
+        current_page: 2,
+        last_page: 2,
+        per_page: 20,
+        total: 25,
+      },
+    });
+  });
+
+  it("no envia filtros vacios", () => {
+    service.list(1, undefined, {
+      accessStatus: "",
+      restriction: "",
+    }).subscribe();
+
+    const request = http.expectOne("/api/usuarios?page=1");
+
+    expect(request.request.params.has("access_status")).toBe(false);
+    expect(request.request.params.has("restriction")).toBe(false);
+
+    request.flush({
+      data: [],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: 0,
+      },
+    });
+  });
   it("consulta la primera pagina por defecto", () => {
     service.list().subscribe();
 
