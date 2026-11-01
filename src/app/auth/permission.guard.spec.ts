@@ -80,6 +80,57 @@ describe('personasViewGuard', () => {
     );
   }
 
+  it("revalida permisos ante una revocacion posterior a la primera navegacion", async () => {
+    expect(await runGuard()).toBe(true);
+
+    auth.currentUserResult = of({
+      id: 1,
+      id_persona: null,
+      name: "admin",
+      email: "admin@imail.com",
+      email_verified_at: null,
+      created_at: "2026-10-09T00:00:00.000000Z",
+      updated_at: "2026-10-09T00:00:00.000000Z",
+      person: null,
+      permissions: [],
+    });
+
+    const result = await runGuard();
+
+    expect(result instanceof UrlTree).toBe(true);
+    expect(router.serializeUrl(result as UrlTree)).toBe("/inicio");
+  });
+
+  it("reconoce una concesion posterior sin conservar la negativa anterior", async () => {
+    auth.currentUserResult = of({
+      id: 1,
+      id_persona: null,
+      name: "admin",
+      email: "admin@imail.com",
+      email_verified_at: null,
+      created_at: "2026-10-09T00:00:00.000000Z",
+      updated_at: "2026-10-09T00:00:00.000000Z",
+      person: null,
+      permissions: [],
+    });
+
+    const primera = await runGuard();
+    expect(router.serializeUrl(primera as UrlTree)).toBe("/inicio");
+
+    auth.currentUserResult = of({
+      id: 1,
+      id_persona: null,
+      name: "admin",
+      email: "admin@imail.com",
+      email_verified_at: null,
+      created_at: "2026-10-09T00:00:00.000000Z",
+      updated_at: "2026-10-09T00:00:00.000000Z",
+      person: null,
+      permissions: ["personas.ver"],
+    });
+
+    expect(await runGuard()).toBe(true);
+  });
   it('permite acceder cuando el usuario tiene personas.ver', async () => {
     const result = await runGuard();
 

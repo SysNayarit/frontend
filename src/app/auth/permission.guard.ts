@@ -11,7 +11,7 @@ function permissionGuard(permission: string): CanActivateFn {
 
     const router = inject(Router);
 
-    return context.ensureCurrent().pipe(
+    return context.refresh().pipe(
       map((user) =>
         user.permissions.includes(permission)
           ? true
