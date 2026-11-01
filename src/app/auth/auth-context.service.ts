@@ -26,6 +26,7 @@ export class AuthContextService {
   private readonly currentUserState = signal<AuthenticatedUser | null>(null);
 
   private readonly tabSyncKey = "siga:auth:cross-tab";
+  private readonly handledEvents = new Set<string>();
 
   constructor() {
     if (typeof window === "undefined") {
@@ -48,20 +49,54 @@ export class AuthContextService {
       if (
         typeof message !== "object" ||
         message === null ||
-        !("type" in message)
+        !("type" in message) ||
+        !("nonce" in message) ||
+        typeof message.nonce !== "string" ||
+        message.nonce.length === 0 ||
+        message.nonce.length > 128 ||
+        (message.type !== "logout" && message.type !== "permissions")
       ) {
         return;
       }
 
+      if (this.handledEvents.has(message.nonce)) {
+        return;
+      }
+
+      // Memoria limitada: evitar acumular eventos indefinidamente.
+      if (this.handledEvents.size >= 64) {
+        const oldest = this.handledEvents.values().next().value;
+        if (oldest !== undefined) {
+          this.handledEvents.delete(oldest);
+        }
+      }
+      this.handledEvents.add(message.nonce);
+
       if (message.type === "logout") {
-        this.clear();
-        void this.router.navigateByUrl(
-          "/acceso?estado=sesion-finalizada",
-          { replaceUrl: true },
-        );
-      } else if (message.type === "permissions") {
-        // Consultar siempre a Laravel; no confiar en permisos
-        // ni identidades transmitidas por otra pestana.
+        // Un mensaje del navegador no demuestra que la sesion
+        // actual fue revocada. Confirmarlo contra Laravel.
+        const request = this.revalidate();
+        const revision = this.revision;
+
+        request.subscribe({
+          next: () => {
+            // Laravel confirma una sesion vigente: no cerrar.
+          },
+          error: (error: unknown) => {
+            if (
+              error instanceof HttpErrorResponse &&
+              error.status === 401 &&
+              this.revision === revision + 1
+            ) {
+              void this.router.navigateByUrl(
+                "/acceso?estado=sesion-finalizada",
+                { replaceUrl: true },
+              );
+            }
+          },
+        });
+      } else {
+        // Nunca aceptar permisos de otra pestana.
         this.revalidate().subscribe({
           error: () => undefined,
         });

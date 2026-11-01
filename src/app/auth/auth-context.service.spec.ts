@@ -55,7 +55,88 @@ describe("AuthContextService", () => {
     auth = TestBed.inject(AuthService) as unknown as AuthServiceStub;
   });
 
-  it("una revocacion desde otra pestana limpia el contexto", () => {
+  it("un aviso antiguo no cierra una sesion que Laravel confirma vigente", () => {
+    context.refresh().subscribe();
+
+    const navigate = vi.spyOn(TestBed.inject(Router), "navigateByUrl")
+      .mockResolvedValue(true);
+
+    auth.currentUserResult = of(auth.user);
+
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: "siga:auth:cross-tab",
+      newValue: JSON.stringify({
+        type: "logout",
+        nonce: "sesion-anterior",
+      }),
+    }));
+
+    expect(context.user()).toEqual(auth.user);
+    expect(auth.currentUserCalls).toBe(2);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("ignora notificaciones duplicadas sin repetir consultas", () => {
+    context.refresh().subscribe();
+
+    const pending = new Subject<AuthenticatedUser>();
+    auth.currentUserResult = pending.asObservable();
+
+    const event = new StorageEvent("storage", {
+      key: "siga:auth:cross-tab",
+      newValue: JSON.stringify({
+        type: "permissions",
+        nonce: "evento-repetido",
+      }),
+    });
+
+    window.dispatchEvent(event);
+    window.dispatchEvent(event);
+
+    expect(auth.currentUserCalls).toBe(2);
+
+    pending.next({ ...auth.user, permissions: [] });
+    pending.complete();
+
+    expect(context.hasPermission("personas.ver")).toBe(false);
+  });
+
+  it("rechaza respuestas antiguas tras un cierre confirmado por Laravel", () => {
+    const antiguo = new Subject<AuthenticatedUser>();
+    auth.currentUserResult = antiguo.asObservable();
+
+    let received = false;
+    context.refresh().subscribe({
+      next: () => { received = true; },
+    });
+
+    const navigate = vi.spyOn(TestBed.inject(Router), "navigateByUrl")
+      .mockResolvedValue(true);
+
+    auth.currentUserResult = throwError(
+      () => new HttpErrorResponse({ status: 401 }),
+    );
+
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: "siga:auth:cross-tab",
+      newValue: JSON.stringify({
+        type: "logout",
+        nonce: "revocacion-confirmada",
+      }),
+    }));
+
+    antiguo.next(auth.user);
+    antiguo.complete();
+
+    expect(received).toBe(false);
+    expect(context.user()).toBeNull();
+    expect(context.hasPermission("personas.ver")).toBe(false);
+    expect(navigate).toHaveBeenCalledWith(
+      "/acceso?estado=sesion-finalizada",
+      { replaceUrl: true },
+    );
+  });
+  it("confirma con Laravel la revocacion notificada desde otra pestana", () => {
     context.refresh().subscribe();
 
     expect(context.hasPermission("personas.ver")).toBe(true);
@@ -63,6 +144,10 @@ describe("AuthContextService", () => {
     const router = TestBed.inject(Router);
     const navigate = vi.spyOn(router, "navigateByUrl")
       .mockResolvedValue(true);
+
+    auth.currentUserResult = throwError(
+      () => new HttpErrorResponse({ status: 401 }),
+    );
 
     window.dispatchEvent(new StorageEvent("storage", {
       key: "siga:auth:cross-tab",
@@ -72,6 +157,7 @@ describe("AuthContextService", () => {
       }),
     }));
 
+    expect(auth.currentUserCalls).toBe(2);
     expect(context.user()).toBeNull();
     expect(context.hasPermission("personas.ver")).toBe(false);
     expect(navigate).toHaveBeenCalledWith(
@@ -79,7 +165,6 @@ describe("AuthContextService", () => {
       { replaceUrl: true },
     );
   });
-
   it("otra pestana solicita permisos actualizados a Laravel", () => {
     context.refresh().subscribe();
 
