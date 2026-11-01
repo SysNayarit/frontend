@@ -94,6 +94,104 @@ describe("UserListComponent", () => {
       "Sin restricciones administrativas configuradas",
     );
   });
+  it("distingue bloqueo de seguridad del estado habilitado", () => {
+    const user = {
+      ...users[1],
+      access_status: "HABILITADO" as const,
+      access_security_blocked: true,
+    };
+
+    expect(component.accessIndicator(user)).toBe(
+      "Bloqueado por seguridad",
+    );
+  });
+
+  it("reconoce suspensión vigente y vencida", () => {
+    const now = Date.parse("2026-11-10T12:00:00Z");
+    const user = {
+      ...users[1],
+      access_status: "HABILITADO" as const,
+      access_security_blocked: false,
+      access_suspended_until: "2026-11-11T12:00:00Z",
+      access_valid_from: null,
+      access_valid_until: null,
+    };
+
+    expect(component.accessIndicator(user, now)).toBe(
+      "Suspensión administrativa vigente",
+    );
+
+    expect(component.accessIndicator({
+      ...user,
+      access_suspended_until: "2026-11-09T12:00:00Z",
+    }, now)).toBe(
+      "Sin restricción administrativa activa conocida",
+    );
+  });
+
+  it("identifica vigencia futura y vencida", () => {
+    const now = Date.parse("2026-11-10T12:00:00Z");
+    const user = {
+      ...users[1],
+      access_status: "HABILITADO" as const,
+      access_security_blocked: false,
+      access_suspended_until: null,
+      access_valid_from: "2026-11-11T12:00:00Z",
+      access_valid_until: "2026-12-01T00:00:00Z",
+    };
+
+    expect(component.accessIndicator(user, now)).toBe(
+      "Vigencia administrativa futura",
+    );
+
+    expect(component.accessIndicator({
+      ...user,
+      access_valid_from: "2026-11-01T00:00:00Z",
+      access_valid_until: "2026-11-10T12:00:00Z",
+    }, now)).toBe(
+      "Vigencia administrativa vencida",
+    );
+  });
+
+  it("no afirma acceso permitido con datos incompletos", () => {
+    const user = {
+      ...users[1],
+      access_status: "HABILITADO" as const,
+    };
+
+    expect(component.accessIndicator(user)).toBe(
+      "Restricciones no informadas",
+    );
+
+    expect(component.accessIndicator({
+      ...user,
+      id_persona: null,
+    })).toBe(
+      "Sin Persona vinculada",
+    );
+  });
+
+  it("muestra el indicador junto al estado administrativo", () => {
+    component.users = [{
+      ...users[1],
+      access_status: "HABILITADO",
+      access_security_blocked: true,
+    }];
+
+    fixture.detectChanges();
+
+    const indicador: HTMLElement = fixture.nativeElement.querySelector(
+      '[data-testid="user-effective-access"]',
+    );
+
+    expect(indicador.textContent).toContain(
+      "Bloqueado por seguridad",
+    );
+
+    expect(fixture.nativeElement.textContent).toContain(
+      "Habilitado",
+    );
+  });
   it("muestra nombres y correos de los usuarios", () => {
     component.users = users;
     fixture.detectChanges();

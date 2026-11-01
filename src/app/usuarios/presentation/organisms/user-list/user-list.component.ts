@@ -279,6 +279,13 @@ import { UserAccessStatusBadgeComponent } from "../../atoms/user-access-status-b
 
                   <td class="px-5 py-4">
                     <app-user-access-status-badge [status]="user.access_status" />
+                    <p
+                      data-testid="user-effective-access"
+                      role="status"
+                      class="mt-2 text-xs font-semibold text-[#611232]"
+                    >
+                      {{ accessIndicator(user) }}
+                    </p>
                     <div
                       class="mt-2 space-y-1 text-xs text-gray-700"
                       data-testid="user-access-restrictions"
@@ -372,6 +379,84 @@ export class UserListComponent {
   userColumnSearch = "";
   personFilter = "all";
   registrationFilter = "";
+
+  /**
+   * Indicador orientativo, no fuente de autorización.
+   * La elegibilidad efectiva se determina en Laravel.
+   */
+  accessIndicator(user: UserSummary, now = Date.now()): string {
+    if (user.access_status === "DESHABILITADO") {
+      return "Acceso retirado";
+    }
+
+    if (user.access_status === "PENDIENTE") {
+      return "Pendiente de habilitación";
+    }
+
+    if (user.access_status !== "HABILITADO") {
+      return "Estado de acceso no determinado";
+    }
+
+    if (!user.id_persona) {
+      return "Sin Persona vinculada";
+    }
+
+    if (user.access_security_blocked === true) {
+      return "Bloqueado por seguridad";
+    }
+
+    const suspension = this.parseAccessDate(user.access_suspended_until);
+
+    if (suspension === undefined) {
+      return "Suspensión: fecha no verificable";
+    }
+
+    if (suspension !== null && suspension > now) {
+      return "Suspensión administrativa vigente";
+    }
+
+    const desde = this.parseAccessDate(user.access_valid_from);
+    const hasta = this.parseAccessDate(user.access_valid_until);
+
+    if (desde === undefined || hasta === undefined) {
+      return "Vigencia: fecha no verificable";
+    }
+
+    if (desde !== null && desde > now) {
+      return "Vigencia administrativa futura";
+    }
+
+    if (hasta !== null && hasta <= now) {
+      return "Vigencia administrativa vencida";
+    }
+
+    if (
+      user.access_security_blocked === undefined ||
+      user.access_suspended_until === undefined ||
+      user.access_valid_from === undefined ||
+      user.access_valid_until === undefined
+    ) {
+      return "Restricciones no informadas";
+    }
+
+    return "Sin restricción administrativa activa conocida";
+  }
+
+  private parseAccessDate(
+    value: string | null | undefined,
+  ): number | null | undefined {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (!/(?:Z|[+-]\d{2}:\d{2})$/i.test(value)) {
+      return undefined;
+    }
+
+    const parsed = Date.parse(value);
+
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
 
   clearFilters(): void {
     this.globalSearch = "";
