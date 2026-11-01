@@ -333,6 +333,113 @@ describe("UsersPageComponent", () => {
     expect(component.users()[0].id).toBe(2);
     expect(component.accessRefreshError()).toBeNull();
   });
+  it("recupera la ultima pagina disponible si disminuye el total", () => {
+    fixture.detectChanges();
+    respond(1, 3, 45);
+
+    component.loadPage(3);
+
+    expectPage(3).flush({
+      data: [],
+      meta: {
+        current_page: 3,
+        last_page: 2,
+        per_page: 20,
+        total: 25,
+      },
+    });
+
+    const correction = expectPage(2);
+
+    correction.flush({
+      data: [{
+        id: 2,
+        id_persona: null,
+        name: "Usuario 2",
+        email: "usuario2@example.test",
+        created_at: "2026-10-26T12:00:00Z",
+        person: null,
+      }],
+      meta: {
+        current_page: 2,
+        last_page: 2,
+        per_page: 20,
+        total: 25,
+      },
+    });
+
+    expect(component.currentPage()).toBe(2);
+    expect(component.lastPage()).toBe(2);
+    expect(component.total()).toBe(25);
+    expect(component.users()[0].id).toBe(2);
+    expect(component.loading()).toBe(false);
+  });
+
+  it("descarta el detalle anterior al corregir una pagina", () => {
+    fixture.detectChanges();
+    respond(1, 3, 45);
+
+    component.selectUser(component.users()[0]);
+
+    http.expectOne("/api/usuarios/1/roles").flush({
+      data: [],
+    });
+
+    expect(component.selectedUser()?.id).toBe(1);
+
+    component.loadPage(3);
+
+    expectPage(3).flush({
+      data: [],
+      meta: {
+        current_page: 3,
+        last_page: 1,
+        per_page: 20,
+        total: 1,
+      },
+    });
+
+    expect(component.selectedUser()).toBeNull();
+    expect(component.selectedRoles()).toEqual([]);
+
+    respond(1, 1, 1);
+
+    expect(component.currentPage()).toBe(1);
+
+    http.expectNone(request =>
+      request.method === "POST" ||
+      request.method === "PUT" ||
+      request.method === "DELETE"
+    );
+  });
+
+  it("normaliza a la primera pagina cuando ya no hay resultados", () => {
+    fixture.detectChanges();
+    respond(1, 3, 45);
+
+    component.loadPage(2);
+
+    expectPage(2).flush({
+      data: [],
+      meta: {
+        current_page: 2,
+        last_page: 1,
+        per_page: 20,
+        total: 0,
+      },
+    });
+
+    expect(component.currentPage()).toBe(1);
+    expect(component.lastPage()).toBe(1);
+    expect(component.total()).toBe(0);
+    expect(component.users()).toEqual([]);
+    expect(component.loading()).toBe(false);
+
+    http.expectNone(request =>
+      request.method === "GET" &&
+      request.url === "/api/usuarios"
+    );
+  });
   it("consulta la primera pagina al iniciar", () => {
     fixture.detectChanges();
 

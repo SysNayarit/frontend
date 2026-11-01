@@ -478,6 +478,39 @@ export class UsersPageComponent implements OnInit {
             return;
           }
 
+          const lastValidPage = Math.max(1, response.meta.last_page);
+
+          // Los filtros pueden reducir el total mientras el
+          // operador consulta una pagina anteriormente valida.
+          if (page > lastValidPage) {
+            if (this.roleOperationProcessing() || this.accessProcessing()) {
+              this.error.set(
+                "El numero de paginas cambio durante una operacion. " +
+                "Consulta nuevamente al finalizar.",
+              );
+              this.loading.set(false);
+              return;
+            }
+
+            // No conservar una seleccion fuera del contexto.
+            this.closeUserRoles();
+
+            if (response.meta.total === 0) {
+              this.users.set([]);
+              this.currentPage.set(1);
+              this.lastPage.set(1);
+              this.total.set(0);
+              this.loading.set(false);
+              return;
+            }
+
+            // Un solo salto a la ultima pagina disponible.
+            this.lastPage.set(lastValidPage);
+            this.loading.set(false);
+            this.loadPage(lastValidPage);
+            return;
+          }
+
           this.users.set(response.data);
           this.currentPage.set(response.meta.current_page);
           this.lastPage.set(response.meta.last_page);
