@@ -79,10 +79,7 @@ export class UsersModuleNavigationComponent {
   private readonly authContext = inject(AuthContextService);
 
   canViewProfilesAndPermissions(): boolean {
-    return (
-      this.authContext.hasPermission("perfiles.ver") &&
-      this.authContext.hasPermission("roles.ver")
-    );
+    return this.authContext.hasPermission("perfiles.ver");
   }
   canViewUsers(): boolean {
     return this.authContext.hasPermission("usuarios.ver");
