@@ -48,9 +48,6 @@ describe("Perfiles y permisos por autorización", () => {
   it("consulta perfiles sin solicitar roles no autorizados", () => {
     create();
 
-    http.expectOne("/api/perfiles/grupos").flush({
-      data: [{ id: 1, code: "GENERAL", name: "General" }],
-    });
     http.expectOne("/api/perfiles").flush({
       data: [{ id: 2, code: "CONSULTA", name: "Consulta" }],
     });
@@ -58,32 +55,27 @@ describe("Perfiles y permisos por autorización", () => {
     http.expectNone("/api/roles");
     http.expectNone("/api/permisos");
 
-    expect(page.groups()).toHaveLength(1);
+    http.expectNone("/api/perfiles/grupos");
     expect(page.profiles()).toHaveLength(1);
     expect(page.canViewRoles()).toBe(false);
   });
 
-  it("mantiene perfiles si Laravel deniega grupos", () => {
+  it("consulta perfiles sin depender de grupos", () => {
     create();
 
-    http.expectOne("/api/perfiles/grupos").flush(
-      { message: "Forbidden" },
-      { status: 403, statusText: "Forbidden" },
-    );
     http.expectOne("/api/perfiles").flush({
       data: [{ id: 3, code: "OPERATIVO", name: "Operativo" }],
     });
 
-    expect(page.errors().groups).toContain("denegó");
+    http.expectNone("/api/perfiles/grupos");
     expect(page.errors().profiles).toBeNull();
     expect(page.profiles()).toHaveLength(1);
   });
 
-  it("consulta cuatro catálogos si tiene ambos permisos", () => {
+  it("consulta tres catálogos si tiene ambos permisos", () => {
     permissions.add("roles.ver");
     create();
 
-    http.expectOne("/api/perfiles/grupos").flush({ data: [] });
     http.expectOne("/api/perfiles").flush({ data: [] });
     http.expectOne("/api/roles").flush({
       data: [{ id: 1, code: "ADMIN", name: "Administración" }],
@@ -100,7 +92,6 @@ describe("Perfiles y permisos por autorización", () => {
     permissions.add("roles.ver");
     create();
 
-    http.expectOne("/api/perfiles/grupos").flush({ data: [] });
     http.expectOne("/api/perfiles").flush({
       data: [{ id: 2, code: "CONSULTA" }],
     });
@@ -120,7 +111,6 @@ describe("Perfiles y permisos por autorización", () => {
   it("reintenta únicamente el catálogo solicitado", () => {
     create();
 
-    http.expectOne("/api/perfiles/grupos").flush({ data: [] });
     http.expectOne("/api/perfiles").flush(
       { message: "Error" },
       { status: 500, statusText: "Server Error" },

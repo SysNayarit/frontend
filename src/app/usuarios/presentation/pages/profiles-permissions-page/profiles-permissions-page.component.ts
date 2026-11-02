@@ -26,7 +26,7 @@ interface ApiList<T> {
   data: T[];
 }
 
-type Catalog = "groups" | "profiles" | "roles" | "permissions";
+type Catalog = "profiles" | "roles" | "permissions";
 
 @Component({
   selector: "app-profiles-permissions-page",
@@ -135,7 +135,7 @@ type Catalog = "groups" | "profiles" | "roles" | "permissions";
               Consultar catálogos
             </span>
             <span class="mt-2 block text-sm text-gray-600">
-              Conocer los perfiles, grupos y otros elementos disponibles.
+              Consultar perfiles, roles y permisos disponibles.
             </span>
           </button>
         </div>
@@ -226,41 +226,6 @@ type Catalog = "groups" | "profiles" | "roles" | "permissions";
           </div>
 
           <div class="grid gap-4 lg:grid-cols-2">
-            <section class="rounded-xl bg-white p-5"
-              aria-label="Grupos de perfiles">
-              <h3 class="font-semibold text-[#611232]">
-                Grupos de perfiles
-              </h3>
-              @if (loading().groups) {
-                <p role="status" class="mt-3 text-sm">
-                  Cargando grupos...
-                </p>
-              } @else if (errors().groups) {
-                <p role="alert" class="mt-3 text-sm text-red-700">
-                  {{ errors().groups }}
-                </p>
-                <button type="button" (click)="load('groups')"
-                  class="siga-focus mt-3 rounded-lg border px-3 py-2">
-                  Reintentar
-                </button>
-              } @else {
-                <ul class="mt-3 space-y-2">
-                  @for (item of groups(); track item.id) {
-                    <li class="rounded-lg border p-3">
-                      <strong>{{ item.name }}</strong>
-                      <span class="ml-2 text-xs text-gray-500">
-                        {{ item.code }}
-                      </span>
-                    </li>
-                  } @empty {
-                    <li class="text-sm text-gray-500">
-                      No hay grupos registrados.
-                    </li>
-                  }
-                </ul>
-              }
-            </section>
-
             <section class="rounded-xl bg-white p-5"
               aria-label="Catálogo de perfiles">
               <h3 class="font-semibold text-[#611232]">
@@ -381,34 +346,34 @@ export class ProfilesPermissionsPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly auth = inject(AuthContextService);
 
-  readonly groups = signal<CatalogItem[]>([]);
+
   readonly profiles = signal<CatalogItem[]>([]);
   readonly roles = signal<CatalogItem[]>([]);
   readonly permissions = signal<CatalogItem[]>([]);
 
   readonly loading = signal<Record<Catalog, boolean>>({
-    groups: false,
+
     profiles: false,
     roles: false,
     permissions: false,
   });
 
   readonly errors = signal<Record<Catalog, string | null>>({
-    groups: null,
+
     profiles: null,
     roles: null,
     permissions: null,
   });
 
   private readonly paths: Record<Catalog, string> = {
-    groups: "/api/perfiles/grupos",
+
     profiles: "/api/perfiles",
     roles: "/api/roles",
     permissions: "/api/permisos",
   };
 
   private readonly versions: Record<Catalog, number> = {
-    groups: 0,
+
     profiles: 0,
     roles: 0,
     permissions: 0,
@@ -435,7 +400,7 @@ export class ProfilesPermissionsPageComponent implements OnInit {
   }
 
   reload(): void {
-    this.load("groups");
+
     this.load("profiles");
 
     if (this.canViewRoles()) {
@@ -494,7 +459,7 @@ export class ProfilesPermissionsPageComponent implements OnInit {
 
   private setData(section: Catalog, data: CatalogItem[]): void {
     switch (section) {
-      case "groups": this.groups.set(data); break;
+
       case "profiles": this.profiles.set(data); break;
       case "roles": this.roles.set(data); break;
       case "permissions": this.permissions.set(data); break;
