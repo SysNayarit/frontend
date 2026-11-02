@@ -179,4 +179,45 @@ describe("Usuarios, roles y permisos", () => {
     expect(component.rules()[0].effect).toBe("ALLOW");
     expect(component.changeError()).toContain("modificado");
   });
+
+  it("prepara varios cambios y los descarta sin solicitudes HTTP", () => {
+    load();
+    component.selectUser(component.users()[0]);
+    component.selectRole(component.users()[0].roles![0]);
+
+    http.expectOne("/api/roles/3/permisos").flush({
+      data: [
+        { id: 2, code: "usuarios.ver", effect: "ALLOW" },
+        { id: 3, code: "personas.ver", effect: "DENY" },
+      ],
+    });
+
+    component.stageToggle(component.rules()[0]);
+    component.stageToggle(component.rules()[1]);
+
+    expect(component.pendingCount()).toBe(2);
+    expect(component.displayedEffect(component.rules()[0])).toBe("DENY");
+    expect(component.displayedEffect(component.rules()[1])).toBe("ALLOW");
+    expect(component.rules()[0].effect).toBe("ALLOW");
+
+    component.discardChanges();
+
+    expect(component.pendingCount()).toBe(0);
+    expect(component.displayedEffect(component.rules()[0])).toBe("ALLOW");
+  });
+
+  it("un segundo clic devuelve el permiso al estado original", () => {
+    load();
+    component.selectUser(component.users()[0]);
+    component.selectRole(component.users()[0].roles![0]);
+
+    http.expectOne("/api/roles/3/permisos").flush({
+      data: [{ id: 2, code: "usuarios.ver", effect: "ALLOW" }],
+    });
+
+    component.stageToggle(component.rules()[0]);
+    component.stageToggle(component.rules()[0]);
+
+    expect(component.pendingCount()).toBe(0);
+  });
 });

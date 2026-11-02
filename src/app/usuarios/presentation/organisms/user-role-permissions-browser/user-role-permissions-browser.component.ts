@@ -139,23 +139,30 @@ interface Rule {
                               <ul class="space-y-2">
                                 @for (rule of rules(); track rule.id) {
                                   <li class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 p-2">
-                                    <code class="text-xs">{{ rule.code }}</code>
+                                    <div>
+                                      <code class="text-xs">{{ rule.code }}</code>
+                                      @if (hasStagedChange(rule)) {
+                                        <p class="text-xs text-amber-800">
+                                          Modificado · sin guardar
+                                        </p>
+                                      }
+                                    </div>
                                     @if (role.code !== 'ROL_ADMIN_SISTEMA') {
                                       <button type="button"
-                                        [disabled]="saving() || !canManage()"
+                                        [disabled]="saving()"
                                         [attr.aria-label]="'Cambiar ' + rule.code + ' de ' + rule.effect"
-                                        (click)="prepareToggle(rule)"
+                                        (click)="stageToggle(rule)"
                                         class="siga-focus rounded-lg border px-3 py-2 text-xs font-bold disabled:opacity-50"
-                                        [class.border-red-400]="rule.effect === 'DENY'"
-                                        [class.text-red-800]="rule.effect === 'DENY'"
-                                        [class.border-green-500]="rule.effect === 'ALLOW'"
-                                        [class.text-green-800]="rule.effect === 'ALLOW'">
-                                        {{ rule.effect }} ↔
+                                        [class.border-red-400]="displayedEffect(rule) === 'DENY'"
+                                        [class.text-red-800]="displayedEffect(rule) === 'DENY'"
+                                        [class.border-green-500]="displayedEffect(rule) === 'ALLOW'"
+                                        [class.text-green-800]="displayedEffect(rule) === 'ALLOW'">
+                                        {{ displayedEffect(rule) }} ↔
                                       </button>
                                     } @else {
                                       <strong class="text-xs"
-                                        [class.text-red-700]="rule.effect === 'DENY'"
-                                        [class.text-green-800]="rule.effect === 'ALLOW'">
+                                        [class.text-red-700]="displayedEffect(rule) === 'DENY'"
+                                        [class.text-green-800]="displayedEffect(rule) === 'ALLOW'">
                                         {{ rule.effect }}
                                       </strong>
                                     }
@@ -167,45 +174,65 @@ interface Rule {
                                 }
                               </ul>
 
-                              @if (pending(); as selected) {
-                                <form (submit)="confirmToggle($event)"
-                                  class="mt-4 rounded-lg border border-amber-300 p-4">
-                                  <h3 class="text-sm font-semibold">
-                                    Confirmar cambio de autorización
+                              @if (pendingCount() > 0) {
+                                <form (submit)="confirmBatch($event)"
+                                  class="mt-4 space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-4"
+                                  data-testid="batch-confirmation">
+                                  <h3 class="text-sm font-bold text-[#611232]">
+                                    Cambios pendientes: {{ pendingCount() }}
                                   </h3>
-                                  <p class="mt-2 text-sm">
-                                    {{ selected.code }}:
-                                    {{ selected.effect }} →
-                                    {{ selected.effect === 'ALLOW' ? 'DENY' : 'ALLOW' }}
+
+                                  <ul class="space-y-1 text-sm">
+                                    @for (change of pendingChanges(); track change.permission_id) {
+                                      <li>
+                                        {{ change.code }}:
+                                        {{ change.expected_effect }} →
+                                        <strong>{{ change.effect }}</strong>
+                                      </li>
+                                    }
+                                  </ul>
+
+                                  <p class="text-xs text-gray-700">
+                                    Los cambios todavía no están guardados.
+                                    Al confirmar, afectarán a todos los usuarios
+                                    que tengan este rol.
                                   </p>
-                                  <p class="mt-2 text-xs text-gray-600">
-                                    El cambio afectará al rol y potencialmente
-                                    a todos los usuarios que lo tengan asignado.
-                                  </p>
-                                  <label class="mt-3 block text-sm">
-                                    Contraseña para reautenticación
-                                    <input type="password"
-                                      autocomplete="current-password"
-                                      [value]="password()"
-                                      (input)="password.set($any($event.target).value)"
-                                      class="mt-1 block w-full rounded-lg border px-3 py-2" />
-                                  </label>
-                                  <div class="mt-3 flex flex-wrap gap-2">
+
+                                  @if (canManage()) {
+                                    <label class="block text-sm">
+                                      Contraseña para autorizar el guardado
+                                      <input type="password"
+                                        autocomplete="current-password"
+                                        [value]="password()"
+                                        (input)="password.set($any($event.target).value)"
+                                        class="mt-1 block w-full rounded-lg border px-3 py-2" />
+                                    </label>
+                                  } @else {
+                                    <p role="status" class="text-sm text-red-800">
+                                      Puedes preparar y revisar cambios, pero
+                                      necesitas roles.administrar_permisos
+                                      para guardarlos.
+                                    </p>
+                                  }
+
+                                  <div class="flex flex-wrap gap-2">
                                     <button type="submit"
-                                      [disabled]="saving() || !password()"
-                                      class="siga-focus rounded-lg bg-[#611232] px-4 py-2 text-sm text-white">
-                                      Confirmar cambio
+                                      data-testid="confirm-batch"
+                                      [disabled]="saving() || !canManage() || !password()"
+                                      class="siga-focus rounded-lg bg-[#611232] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                                      {{ saving() ? 'Guardando...' : 'Confirmar cambios (' + pendingCount() + ')' }}
                                     </button>
+
                                     <button type="button"
-                                      [disabled]="saving() || !canManage()"
-                                      (click)="cancelToggle()"
+                                      data-testid="discard-batch"
+                                      [disabled]="saving()"
+                                      (click)="discardChanges()"
                                       class="siga-focus rounded-lg border px-4 py-2 text-sm">
-                                      Cancelar
+                                      Descartar cambios
                                     </button>
                                   </div>
                                 </form>
                               }
-
                               @if (changeError()) {
                                 <p role="alert" class="mt-3 text-sm text-red-700">
                                   {{ changeError() }}
@@ -268,6 +295,7 @@ export class UserRolePermissionsBrowserComponent implements OnInit {
   private rulesRequest = 0;
 
   readonly canManage = input(false);
+  readonly staged = signal<Record<number, "ALLOW" | "DENY">>({});
   readonly pending = signal<Rule | null>(null);
   readonly password = signal("");
   readonly saving = signal(false);
@@ -323,6 +351,7 @@ export class UserRolePermissionsBrowserComponent implements OnInit {
 
   loadUsers(): void {
     this.cancelToggle();
+    this.discardChanges();
     const version = ++this.usersRequest;
     ++this.rulesRequest;
     this.selectedUserId.set(null);
@@ -358,6 +387,7 @@ export class UserRolePermissionsBrowserComponent implements OnInit {
 
   selectUser(user: UserSummary): void {
     this.cancelToggle();
+    this.discardChanges();
     ++this.rulesRequest;
     this.selectedRoleId.set(null);
     this.rules.set([]);
@@ -370,6 +400,7 @@ export class UserRolePermissionsBrowserComponent implements OnInit {
 
   selectRole(role: Role): void {
     this.cancelToggle();
+    this.discardChanges();
     const version = ++this.rulesRequest;
     const open = this.selectedRoleId() !== role.id;
     this.selectedRoleId.set(open ? role.id : null);
@@ -504,6 +535,168 @@ export class UserRolePermissionsBrowserComponent implements OnInit {
                 : status === 422
                   ? "Operación rechazada por las reglas de seguridad."
                   : "No fue posible confirmar el cambio."
+        );
+      },
+    });
+  }
+  displayedEffect(rule: Rule): string {
+    return this.staged()[rule.id] ?? rule.effect;
+  }
+
+  hasStagedChange(rule: Rule): boolean {
+    return Object.prototype.hasOwnProperty.call(this.staged(), rule.id);
+  }
+
+  stageToggle(rule: Rule): void {
+    if (this.saving() || this.loadingRules() ||
+        this.selectedRoleId() === null) return;
+
+    const user = this.users().find(u => u.id === this.selectedUserId());
+    const role = user?.roles?.find(r => r.id === this.selectedRoleId());
+
+    if (!role || role.code === "ROL_ADMIN_SISTEMA") return;
+
+    const original = this.rules().find(item => item.id === rule.id);
+    if (!original || !["ALLOW", "DENY"].includes(original.effect)) return;
+
+    const next = this.displayedEffect(original) === "ALLOW"
+      ? "DENY" : "ALLOW";
+
+    this.staged.update(current => {
+      const updated = { ...current };
+      if (next === original.effect) {
+        delete updated[rule.id];
+      } else {
+        updated[rule.id] = next;
+      }
+      return updated;
+    });
+
+    this.changeError.set(null);
+    this.changeMessage.set(null);
+  }
+
+  pendingChanges(): Array<{
+    permission_id: number;
+    code: string;
+    expected_effect: string;
+    effect: string;
+  }> {
+    return this.rules()
+      .filter(rule => this.hasStagedChange(rule))
+      .map(rule => ({
+        permission_id: rule.id,
+        code: rule.code,
+        expected_effect: rule.effect,
+        effect: this.staged()[rule.id],
+      }));
+  }
+
+  pendingCount(): number {
+    return this.pendingChanges().length;
+  }
+
+  discardChanges(): void {
+    if (this.saving()) return;
+    this.staged.set({});
+    this.password.set("");
+    this.changeError.set(null);
+  }
+
+  confirmBatch(event: Event): void {
+    event.preventDefault();
+
+    const roleId = this.selectedRoleId();
+    const userId = this.selectedUserId();
+    const changes = this.pendingChanges();
+    const secret = this.password();
+
+    if (!this.canManage() || this.saving() ||
+        roleId === null || userId === null ||
+        changes.length === 0 || changes.length > 100 ||
+        !secret) return;
+
+    const user = this.users().find(u => u.id === userId);
+    const role = user?.roles?.find(r => r.id === roleId);
+    if (!role || role.code === "ROL_ADMIN_SISTEMA") return;
+
+    const version = this.rulesRequest;
+    this.saving.set(true);
+    this.password.set("");
+    this.changeError.set(null);
+    this.changeMessage.set(null);
+
+    this.authService.reauthenticate(secret).pipe(
+      switchMap(() => this.http.patch<{
+        role_id: number;
+        updated: number;
+        data: Array<{
+          permission_id: number;
+          code: string;
+          previous_effect: string;
+          effect: string;
+        }>;
+      }>(`/api/roles/${roleId}/permisos/lote`, {
+        changes: changes.map(change => ({
+          permission_id: change.permission_id,
+          expected_effect: change.expected_effect,
+          effect: change.effect,
+        })),
+      })),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: result => {
+        this.saving.set(false);
+
+        if (version !== this.rulesRequest ||
+            this.selectedRoleId() !== roleId ||
+            this.selectedUserId() !== userId) return;
+
+        const valid =
+          result.role_id === roleId &&
+          result.updated === changes.length &&
+          result.data.length === changes.length &&
+          changes.every(change => result.data.some(saved =>
+            saved.permission_id === change.permission_id &&
+            saved.code === change.code &&
+            saved.previous_effect === change.expected_effect &&
+            saved.effect === change.effect
+          ));
+
+        if (!valid) {
+          this.changeError.set(
+            "La respuesta no coincide con los cambios solicitados. Recarga el rol."
+          );
+          return;
+        }
+
+        this.rules.update(current => current.map(rule => {
+          const saved = result.data.find(
+            item => item.permission_id === rule.id
+          );
+          return saved ? { ...rule, effect: saved.effect } : rule;
+        }));
+
+        this.staged.set({});
+        this.changeMessage.set(
+          `${changes.length} permisos actualizados correctamente.`
+        );
+      },
+      error: (error: unknown) => {
+        this.saving.set(false);
+        const status = error instanceof HttpErrorResponse
+          ? error.status : 0;
+
+        this.changeError.set(
+          status === 409
+            ? "Otro operador modificó los permisos. Recarga este rol antes de confirmar."
+            : status === 403
+              ? "No tienes autorización para guardar estos cambios."
+              : status === 401
+                ? "La reautenticación no fue válida."
+                : status === 422
+                  ? "Laravel rechazó los cambios por una regla de seguridad."
+                  : "No fue posible guardar los cambios."
         );
       },
     });
