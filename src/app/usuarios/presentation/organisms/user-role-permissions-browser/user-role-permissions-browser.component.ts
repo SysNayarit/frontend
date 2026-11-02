@@ -218,7 +218,7 @@ interface Rule {
                                   <div class="flex flex-wrap gap-2">
                                     <button type="submit"
                                       data-testid="confirm-batch"
-                                      [disabled]="saving() || !canManage() || !password()"
+                                      [disabled]="saving()"
                                       class="siga-focus rounded-lg bg-[#611232] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                                       {{ saving() ? 'Guardando...' : 'Confirmar cambios (' + pendingCount() + ')' }}
                                     </button>
@@ -611,7 +611,14 @@ export class UserRolePermissionsBrowserComponent implements OnInit {
     const changes = this.pendingChanges();
     const secret = this.password();
 
-    if (!this.canManage() || this.saving() ||
+    if (!this.canManage()) {
+      this.changeError.set(
+        "No se pueden guardar los cambios: tu cuenta necesita el permiso roles.administrar_permisos. Solicita habilitar una cuenta operadora autorizada."
+      );
+      return;
+    }
+
+    if (this.saving() ||
         roleId === null || userId === null ||
         changes.length === 0 || changes.length > 100 ||
         !secret) return;
