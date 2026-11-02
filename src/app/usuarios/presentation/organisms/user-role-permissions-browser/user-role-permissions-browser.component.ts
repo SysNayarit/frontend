@@ -140,10 +140,9 @@ interface Rule {
                                 @for (rule of rules(); track rule.id) {
                                   <li class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 p-2">
                                     <code class="text-xs">{{ rule.code }}</code>
-                                    @if (canManage() &&
-                                        role.code !== 'ROL_ADMIN_SISTEMA') {
+                                    @if (role.code !== 'ROL_ADMIN_SISTEMA') {
                                       <button type="button"
-                                        [disabled]="saving()"
+                                        [disabled]="saving() || !canManage()"
                                         [attr.aria-label]="'Cambiar ' + rule.code + ' de ' + rule.effect"
                                         (click)="prepareToggle(rule)"
                                         class="siga-focus rounded-lg border px-3 py-2 text-xs font-bold disabled:opacity-50"
@@ -198,7 +197,7 @@ interface Rule {
                                       Confirmar cambio
                                     </button>
                                     <button type="button"
-                                      [disabled]="saving()"
+                                      [disabled]="saving() || !canManage()"
                                       (click)="cancelToggle()"
                                       class="siga-focus rounded-lg border px-4 py-2 text-sm">
                                       Cancelar
