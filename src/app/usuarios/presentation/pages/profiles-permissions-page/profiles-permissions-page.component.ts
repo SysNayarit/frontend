@@ -143,7 +143,7 @@ type Catalog = "groups" | "profiles" | "roles" | "permissions";
 
       @if (activeSection() === 'users' &&
           canViewUserProfiles() && canViewRoles()) {
-        <app-user-role-permissions-browser />
+        <app-user-role-permissions-browser [canManage]="canEditRolePermissions()" />
       }
       @if (activeSection() === 'assign') {
         <section class="space-y-3"
@@ -414,6 +414,10 @@ export class ProfilesPermissionsPageComponent implements OnInit {
     permissions: 0,
   };
 
+  canEditRolePermissions(): boolean {
+    return this.canViewRoles() &&
+      this.auth.hasPermission("roles.administrar_permisos");
+  }
   canViewRoles(): boolean {
     return this.auth.hasPermission("roles.ver");
   }

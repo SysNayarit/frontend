@@ -5,10 +5,13 @@ import {
   DestroyRef,
   inject,
   OnInit,
+  input,
   signal,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 
+import { switchMap } from "rxjs";
+import { AuthService } from "../../../../auth/auth.service";
 import { UserListResponse, UserSummary } from "../../../user.models";
 
 interface Role {
@@ -137,11 +140,26 @@ interface Rule {
                                 @for (rule of rules(); track rule.id) {
                                   <li class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 p-2">
                                     <code class="text-xs">{{ rule.code }}</code>
-                                    <strong class="text-xs"
-                                      [class.text-red-700]="rule.effect === 'DENY'"
-                                      [class.text-green-800]="rule.effect === 'ALLOW'">
-                                      {{ rule.effect }}
-                                    </strong>
+                                    @if (canManage() &&
+                                        role.code !== 'ROL_ADMIN_SISTEMA') {
+                                      <button type="button"
+                                        [disabled]="saving()"
+                                        [attr.aria-label]="'Cambiar ' + rule.code + ' de ' + rule.effect"
+                                        (click)="prepareToggle(rule)"
+                                        class="siga-focus rounded-lg border px-3 py-2 text-xs font-bold disabled:opacity-50"
+                                        [class.border-red-400]="rule.effect === 'DENY'"
+                                        [class.text-red-800]="rule.effect === 'DENY'"
+                                        [class.border-green-500]="rule.effect === 'ALLOW'"
+                                        [class.text-green-800]="rule.effect === 'ALLOW'">
+                                        {{ rule.effect }} ↔
+                                      </button>
+                                    } @else {
+                                      <strong class="text-xs"
+                                        [class.text-red-700]="rule.effect === 'DENY'"
+                                        [class.text-green-800]="rule.effect === 'ALLOW'">
+                                        {{ rule.effect }}
+                                      </strong>
+                                    }
                                   </li>
                                 } @empty {
                                   <li class="text-sm text-gray-500">
@@ -149,6 +167,56 @@ interface Rule {
                                   </li>
                                 }
                               </ul>
+
+                              @if (pending(); as selected) {
+                                <form (submit)="confirmToggle($event)"
+                                  class="mt-4 rounded-lg border border-amber-300 p-4">
+                                  <h3 class="text-sm font-semibold">
+                                    Confirmar cambio de autorización
+                                  </h3>
+                                  <p class="mt-2 text-sm">
+                                    {{ selected.code }}:
+                                    {{ selected.effect }} →
+                                    {{ selected.effect === 'ALLOW' ? 'DENY' : 'ALLOW' }}
+                                  </p>
+                                  <p class="mt-2 text-xs text-gray-600">
+                                    El cambio afectará al rol y potencialmente
+                                    a todos los usuarios que lo tengan asignado.
+                                  </p>
+                                  <label class="mt-3 block text-sm">
+                                    Contraseña para reautenticación
+                                    <input type="password"
+                                      autocomplete="current-password"
+                                      [value]="password()"
+                                      (input)="password.set($any($event.target).value)"
+                                      class="mt-1 block w-full rounded-lg border px-3 py-2" />
+                                  </label>
+                                  <div class="mt-3 flex flex-wrap gap-2">
+                                    <button type="submit"
+                                      [disabled]="saving() || !password()"
+                                      class="siga-focus rounded-lg bg-[#611232] px-4 py-2 text-sm text-white">
+                                      Confirmar cambio
+                                    </button>
+                                    <button type="button"
+                                      [disabled]="saving()"
+                                      (click)="cancelToggle()"
+                                      class="siga-focus rounded-lg border px-4 py-2 text-sm">
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </form>
+                              }
+
+                              @if (changeError()) {
+                                <p role="alert" class="mt-3 text-sm text-red-700">
+                                  {{ changeError() }}
+                                </p>
+                              }
+                              @if (changeMessage()) {
+                                <p role="status" class="mt-3 text-sm text-green-800">
+                                  {{ changeMessage() }}
+                                </p>
+                              }
                             </div>
                           }
                         }
@@ -195,9 +263,17 @@ interface Rule {
 })
 export class UserRolePermissionsBrowserComponent implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly authService = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
   private usersRequest = 0;
   private rulesRequest = 0;
+
+  readonly canManage = input(false);
+  readonly pending = signal<Rule | null>(null);
+  readonly password = signal("");
+  readonly saving = signal(false);
+  readonly changeError = signal<string | null>(null);
+  readonly changeMessage = signal<string | null>(null);
 
   readonly users = signal<UserSummary[]>([]);
   readonly page = signal(1);
@@ -247,6 +323,7 @@ export class UserRolePermissionsBrowserComponent implements OnInit {
   }
 
   loadUsers(): void {
+    this.cancelToggle();
     const version = ++this.usersRequest;
     ++this.rulesRequest;
     this.selectedUserId.set(null);
@@ -281,6 +358,7 @@ export class UserRolePermissionsBrowserComponent implements OnInit {
   }
 
   selectUser(user: UserSummary): void {
+    this.cancelToggle();
     ++this.rulesRequest;
     this.selectedRoleId.set(null);
     this.rules.set([]);
@@ -292,6 +370,7 @@ export class UserRolePermissionsBrowserComponent implements OnInit {
   }
 
   selectRole(role: Role): void {
+    this.cancelToggle();
     const version = ++this.rulesRequest;
     const open = this.selectedRoleId() !== role.id;
     this.selectedRoleId.set(open ? role.id : null);
@@ -321,4 +400,112 @@ export class UserRolePermissionsBrowserComponent implements OnInit {
       },
     });
   }
-}
+
+  prepareToggle(rule: Rule): void {
+    if (!this.canManage() ||
+        this.saving() ||
+        this.selectedRoleId() === null ||
+        !["ALLOW", "DENY"].includes(rule.effect) ||
+        !this.rules().some(p =>
+          p.id === rule.id &&
+          p.code === rule.code &&
+          p.effect === rule.effect
+        )) return;
+
+    const user = this.users().find(u => u.id === this.selectedUserId());
+    const role = user?.roles?.find(r => r.id === this.selectedRoleId());
+
+    if (!role || role.code === "ROL_ADMIN_SISTEMA") return;
+
+    this.pending.set({ ...rule });
+    this.password.set("");
+    this.changeError.set(null);
+    this.changeMessage.set(null);
+  }
+
+  cancelToggle(): void {
+    if (this.saving()) return;
+    this.pending.set(null);
+    this.password.set("");
+  }
+
+  confirmToggle(event: Event): void {
+    event.preventDefault();
+
+    const rule = this.pending();
+    const roleId = this.selectedRoleId();
+    const userId = this.selectedUserId();
+    const secret = this.password();
+
+    if (!rule || !roleId || !userId || !secret ||
+        this.saving() || !this.canManage()) return;
+
+    const nextEffect = rule.effect === "ALLOW" ? "DENY" : "ALLOW";
+    const version = this.rulesRequest;
+
+    this.saving.set(true);
+    this.password.set("");
+    this.changeError.set(null);
+
+    this.authService.reauthenticate(secret).pipe(
+      switchMap(() => this.http.patch<{
+        data: {
+          role_id: number;
+          permission_id: number;
+          previous_effect: string;
+          effect: string;
+        };
+      }>(`/api/roles/${roleId}/permisos/${rule.id}`, {
+        expected_effect: rule.effect,
+        effect: nextEffect,
+      })),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: response => {
+        this.saving.set(false);
+        this.pending.set(null);
+        if (version !== this.rulesRequest ||
+            this.selectedUserId() !== userId ||
+            this.selectedRoleId() !== roleId) return;
+
+        if (response.data.role_id !== roleId ||
+            response.data.permission_id !== rule.id ||
+            response.data.previous_effect !== rule.effect ||
+            response.data.effect !== nextEffect) {
+          this.changeError.set(
+            "La respuesta no coincide con la solicitud. Actualiza los permisos."
+          );
+          return;
+        }
+
+        this.rules.update(current => current.map(item =>
+          item.id === rule.id
+            ? { ...item, effect: nextEffect }
+            : item
+        ));
+        this.changeMessage.set(
+          `Permiso ${rule.code} actualizado a ${nextEffect}.`
+        );
+      },
+      error: (error: unknown) => {
+        this.saving.set(false);
+        this.pending.set(null);
+        if (version !== this.rulesRequest) return;
+
+        const status = error instanceof HttpErrorResponse
+          ? error.status : 0;
+
+        this.changeError.set(
+          status === 409
+            ? "El permiso fue modificado por otra operación. Cierra y vuelve a abrir el rol para actualizar."
+            : status === 403
+              ? "Laravel denegó el cambio. No se modificó el permiso."
+              : status === 401
+                ? "La reautenticación no fue válida."
+                : status === 422
+                  ? "Operación rechazada por las reglas de seguridad."
+                  : "No fue posible confirmar el cambio."
+        );
+      },
+    });
+  }}

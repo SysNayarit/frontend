@@ -9,6 +9,7 @@ import { UserRolePermissionsBrowserComponent } from "./user-role-permissions-bro
 
 describe("Usuarios, roles y permisos", () => {
   let component: UserRolePermissionsBrowserComponent;
+  let fixture: ReturnType<typeof TestBed.createComponent<UserRolePermissionsBrowserComponent>>;
   let http: HttpTestingController;
 
   const user = {
@@ -27,7 +28,7 @@ describe("Usuarios, roles y permisos", () => {
       providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
-    const fixture = TestBed.createComponent(
+    fixture = TestBed.createComponent(
       UserRolePermissionsBrowserComponent
     );
     component = fixture.componentInstance;
@@ -98,5 +99,84 @@ describe("Usuarios, roles y permisos", () => {
     );
 
     expect(component.rulesError()).toContain("denegó");
+  });
+
+  it("no muestra edición sin autorización administrativa", () => {
+    load();
+    component.selectUser(component.users()[0]);
+    component.selectRole(component.users()[0].roles![0]);
+    http.expectOne("/api/roles/3/permisos").flush({
+      data: [{ id: 2, code: "usuarios.ver", effect: "ALLOW" }],
+    });
+
+    component.prepareToggle(component.rules()[0]);
+    expect(component.pending()).toBeNull();
+  });
+
+  it("alterna ALLOW a DENY solo después de reautenticar y confirmar", () => {
+    fixture.componentRef.setInput("canManage", true);
+    fixture.detectChanges();
+    load();
+
+    component.selectUser(component.users()[0]);
+    component.selectRole(component.users()[0].roles![0]);
+    http.expectOne("/api/roles/3/permisos").flush({
+      data: [{ id: 2, code: "usuarios.ver", effect: "ALLOW" }],
+    });
+
+    component.prepareToggle(component.rules()[0]);
+    expect(component.pending()?.effect).toBe("ALLOW");
+    expect(component.rules()[0].effect).toBe("ALLOW");
+
+    component.password.set("clave-ficticia");
+    component.confirmToggle(new Event("submit"));
+
+    http.expectOne("/reauthenticate").flush({});
+
+    const mutation = http.expectOne("/api/roles/3/permisos/2");
+    expect(mutation.request.method).toBe("PATCH");
+    expect(mutation.request.body).toEqual({
+      expected_effect: "ALLOW",
+      effect: "DENY",
+    });
+
+    expect(component.rules()[0].effect).toBe("ALLOW");
+
+    mutation.flush({
+      data: {
+        role_id: 3,
+        permission_id: 2,
+        previous_effect: "ALLOW",
+        effect: "DENY",
+      },
+    });
+
+    expect(component.rules()[0].effect).toBe("DENY");
+    expect(component.pending()).toBeNull();
+  });
+
+  it("mantiene ALLOW si Laravel devuelve conflicto 409", () => {
+    fixture.componentRef.setInput("canManage", true);
+    fixture.detectChanges();
+    load();
+
+    component.selectUser(component.users()[0]);
+    component.selectRole(component.users()[0].roles![0]);
+    http.expectOne("/api/roles/3/permisos").flush({
+      data: [{ id: 2, code: "usuarios.ver", effect: "ALLOW" }],
+    });
+
+    component.prepareToggle(component.rules()[0]);
+    component.password.set("clave-ficticia");
+    component.confirmToggle(new Event("submit"));
+
+    http.expectOne("/reauthenticate").flush({});
+    http.expectOne("/api/roles/3/permisos/2").flush(
+      { message: "Conflicto" },
+      { status: 409, statusText: "Conflict" }
+    );
+
+    expect(component.rules()[0].effect).toBe("ALLOW");
+    expect(component.changeError()).toContain("modificado");
   });
 });
