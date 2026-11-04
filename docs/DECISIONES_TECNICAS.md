@@ -1,6 +1,6 @@
 # SIGA — Decisiones técnicas y funcionales
 
-Última actualización: 2026-10-16
+Última actualización: 2026-11-04
 
 ## 1. Propósito
 
@@ -461,3 +461,8 @@ Reglas:
 - `PersonasPage` compone directamente formularios, detalle, listado, permisos, mensajes y eventos;
 - el template no expone `@Input` ni `@Output` funcionales del dominio Personas;
 - no se introduce un objeto de configuración global ni una abstracción adicional para transportar el estado de la página.
+
+
+## Acuerdos académicos aprobados el 2026-11-04
+
+**Estado: PLANIFICADA.** La consolidación vigente se encuentra en [ACADEMICO.md](ACADEMICO.md). Incluye P01–P24 y G/F/D/A/R con precisiones A06, A12, D06, R03, P20; M01–M09; C01–C03; E01–E03 y S01. Separa resultados automáticos de ratificación, conserva matrículas históricas y mantiene Persona como identidad y Usuario como acceso. La matrícula no autentica. Los acuerdos no otorgan permisos ni certifican implementación. Los contratos, campos físicos y evidencias deberán conciliarse antes de programar. Los checkpoints históricos permanecen sin modificación.

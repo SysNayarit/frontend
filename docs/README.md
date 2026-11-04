@@ -1,6 +1,6 @@
 # SIGA — Documentación técnica del Frontend
 
-Última actualización: 2026-10-09
+Última actualización: 2026-11-04
 
 ## 1. Propósito
 
@@ -811,3 +811,8 @@ Si algo deja de utilizarse, queda obsoleto o pertenece a una implementación des
 ```text
 se elimina
 ```
+
+
+## Acuerdos académicos y matrículas
+
+[ACADEMICO.md](ACADEMICO.md) documenta los acuerdos académicos, matrículas, expedientes, relación Persona–Usuario, ratificación y ámbitos aprobados. Estado funcional aprobado; implementación pendiente de acreditar. No equivale a funcionalidad terminada ni a documentación ya visible en la interfaz.
