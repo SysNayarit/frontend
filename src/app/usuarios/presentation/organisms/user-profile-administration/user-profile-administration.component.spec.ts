@@ -3,7 +3,7 @@ import {
   HttpTestingController,
   provideHttpClientTesting,
 } from "@angular/common/http/testing";
-import { TestBed } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { of, throwError } from "rxjs";
 import { vi } from "vitest";
 
@@ -12,7 +12,7 @@ import { AuthService } from "../../../../auth/auth.service";
 import { UserProfileAdministrationComponent } from "./user-profile-administration.component";
 
 describe("Administración institucional de perfiles", () => {
-  let component: UserProfileAdministrationComponent;
+  let component: UserProfileAdministrationComponent;   let fixture: ComponentFixture<UserProfileAdministrationComponent>;
   let http: HttpTestingController;
   let permissions: Set<string>;
   let reauthenticate: ReturnType<typeof vi.fn>;
@@ -64,7 +64,7 @@ describe("Administración institucional de perfiles", () => {
       ],
     }).compileComponents();
 
-    const fixture = TestBed.createComponent(
+    fixture = TestBed.createComponent(
       UserProfileAdministrationComponent,
     );
     component = fixture.componentInstance;
@@ -120,6 +120,73 @@ describe("Administración institucional de perfiles", () => {
     component.prepare("remove", 1);
 
     expect(component.pending()).toBeNull();
+  });
+
+  it("permite retirar el unico perfil predeterminado tras reautenticar", () => {
+    component.userInput.set("12");
+    component.findUser(new Event("submit"));
+
+    http.expectOne("/api/usuarios/12/perfiles").flush({
+      user_id: 12,
+      data: [assigned[0]],
+    });
+
+    http.expectOne("/api/perfiles").flush({
+      data: [
+        { id: 1, name: "Administrativo" },
+        { id: 2, name: "Consulta" },
+        { id: 3, name: "Operativo" },
+      ],
+    });
+
+    fixture.detectChanges();
+
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll("button")
+    ) as HTMLButtonElement[];
+
+    expect(
+      buttons.some(button => button.textContent?.trim() === "Retirar")
+    ).toBe(true);
+
+    component.prepare("remove", 1);
+
+    expect(component.pending()?.profileId).toBe(1);
+    http.expectNone("/api/usuarios/12/perfiles/1");
+
+    component.password.set("contrasena-local-de-prueba");
+    component.confirm(new Event("submit"));
+
+    expect(reauthenticate).toHaveBeenCalledOnce();
+
+    const request = http.expectOne(
+      "/api/usuarios/12/perfiles/1"
+    );
+
+    expect(request.request.method).toBe("DELETE");
+
+    request.flush({
+      user_id: 12,
+      profile_id: 1,
+      removed: true,
+    });
+
+    http.expectOne("/api/usuarios/12/perfiles").flush({
+      user_id: 12,
+      data: [],
+    });
+
+    http.expectOne("/api/perfiles").flush({
+      data: [
+        { id: 1, name: "Administrativo" },
+        { id: 2, name: "Consulta" },
+        { id: 3, name: "Operativo" },
+      ],
+    });
+
+    expect(component.assigned()).toHaveLength(0);
+    expect(component.pending()).toBeNull();
+    expect(notifyOtherTabs).toHaveBeenCalledWith("permissions");
   });
 
   it("asigna un perfil únicamente después de reautenticar", () => {

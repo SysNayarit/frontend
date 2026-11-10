@@ -85,7 +85,7 @@ interface ProfileResponse {
                   </span>
                 }
               </div>
-              @if (canManage() && !profile.is_default) {
+              @if (canManage() && (!profile.is_default || assigned().length === 1)) {
                 <button type="button" [disabled]="busy()"
                   class="siga-focus rounded-lg border px-3 py-2 text-sm"
                   (click)="prepare('remove', profile.id)">
@@ -228,7 +228,10 @@ export class UserProfileAdministrationComponent {
     if (!this.canManage() || this.busy() ||
       !Number.isSafeInteger(profileId) || profileId < 1) return;
     if (type === "remove" &&
-      !this.assigned().some(p => p.id === profileId && !p.is_default)) return;
+      !this.assigned().some(
+        p => p.id === profileId &&
+          (!p.is_default || this.assigned().length === 1)
+      )) return;
     if (type === "assign" &&
       !this.availableProfiles().some(p => p.id === profileId)) return;
 
