@@ -8,6 +8,10 @@ import {
 
 import { UserRole } from "../../../user-role.models";
 import {
+  exceedsRoleConcentrationThreshold,
+  roleConcentrationPercentage,
+} from "../../../application/security/role-concentration.policy";
+import {
   UserRoleConfirmationComponent,
   type UserRoleOperation,
 } from "../user-role-confirmation/user-role-confirmation.component";
@@ -55,6 +59,33 @@ import { UserRoleSelectorComponent } from "../../molecules/user-role-selector/us
           </button>
         }
       </div>
+
+      @if (user && !loading && !error && isConcentrationHigh()) {
+        <aside
+          role="status"
+          data-testid="role-concentration-warning"
+          class="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+        >
+          <p class="font-semibold">
+            Advertencia preventiva: concentración de roles
+          </p>
+          <p class="mt-2">
+            El usuario <strong>{{ user.name }}</strong> tiene
+            {{ roles.length }} de {{ totalRoles }} roles asignados
+            ({{ concentrationPercentage() }} %), superando el 60 %.
+          </p>
+          <p class="mt-2">
+            Esta acumulación de privilegios representa un riesgo
+            potencial de seguridad. Se recomienda revisar y delimitar
+            los roles conforme a las responsabilidades institucionales
+            y al principio de mínimo privilegio.
+          </p>
+          <p class="mt-2 text-xs">
+            Recomendación informativa: no bloquea la operación ni
+            modifica autorizaciones.
+          </p>
+        </aside>
+      }
 
       @if (user && canManageRoles && !loading && !error) {
         <div class="mt-5">
@@ -210,6 +241,7 @@ import { UserRoleSelectorComponent } from "../../molecules/user-role-selector/us
 export class UserRolesComponent {
   @Input() user: UserSummary | null = null;
   @Input() roles: readonly UserRole[] = [];
+  @Input() totalRoles: number | null = null;
   @Input() canManageRoles = false;
   @Input() roleSelectorOpen = false;
   @Input() roleCatalog: readonly UserRole[] = [];
@@ -223,6 +255,21 @@ export class UserRolesComponent {
   @Input() roleOperationError: string | null = null;
   @Input() loading = false;
   @Input() error: string | null = null;
+
+  isConcentrationHigh(): boolean {
+    return exceedsRoleConcentrationThreshold(
+      this.roles.length,
+      this.totalRoles
+    );
+  }
+
+  concentrationPercentage(): number {
+    const value = roleConcentrationPercentage(
+      this.roles.length,
+      this.totalRoles
+    );
+    return value === null ? 0 : Math.round(value * 10) / 10;
+  }
 
   @Output() readonly close = new EventEmitter<void>();
   @Output() readonly retry = new EventEmitter<void>();

@@ -225,6 +225,7 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
               <app-user-roles
                 [user]="selectedUser()"
                 [roles]="selectedRoles()"
+                [totalRoles]="totalRoles()"
                 [canManageRoles]="canManageRoles() && !accessProcessing()"
                 [loading]="rolesLoading()"
                 [error]="rolesError()"
@@ -445,6 +446,7 @@ export class UsersPageComponent implements OnInit {
 
   readonly selectedUser = signal<UserSummary | null>(null);
   readonly selectedRoles = signal<readonly UserRole[]>([]);
+  readonly totalRoles = signal<number | null>(null);
   readonly rolesLoading = signal(false);
   readonly rolesError = signal<string | null>(null);
 
@@ -879,6 +881,7 @@ export class UsersPageComponent implements OnInit {
     this.closeRoleSelector();
     this.selectedUser.set(user);
     this.selectedRoles.set([]);
+    this.totalRoles.set(null);
     this.loadUserRoles(user.id);
   }
 
@@ -893,6 +896,7 @@ export class UsersPageComponent implements OnInit {
     this.rolesRequestVersion++;
     this.selectedUser.set(null);
     this.selectedRoles.set([]);
+    this.totalRoles.set(null);
     this.rolesLoading.set(false);
     this.rolesError.set(null);
   }
@@ -924,6 +928,12 @@ export class UsersPageComponent implements OnInit {
           }
 
           this.selectedRoles.set(response.data);
+          this.totalRoles.set(
+            Number.isInteger(response.meta?.total_roles) &&
+            (response.meta?.total_roles ?? 0) > 0
+              ? response.meta!.total_roles
+              : null
+          );
           this.rolesLoading.set(false);
         },
         error: () => {
@@ -935,6 +945,7 @@ export class UsersPageComponent implements OnInit {
           }
 
           this.selectedRoles.set([]);
+          this.totalRoles.set(null);
           this.rolesError.set(
             "No fue posible consultar los roles del usuario.",
           );

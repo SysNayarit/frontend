@@ -6,6 +6,9 @@ export interface UserRole {
 
 export interface UserRoleListResponse {
   data: UserRole[];
+  meta?: {
+    total_roles: number;
+  };
 }
 
 export interface AssignUserRoleRequest {
