@@ -39,6 +39,22 @@ import { RouterLink, RouterLinkActive } from "@angular/router";
           Inicio
         </a>
 
+        @if (hasPermission("academico.organizacion.ver")) {
+          <a
+            routerLink="/academico/organizacion"
+            routerLinkActive="bg-[#611232] text-white shadow-sm"
+            data-testid="academic-organization-navigation"
+            class="siga-focus flex items-center gap-3 rounded-xl border border-[#98989a]/20 px-4 py-3 font-semibold text-[#611232] transition hover:bg-[#e6d194]/15"
+          >
+            <span
+              class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e6d194]/35"
+              aria-hidden="true"
+            >
+              A
+            </span>
+            Organización Académica
+          </a>
+        }
         @if (hasPermission("usuarios.ver")) {
           <a
             routerLink="/usuarios"

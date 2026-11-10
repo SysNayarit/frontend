@@ -9,6 +9,7 @@ import {
   perfilesViewGuard,
   usuariosViewGuard,
 } from "./auth/permission.guard";
+import { academicOrganizationViewGuard } from "./auth/permission.guard";
 import { HomeComponent } from "./home.component";
 
 import { AuthenticatedLayoutComponent } from "./shell/presentation/templates/authenticated-layout/authenticated-layout.component";
@@ -34,6 +35,14 @@ export const routes: Routes = [
     component: AuthenticatedLayoutComponent,
     canActivateChild: [authGuard],
     children: [
+      {
+        path: "academico/organizacion",
+        loadComponent: () =>
+          import("./academico/presentation/pages/academic-organization-page.component").then(
+            (module) => module.AcademicOrganizationPageComponent,
+          ),
+        canActivate: [academicOrganizationViewGuard],
+      },
       {
         path: "inicio",
         component: HomeComponent,
