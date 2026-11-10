@@ -227,6 +227,7 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
                 [roles]="selectedRoles()"
                 [totalRoles]="totalRoles()"
                 [canManageRoles]="canManageRoles() && !accessProcessing()"
+                [canRemoveRoles]="canRemoveRoles() && !accessProcessing()"
                 [loading]="rolesLoading()"
                 [error]="rolesError()"
                 (close)="closeUserRoles()"
@@ -477,6 +478,9 @@ export class UsersPageComponent implements OnInit {
   canManageRoles(): boolean {
     return this.authContext.hasPermission("usuarios.asignar_roles");
   }
+  canRemoveRoles(): boolean {
+    return this.authContext.hasPermission("usuarios.retirar_roles");
+  }
   ngOnInit(): void {
     this.loadPage(1);
   }
@@ -580,7 +584,7 @@ export class UsersPageComponent implements OnInit {
       (this.roleOperationProcessing() || this.accessProcessing()) ||
       user === null ||
       role === null ||
-      !this.canManageRoles() ||
+      !(this.selectedRoleOperation() === "remove" ? this.canRemoveRoles() : this.canManageRoles()) ||
       (this.selectedRoleOperation() === "assign" &&
         !this.authContext.hasPermission("roles.ver")) ||
       role.code === "ROL_ADMIN_SISTEMA" ||
@@ -700,7 +704,7 @@ export class UsersPageComponent implements OnInit {
     if (
       (this.roleOperationProcessing() || this.accessProcessing()) ||
       this.selectedUser() === null ||
-      !this.canManageRoles() ||
+      !this.canRemoveRoles() ||
       this.rolesLoading() ||
       this.rolesError() !== null ||
       role.code === "ROL_ADMIN_SISTEMA" ||

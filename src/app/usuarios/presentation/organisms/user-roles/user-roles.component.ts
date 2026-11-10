@@ -176,7 +176,7 @@ import { UserRoleSelectorComponent } from "../../molecules/user-role-selector/us
                 <p class="mt-3 inline-flex items-center rounded-full border border-[#e8d7aa] bg-[#faf3dc] px-3 py-1 text-xs font-semibold text-[#76561a]">
                   Rol administrativo protegido
                 </p>
-              } @else if (canManageRoles) {
+              } @else if (canRemoveRoles) {
                 <button
                   type="button"
                   data-testid="remove-user-role"
@@ -243,6 +243,7 @@ export class UserRolesComponent {
   @Input() roles: readonly UserRole[] = [];
   @Input() totalRoles: number | null = null;
   @Input() canManageRoles = false;
+  @Input() canRemoveRoles = false;
   @Input() roleSelectorOpen = false;
   @Input() roleCatalog: readonly UserRole[] = [];
   @Input() roleCatalogLoading = false;

@@ -214,6 +214,37 @@ describe("UserRolesComponent", () => {
     expect(requests).toBe(1);
   });
 
+  it("separa la asignacion del retiro individual", () => {
+    fixture.componentRef.setInput("user", user);
+    fixture.componentRef.setInput("roles", [{
+      id: 3,
+      code: "ROL_GESTOR_PERSONAS",
+      name: "Gestor de Personas",
+    }]);
+    fixture.componentRef.setInput("canManageRoles", true);
+    fixture.componentRef.setInput("canRemoveRoles", false);
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="assign-user-role"]')
+    ).not.toBeNull();
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="remove-user-role"]')
+    ).toBeNull();
+
+    fixture.componentRef.setInput("canManageRoles", false);
+    fixture.componentRef.setInput("canRemoveRoles", true);
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="assign-user-role"]')
+    ).toBeNull();
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="remove-user-role"]')
+    ).not.toBeNull();
+  });
   it("emite el rol ordinario seleccionado para retiro", () => {
     component.user = {
       id: 15,
@@ -232,6 +263,7 @@ describe("UserRolesComponent", () => {
 
     component.roles = [role];
     component.canManageRoles = true;
+    component.canRemoveRoles = true;
 
     const requestedRoles: number[] = [];
 
