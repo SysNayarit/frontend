@@ -1,6 +1,7 @@
 import { HttpClient } from "@angular/common/http";
+import { AuthService } from "../../../auth/auth.service";
 import { Component, inject, OnInit, signal } from "@angular/core";
-import { forkJoin } from "rxjs";
+import { forkJoin, switchMap } from "rxjs";
 
 type AcademicRow = Record<string, string | number | boolean | null>;
 
@@ -532,11 +533,32 @@ interface SigaPersonasExcelPreview {
                       }
                     }
 
-                    <button
+                                        <label
+                      for="siga-cadet-reauth-password"
+                      class="mt-4 block text-sm font-semibold text-[#611232]"
+                    >
+                      Contraseña institucional para confirmar el registro real
+                    </label>
+                    <input
+                      #sigaCadetPassword
+                      id="siga-cadet-reauth-password"
+                      data-testid="siga-cadet-reauth-password"
+                      type="password"
+                      autocomplete="current-password"
+                      (input)="cadetAuthorizationPasswordPresent.set(sigaCadetPassword.value.length > 0)"
+                      [disabled]="!canConfirmCadetIncorporation() || !cadetPreflightMatches() || cadetIncorporationLoading()"
+                      class="mt-2 w-full max-w-md rounded-lg border px-3 py-2 text-sm"
+                    />
+                    <p class="mt-1 text-xs text-gray-600">
+                      La contraseña solo se utiliza para reautenticar al
+                      operador; no se registra en los expedientes.
+                    </p>
+
+<button
                       data-testid="siga-cadet-incorporate-button"
                       type="button"
-                      (click)="confirmCadetIncorporation()"
-                      [disabled]="!canConfirmCadetIncorporation() || !cadetPreflightMatches() || cadetIncorporationLoading()"
+                      (click)="confirmCadetIncorporation(sigaCadetPassword.value); sigaCadetPassword.value = ''; cadetAuthorizationPasswordPresent.set(false)"
+                      [disabled]="!canConfirmCadetIncorporation() || !cadetPreflightMatches() || !cadetAuthorizationPasswordPresent() || cadetIncorporationLoading()"
                       class="mt-3 rounded-lg bg-[#611232] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
                     >
                       {{
@@ -774,6 +796,8 @@ export class AcademicOrganizationPageComponent implements OnInit {
     (SigaCadetPreflight & { file: File }) | null
   >(null);
 
+  // SIGA_CADETES_REAUTH_UI_V1
+  readonly cadetAuthorizationPasswordPresent = signal(false);
   readonly cadetIncorporationLoading = signal(false);
   readonly cadetIncorporationError = signal<string | null>(null);
   readonly cadetIncorporationResult =
@@ -788,6 +812,7 @@ export class AcademicOrganizationPageComponent implements OnInit {
   >(null);
 
   private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -843,6 +868,7 @@ export class AcademicOrganizationPageComponent implements OnInit {
     const file = input.files?.[0] ?? null;
 
     this.cadetRosterFile.set(file);
+    this.cadetAuthorizationPasswordPresent.set(false);
     this.cadetRosterPreview.set(null);
     this.cadetCorrections.set({});
     this.cadetRosterError.set(null);
@@ -1062,6 +1088,13 @@ export class AcademicOrganizationPageComponent implements OnInit {
     } | null;
 
     const file = this.cadetRosterFile();
+    // SIGA_GUARD_ORGANIZAR_EJEMPLOS_UI_V1
+    if (
+      file !== null &&
+      /ejempl|fictici|plantilla|demo|prueba/i.test(file.name)
+    ) {
+      return false;
+    }
 
     if (
       !file ||
@@ -1518,8 +1551,8 @@ export class AcademicOrganizationPageComponent implements OnInit {
     });
   }
 
-  confirmCadetIncorporation(): void {
-    if (!this.canConfirmCadetIncorporation() || !this.cadetPreflightMatches()) {
+  confirmCadetIncorporation(password: string): void {
+    if (!this.canConfirmCadetIncorporation() || !this.cadetPreflightMatches() || password.length === 0) {
       return;
     }
 
@@ -1559,9 +1592,11 @@ export class AcademicOrganizationPageComponent implements OnInit {
     this.cadetIncorporationError.set(null);
     this.cadetIncorporationResult.set(null);
 
-    this.http.post<{ data: SigaCadetIncorporationResult }>(
-      "/api/academico/importaciones/incorporar",
-      form
+    this.auth.reauthenticate(password).pipe(
+      switchMap(() => this.http.post<{ data: SigaCadetIncorporationResult }>(
+        "/api/academico/importaciones/incorporar",
+        form
+      ))
     ).subscribe({
       next: response => {
         const result = response.data;
@@ -1606,7 +1641,9 @@ export class AcademicOrganizationPageComponent implements OnInit {
             ? "La sesión no está autenticada."
             : status === 403
               ? "Falta un permiso o una reautenticación reciente."
-              : status === 419
+              : status === 423
+                ? "Es necesaria una reautenticacion institucional reciente."
+                : status === 419
                 ? "La sesión o el token de seguridad caducó."
                 : status === 422
                   ? "El archivo requiere revisión institucional."
