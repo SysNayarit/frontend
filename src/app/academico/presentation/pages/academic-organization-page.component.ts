@@ -96,6 +96,8 @@ interface SigaCadetPreflight {
   filas_procesadas: number;
   personas_nuevas_previstas: number;
   personas_reutilizables_previstas: number;
+  usuarios_nuevos_previstos: number;
+  filas_sin_correo_para_cuenta: number;
   filas: Array<{
     fila_excel: number;
     resultado: string;
@@ -497,7 +499,7 @@ interface SigaPersonasExcelPreview {
 
                     <p class="mt-3 text-xs text-gray-700">
                       El siguiente paso registra Personas y cadetes reales.
-                      No crea cuentas de Usuario ni asigna permisos.
+                      Crea o reutiliza Usuarios PENDIENTE y asigna PERFIL_CADETE. No asigna roles ni habilita accesos.
                     </p>
 
                     <button
@@ -527,6 +529,19 @@ interface SigaPersonasExcelPreview {
                           <p>Personas existentes reutilizables:
                             {{ preflight.personas_reutilizables_previstas }}
                           </p>
+                          <p>Usuarios nuevos previstos:
+                            {{ preflight.usuarios_nuevos_previstos }}
+                          </p>
+                          <p>Filas sin correo para crear Usuario:
+                            {{ preflight.filas_sin_correo_para_cuenta }}
+                          </p>
+                          @if (preflight.filas_sin_correo_para_cuenta > 0) {
+                            <p role="alert" class="mt-2 font-semibold text-red-800">
+                              No es posible confirmar este lote. Hay cadetes
+                              sin correo para crear su cuenta institucional.
+                              Corrige el Excel y vuelve a previsualizar.
+                            </p>
+                          }
                           <p>Personas creadas: 0</p>
                           <p>Cadetes incorporados: 0</p>
                         </div>
@@ -558,7 +573,7 @@ interface SigaPersonasExcelPreview {
                       data-testid="siga-cadet-incorporate-button"
                       type="button"
                       (click)="confirmCadetIncorporation(sigaCadetPassword.value); sigaCadetPassword.value = ''; cadetAuthorizationPasswordPresent.set(false)"
-                      [disabled]="!canConfirmCadetIncorporation() || !cadetPreflightMatches() || !cadetAuthorizationPasswordPresent() || cadetIncorporationLoading()"
+                      [disabled]="!canConfirmCadetIncorporation() || !cadetAccountsReady() || !cadetAuthorizationPasswordPresent() || cadetIncorporationLoading()"
                       class="mt-3 rounded-lg bg-[#611232] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
                     >
                       {{
@@ -1464,6 +1479,10 @@ export class AcademicOrganizationPageComponent implements OnInit {
           result.id_cohorte === organization.id_cohorte &&
           Array.isArray(result.filas) &&
           result.filas.length === result.filas_procesadas &&
+          Number.isInteger(result.usuarios_nuevos_previstos) &&
+          result.usuarios_nuevos_previstos >= 0 &&
+          Number.isInteger(result.filas_sin_correo_para_cuenta) &&
+          result.filas_sin_correo_para_cuenta >= 0 &&
           result.personas_nuevas_previstas +
             result.personas_reutilizables_previstas ===
             result.filas_procesadas
@@ -1551,8 +1570,22 @@ export class AcademicOrganizationPageComponent implements OnInit {
     });
   }
 
+  // SIGA_C1_CADETES_ACCESO_FRONTEND_V1
+  // El Backend es la autoridad final; este control previene
+  // confirmar lotes con cuentas incompletas desde Angular.
+  cadetAccountsReady(): boolean {
+    const check = this.cadetPreflight();
+
+    return (
+      this.cadetPreflightMatches() &&
+      check !== null &&
+      Number.isInteger(check.filas_sin_correo_para_cuenta) &&
+      check.filas_sin_correo_para_cuenta === 0
+    );
+  }
+
   confirmCadetIncorporation(password: string): void {
-    if (!this.canConfirmCadetIncorporation() || !this.cadetPreflightMatches() || password.length === 0) {
+    if (!this.canConfirmCadetIncorporation() || !this.cadetAccountsReady() || password.length === 0) {
       return;
     }
 
@@ -1574,7 +1607,7 @@ export class AcademicOrganizationPageComponent implements OnInit {
       `La operacion puede crear Personas institucionales, ` +
       `participantes academicos e incorporaciones con matricula.\n\n` +
       `No utilizara los 20 ejemplos ficticios.\n` +
-      `No creara Usuarios ni asignara permisos.\n\n` +
+      `Creara o reutilizara Usuarios y asignara PERFIL_CADETE. Las cuentas nuevas quedaran PENDIENTE, sin roles ni acceso habilitado.\n\n` +
       `¿Confirmas que son cadetes reales y autorizas el registro en SIGA?`;
 
     if (!window.confirm(message)) {
