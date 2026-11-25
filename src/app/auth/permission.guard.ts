@@ -5,7 +5,7 @@ import { catchError, map, of } from "rxjs";
 
 import { AuthContextService } from "./auth-context.service";
 
-function permissionGuard(permission: string): CanActivateFn {
+function permissionGuard(...permissions: string[]): CanActivateFn {
   return () => {
     const context = inject(AuthContextService);
 
@@ -13,7 +13,7 @@ function permissionGuard(permission: string): CanActivateFn {
 
     return context.refresh().pipe(
       map((user) =>
-        user.permissions.includes(permission)
+        permissions.every((permission) => user.permissions.includes(permission))
           ? true
           : router.parseUrl("/inicio"),
       ),
@@ -41,3 +41,5 @@ export const personasImportGuard = permissionGuard("personas.importar");
 export const usuariosViewGuard = permissionGuard("usuarios.ver");
 export const perfilesViewGuard = permissionGuard("perfiles.ver");
 export const academicOrganizationViewGuard = permissionGuard("academico.organizacion.ver");
+export const credentialQrValidateGuard = permissionGuard("credenciales.validar");
+export const credentialManagementGuard = permissionGuard("credenciales.emitir", "personas.ver");

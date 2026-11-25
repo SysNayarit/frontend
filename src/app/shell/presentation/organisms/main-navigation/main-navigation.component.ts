@@ -1,4 +1,4 @@
-﻿import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
+import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
 import { RouterLink, RouterLinkActive } from "@angular/router";
 
 @Component({
@@ -39,6 +39,39 @@ import { RouterLink, RouterLinkActive } from "@angular/router";
           Inicio
         </a>
 
+        @if (hasPermission("credenciales.emitir") && hasPermission("personas.ver")) {
+          <a routerLink="/credenciales/qr/generar" routerLinkActive="bg-[#611232] text-white" class="siga-focus flex items-center gap-3 rounded-xl border px-4 py-3 font-semibold text-[#611232]">Generar QR</a>
+        }
+        @if (hasPermission("credenciales.validar")) {
+          <a
+            routerLink="/credenciales/qr/validar"
+            routerLinkActive="bg-[#611232] text-white shadow-sm"
+            data-testid="credential-qr-navigation"
+            class="siga-focus flex items-center gap-3 rounded-xl border border-[#98989a]/20 px-4 py-3 font-semibold text-[#611232] transition hover:bg-[#e6d194]/15"
+          >
+            <span
+              class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e6d194]/35"
+              aria-hidden="true"
+            >QR</span>
+            <span>Validar credencial</span>
+          </a>
+        }
+        @if (hasPermission("eventos.ver")) {
+          <div class="space-y-1" data-testid="event-management-navigation">
+            <p class="px-4 pt-2 text-xs font-bold uppercase tracking-widest text-gray-500">
+              Eventos
+            </p>
+            <a
+              routerLink="/eventos/gestion"
+              routerLinkActive="bg-[#611232] text-white shadow-sm"
+              class="siga-focus flex items-center gap-3 rounded-xl border border-[#98989a]/20 px-4 py-3 font-semibold text-[#611232] transition hover:bg-[#e6d194]/15"
+            >
+              <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e6d194]/35"
+                    aria-hidden="true">E</span>
+              Gestión de Eventos
+            </a>
+          </div>
+        }
         @if (hasPermission("academico.organizacion.ver")) {
           <a
             routerLink="/academico/organizacion"

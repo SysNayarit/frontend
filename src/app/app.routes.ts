@@ -10,6 +10,8 @@ import {
   usuariosViewGuard,
 } from "./auth/permission.guard";
 import { academicOrganizationViewGuard } from "./auth/permission.guard";
+import { credentialQrValidateGuard } from "./auth/permission.guard";
+import { credentialManagementGuard } from "./auth/permission.guard";
 import { HomeComponent } from "./home.component";
 
 import { AuthenticatedLayoutComponent } from "./shell/presentation/templates/authenticated-layout/authenticated-layout.component";
@@ -35,6 +37,29 @@ export const routes: Routes = [
     component: AuthenticatedLayoutComponent,
     canActivateChild: [authGuard],
     children: [
+      {
+        path: "eventos/gestion",
+        loadComponent: () =>
+          import("./eventos/presentation/pages/event-management-page.component")
+            .then(m => m.EventManagementPageComponent),
+        canActivate: [authGuard],
+      },
+      {
+        path: "eventos/:evento/inscripciones",
+        loadComponent: () =>
+          import("./eventos/presentation/pages/event-registrations-page.component")
+            .then(m => m.EventRegistrationsPageComponent),
+        canActivate: [authGuard],
+      },
+      { path: "credenciales/qr/generar", loadComponent: () => import("./credenciales/presentation/pages/credential-qr-generator-page.component").then(m => m.CredentialQrGeneratorPageComponent), canActivate: [credentialManagementGuard] },
+      {
+        path: "credenciales/qr/validar",
+        loadComponent: () =>
+          import("./credenciales/presentation/pages/credential-qr-validator-page.component").then(
+            (module) => module.CredentialQrValidatorPageComponent,
+          ),
+        canActivate: [credentialQrValidateGuard],
+      },
       {
         path: "academico/organizacion",
         loadComponent: () =>
