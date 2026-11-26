@@ -41,5 +41,6 @@ export const personasImportGuard = permissionGuard("personas.importar");
 export const usuariosViewGuard = permissionGuard("usuarios.ver");
 export const perfilesViewGuard = permissionGuard("perfiles.ver");
 export const academicOrganizationViewGuard = permissionGuard("academico.organizacion.ver");
+export const academicTrainersViewGuard = permissionGuard("academico.formadores.ver");
 export const credentialQrValidateGuard = permissionGuard("credenciales.validar");
 export const credentialManagementGuard = permissionGuard("credenciales.emitir", "personas.ver");

@@ -13,7 +13,7 @@ import {
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { switchMap, type Observable } from "rxjs";
-import { HttpErrorResponse } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { AuthContextService } from "../../../../auth/auth-context.service";
 import { AuthService } from "../../../../auth/auth.service";
 
@@ -204,7 +204,7 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
         <app-user-list
           [users]="users()"
           [selectedUserId]="selectedUser()?.id ?? null"
-          [detailTemplate]="detalleUsuario"
+          [detailTemplate]="null"
           (userSelected)="selectUser($event)"
         />
 
@@ -222,6 +222,95 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
 
             @if (selectedUser()) {
               <app-user-access-panel [user]="selectedUser()!" [roles]="selectedRoles()" [rolesLoading]="rolesLoading()" [rolesError]="rolesError()" [blocked]="roleOperationProcessing()" (busy)="accessProcessing.set($event)" (changed)="accessChanged($event)" />
+              @if (canDeliverCadetCredential()) {
+                <section
+                  data-testid="siga-initial-credential"
+                  class="mt-4 rounded-xl border border-[#a57f2c]/40 bg-white p-4"
+                >
+                  <h3 class="font-semibold text-[#611232]">
+                    Entrega presencial de credencial inicial
+                  </h3>
+
+                  <p class="mt-2 text-sm text-gray-600">
+                    Solo para cadetes con cuenta PENDIENTE.
+                    Verifica personalmente al titular antes de emitir.
+                    No se habilita la cuenta con esta operacion.
+                  </p>
+
+                  <label class="mt-3 flex items-start gap-2 text-sm">
+                    <input
+                      #verifiedRecipient
+                      type="checkbox"
+                      [checked]="initialRecipientVerified()"
+                      (change)="initialRecipientVerified.set(verifiedRecipient.checked)"
+                    />
+                    He verificado la identidad y el titular esta presente.
+                  </label>
+
+                  <label
+                    for="siga-credential-operator-password"
+                    class="mt-3 block text-sm font-semibold"
+                  >
+                    Contraseña institucional del operador
+                  </label>
+
+                  <input
+                    #operatorPassword
+                    id="siga-credential-operator-password"
+                    type="password"
+                    autocomplete="current-password"
+                    [disabled]="initialPasswordLoading()"
+                    (input)="initialOperatorPasswordPresent.set(operatorPassword.value.length > 0)"
+                    class="mt-2 block w-full max-w-md rounded-lg border p-3"
+                  />
+
+                  <button
+                    type="button"
+                    (click)="issueInitialPassword(operatorPassword.value); operatorPassword.value = ''; initialOperatorPasswordPresent.set(false)"
+                    [disabled]="!initialRecipientVerified() || !initialOperatorPasswordPresent() || initialPasswordLoading() || initialPassword() !== null"
+                    class="mt-3 rounded-lg bg-[#611232] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                  >
+                    {{ initialPasswordLoading()
+                      ? "Generando..."
+                      : "Generar para entrega presencial" }}
+                  </button>
+
+                  @if (initialPasswordError(); as message) {
+                    <p role="alert" class="mt-3 text-sm text-red-800">
+                      {{ message }}
+                    </p>
+                  }
+
+                  @if (initialPassword(); as secret) {
+                    <div
+                      role="status"
+                      class="mt-4 rounded-lg border border-amber-400 p-4"
+                    >
+                      <p class="font-semibold">
+                        Contraseña inicial: mostrar una sola vez
+                      </p>
+
+                      <p class="mt-2 break-all font-mono text-lg">
+                        {{ secret }}
+                      </p>
+
+                      <p class="mt-2 text-xs text-gray-700">
+                        Entrega directamente al titular verificado.
+                        No tomes capturas ni generes reportes de credenciales.
+                        Al ocultarla, no podra recuperarse.
+                      </p>
+
+                      <button
+                        type="button"
+                        (click)="initialPassword.set(null)"
+                        class="mt-3 rounded-lg border px-3 py-2 font-semibold"
+                      >
+                        Ocultar contraseña entregada
+                      </button>
+                    </div>
+                  }
+                </section>
+              }
               <app-user-roles
                 [user]="selectedUser()"
                 [roles]="selectedRoles()"
@@ -253,8 +342,21 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
             }
           </div>
         </ng-template>
-        @if (selectedUser() && !selectedUserVisible()) {
-          <ng-container [ngTemplateOutlet]="detalleUsuario" />
+        @if (selectedUser()) {
+          <section
+            data-testid="siga-user-administration-detail"
+            aria-label="Administracion del usuario seleccionado"
+            class="mt-4 min-w-0"
+          >
+            <p
+              role="status"
+              class="mb-3 rounded-lg border border-[#a57f2c]/30 bg-white p-3 text-sm text-[#611232]"
+            >
+              Detalle administrativo abierto.
+              El directorio institucional permanece visible arriba.
+            </p>
+            <ng-container [ngTemplateOutlet]="detalleUsuario" />
+          </section>
         }
 
         <app-users-pagination
@@ -271,10 +373,105 @@ import { UsersPaginationComponent } from "../../molecules/users-pagination/users
 export class UsersPageComponent implements OnInit {
   private readonly authContext = inject(AuthContextService);
   private readonly authService = inject(AuthService);
+  private readonly credentialHttp = inject(HttpClient);
   private readonly userService = inject(UserService);
   private readonly userRoleService = inject(UserRoleService);
   private readonly destroyRef = inject(DestroyRef);
 
+  // SIGA_C1_ENTREGA_PRESENCIAL_UI_V1
+  readonly initialPassword = signal<string | null>(null);
+  readonly initialPasswordError = signal<string | null>(null);
+  readonly initialPasswordLoading = signal(false);
+  readonly initialRecipientVerified = signal(false);
+  readonly initialOperatorPasswordPresent = signal(false);
+
+  canDeliverCadetCredential(): boolean {
+    const target = this.selectedUser();
+
+    return (
+      target !== null &&
+      target.access_status === "PENDIENTE" &&
+      target.email.toLowerCase().endsWith("@institucion.mx") &&
+      this.authContext.hasPermission("usuarios.ver") &&
+      this.authContext.hasPermission("usuarios.crear") &&
+      this.authContext.hasPermission("usuarios.habilitar")
+    );
+  }
+
+  issueInitialPassword(operatorPassword: string): void {
+    const target = this.selectedUser();
+
+    if (
+      !target ||
+      !this.canDeliverCadetCredential() ||
+      !this.initialRecipientVerified() ||
+      !operatorPassword ||
+      this.initialPasswordLoading() ||
+      this.accessProcessing() ||
+      this.roleOperationProcessing()
+    ) {
+      return;
+    }
+
+    const userId = target.id;
+
+    if (!window.confirm(
+      `Confirmar identidad verificada presencialmente.\n\n` +
+      `Usuario: ${target.email}\n\n` +
+      `SIGA generara una nueva contraseña para entrega directa. ` +
+      `La anterior dejara de funcionar.`
+    )) {
+      return;
+    }
+
+    this.initialPassword.set(null);
+    this.initialPasswordError.set(null);
+    this.initialPasswordLoading.set(true);
+
+    this.authService.reauthenticate(operatorPassword).pipe(
+      switchMap(() => this.credentialHttp.post<{
+        usuario_id: number;
+        password_inicial: string;
+        mostrar_una_vez: boolean;
+      }>(
+        `/api/usuarios/${userId}/credencial-inicial`,
+        { entrega_presencial_confirmada: true }
+      )),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: response => {
+        if (
+          this.selectedUser()?.id !== userId ||
+          response.usuario_id !== userId ||
+          response.mostrar_una_vez !== true ||
+          !/^[a-f0-9]{40}$/.test(response.password_inicial)
+        ) {
+          this.initialPasswordError.set(
+            "La respuesta no pudo verificarse. " +
+            "No reintentes sin revisar la cuenta."
+          );
+        } else {
+          this.initialPassword.set(response.password_inicial);
+        }
+
+        this.initialPasswordLoading.set(false);
+        this.initialRecipientVerified.set(false);
+      },
+      error: (error: unknown) => {
+        const status = error instanceof HttpErrorResponse
+          ? error.status
+          : 0;
+
+        this.initialPasswordError.set(
+          `La credencial no pudo entregarse (HTTP ${status}). ` +
+          "Comprueba la sesion, permisos y estado del usuario."
+        );
+
+        this.initialPasswordLoading.set(false);
+        this.initialRecipientVerified.set(false);
+      },
+    });
+  }
   readonly accessProcessing = signal(false);
   readonly accessRefreshError = signal<string | null>(null);
   private accessRefreshVersion = 0;
@@ -469,12 +666,7 @@ export class UsersPageComponent implements OnInit {
 
   private roleCatalogRequestVersion = 0;
 
-  selectedUserVisible(): boolean {
-    const selected = this.selectedUser();
-    return (
-      selected !== null && this.users().some((user) => user.id === selected.id)
-    );
-  }
+
   canManageRoles(): boolean {
     return this.authContext.hasPermission("usuarios.asignar_roles");
   }
@@ -871,7 +1063,11 @@ export class UsersPageComponent implements OnInit {
       });
   }
   selectUser(user: UserSummary): void {
-    if ((this.roleOperationProcessing() || this.accessProcessing())) {
+    if (
+      this.roleOperationProcessing() ||
+      this.accessProcessing() ||
+      this.initialPasswordLoading()
+    ) {
       return;
     }
 
@@ -879,6 +1075,11 @@ export class UsersPageComponent implements OnInit {
       this.closeUserRoles();
       return;
     }
+
+    this.initialPassword.set(null);
+    this.initialPasswordError.set(null);
+    this.initialRecipientVerified.set(false);
+    this.initialOperatorPasswordPresent.set(false);
 
     this.roleOperationNotice.set(null);
     this.closeRoleConfirmation();
@@ -890,7 +1091,11 @@ export class UsersPageComponent implements OnInit {
   }
 
   closeUserRoles(): void {
-    if ((this.roleOperationProcessing() || this.accessProcessing())) {
+    if (
+      this.roleOperationProcessing() ||
+      this.accessProcessing() ||
+      this.initialPasswordLoading()
+    ) {
       return;
     }
 
@@ -898,6 +1103,10 @@ export class UsersPageComponent implements OnInit {
     this.closeRoleConfirmation();
     this.closeRoleSelector();
     this.rolesRequestVersion++;
+    this.initialPassword.set(null);
+    this.initialPasswordError.set(null);
+    this.initialRecipientVerified.set(false);
+    this.initialOperatorPasswordPresent.set(false);
     this.selectedUser.set(null);
     this.selectedRoles.set([]);
     this.totalRoles.set(null);

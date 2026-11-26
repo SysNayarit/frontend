@@ -705,6 +705,25 @@ describe("UsersPageComponent", () => {
     expect(component.selectedUser()?.id).toBe(1);
     expect(component.rolesLoading()).toBe(true);
 
+    // La tabla debe permanecer visible al abrir Administrar.
+    expect(
+      fixture.nativeElement.querySelector("app-user-list")
+    ).not.toBeNull();
+
+    expect(
+      fixture.nativeElement.querySelectorAll('[data-testid="user-row"]').length
+    ).toBe(1);
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="user-inline-detail"]')
+    ).toBeNull();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="siga-user-administration-detail"]'
+      )
+    ).not.toBeNull();
+
     const request = http.expectOne("/api/usuarios/1/roles");
 
     expect(request.request.method).toBe("GET");
@@ -889,7 +908,11 @@ describe("UsersPageComponent", () => {
   });
 
   it("muestra controles para roles ordinarios con permiso", () => {
-    loadAuthenticatedUser(["usuarios.ver", "usuarios.asignar_roles"]);
+    loadAuthenticatedUser([
+      "usuarios.ver",
+      "usuarios.asignar_roles",
+      "usuarios.retirar_roles",
+    ]);
 
     fixture.detectChanges();
     respond(1, 1, 1);
@@ -919,6 +942,35 @@ describe("UsersPageComponent", () => {
     ).not.toBeNull();
   });
 
+  it("mantiene separado el permiso para retirar roles", () => {
+    loadAuthenticatedUser(["usuarios.ver", "usuarios.asignar_roles"]);
+
+    fixture.detectChanges();
+    respond(1, 1, 1);
+
+    component.selectUser(component.users()[0]);
+
+    http.expectOne("/api/usuarios/1/roles").flush({
+      data: [{
+        id: 3,
+        code: "ROL_GESTOR_PERSONAS",
+        name: "Gestor de Personas",
+      }],
+    });
+
+    fixture.detectChanges();
+
+    expect(component.canManageRoles()).toBe(true);
+    expect(component.canRemoveRoles()).toBe(false);
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="assign-user-role"]')
+    ).not.toBeNull();
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="remove-user-role"]')
+    ).toBeNull();
+  });
   it("protege el retiro del rol administrativo aun con permiso", () => {
     loadAuthenticatedUser(["usuarios.ver", "usuarios.asignar_roles"]);
 
@@ -1145,6 +1197,7 @@ describe("UsersPageComponent", () => {
     prepareUserForCatalog([
       "usuarios.ver",
       "usuarios.asignar_roles",
+      "usuarios.retirar_roles",
       "roles.ver",
     ]);
 

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
+import { RouterLink } from "@angular/router";
 
 import { AuthContextService } from "./auth/auth-context.service";
 import { authenticatedUserDisplayName } from "./auth/authenticated-user-display-name";
@@ -6,6 +7,7 @@ import { authenticatedUserDisplayName } from "./auth/authenticated-user-display-
 @Component({
   selector: "app-home",
   standalone: true,
+  imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6">
@@ -89,6 +91,23 @@ import { authenticatedUserDisplayName } from "./auth/authenticated-user-display-
           }
         </div>
       </section>
+
+      @if (user()?.permissions?.includes("academico.cadete.contexto.ver")) {
+        <section class="rounded-2xl border border-[#611232]/20 bg-white p-6 shadow-sm">
+          <h3 class="text-xl font-bold text-[#611232]">
+            Mi contexto académico
+          </h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Consulta tu generación, grupo y matrícula institucional.
+          </p>
+          <a
+            routerLink="/academico/mi-contexto"
+            class="mt-4 inline-block rounded-lg bg-[#611232] px-4 py-2 text-sm font-semibold text-white"
+          >
+            Abrir mi contexto académico
+          </a>
+        </section>
+      }
 
       <section
         class="rounded-2xl border border-[#e6d194]/60 bg-white p-6 shadow-sm sm:p-8"

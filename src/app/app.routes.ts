@@ -1,4 +1,5 @@
 import { Routes } from "@angular/router";
+import { academicTrainersViewGuard } from "./auth/permission.guard";
 import { AccessStatusPageComponent } from "./auth/access-status-page.component";
 
 import { authGuard } from "./auth/auth.guard";
@@ -59,6 +60,70 @@ export const routes: Routes = [
             (module) => module.CredentialQrValidatorPageComponent,
           ),
         canActivate: [credentialQrValidateGuard],
+      },
+      {
+        path: "academico/evaluacion-docente/preparacion",
+        loadComponent: () =>
+          import("./academico/presentation/pages/academic-teacher-evaluation-readiness-page.component").then(
+            (module) => module.AcademicTeacherEvaluationReadinessPageComponent,
+          ),
+        canActivate: [
+          academicOrganizationViewGuard,
+          academicTrainersViewGuard,
+        ],
+      },
+      {
+        path: "academico/evaluacion-docente",
+        redirectTo: "academico/mi-contexto",
+      },
+      {
+        path: "academico/formadores/consulta",
+        loadComponent: () =>
+          import("./academico/presentation/pages/academic-formadores-consulta-page.component").then(
+            (module) => module.AcademicFormadoresConsultaPageComponent,
+          ),
+        canActivate: [academicTrainersViewGuard],
+      },
+      {
+        path: "academico/formadores",
+        loadComponent: () =>
+          import("./academico/presentation/pages/academic-trainers-page.component").then(
+            (module) => module.AcademicTrainersPageComponent,
+          ),
+        canActivate: [academicTrainersViewGuard],
+      },
+      {
+        path: "academico/mi-contexto",
+        loadComponent: () =>
+          import("./academico/presentation/pages/cadet-context-evaluation-page.component").then(
+            (module) => module.CadetContextEvaluationPageComponent,
+          ),
+      },
+      {
+        path: "academico/importaciones/materias",
+        loadComponent: () =>
+          import("./academico/presentation/pages/academic-bulk-catalog-preview-page.component").then(
+            (module) => module.AcademicBulkCatalogPreviewPageComponent,
+          ),
+        canActivate: [academicOrganizationViewGuard],
+        data: { catalogo: "materias" },
+      },
+      {
+        path: "academico/importaciones/formadores",
+        loadComponent: () =>
+          import("./academico/presentation/pages/academic-bulk-catalog-preview-page.component").then(
+            (module) => module.AcademicBulkCatalogPreviewPageComponent,
+          ),
+        canActivate: [academicTrainersViewGuard],
+        data: { catalogo: "formadores" },
+      },
+      {
+        path: "academico/organizacion/horarios",
+        loadComponent: () =>
+          import("./academico/presentation/pages/academic-class-schedule-page.component").then(
+            (module) => module.AcademicClassSchedulePageComponent,
+          ),
+        canActivate: [academicOrganizationViewGuard],
       },
       {
         path: "academico/organizacion",

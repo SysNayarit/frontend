@@ -3,6 +3,7 @@ import {
   Component,
   inject,
   OnInit,
+  signal,
 } from "@angular/core";
 import { Router, RouterOutlet } from "@angular/router";
 
@@ -78,6 +79,31 @@ import { MainNavigationComponent } from "../../organisms/main-navigation/main-na
       <main
         class="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8 lg:py-10"
       >
+        @if (
+          passwordReminderVisible() &&
+          user()?.email?.endsWith("@institucion.mx")
+        ) {
+          <div
+            role="status"
+            data-testid="siga-password-reminder"
+            class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#a57f2c]/40 bg-white p-4 text-sm shadow-sm"
+          >
+            <p>
+              Por seguridad, recuerda modificar tu contraseña
+              institucional cuando te sea posible.
+              Puedes continuar utilizando SIGA sin cambiarla ahora.
+            </p>
+
+            <button
+              type="button"
+              (click)="passwordReminderVisible.set(false)"
+              class="rounded-lg border px-3 py-2 font-semibold"
+            >
+              Entendido
+            </button>
+          </div>
+        }
+
         <div class="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
           <aside>
             <app-main-navigation [permissions]="user()?.permissions ?? []" />
@@ -109,6 +135,9 @@ export class AuthenticatedLayoutComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly user = this.context.user;
+
+  // SIGA_C1_RECORDATORIO_PASSWORD_V1
+  readonly passwordReminderVisible = signal(true);
 
   ngOnInit(): void {
     this.context.ensureCurrent().subscribe({

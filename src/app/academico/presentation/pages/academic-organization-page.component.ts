@@ -1,7 +1,8 @@
+import { AcademicOrganizationNavigationComponent } from "../components/academic-organization-navigation.component";
 import { HttpClient } from "@angular/common/http";
 import { AuthService } from "../../../auth/auth.service";
 import { Component, inject, OnInit, signal } from "@angular/core";
-import { forkJoin, switchMap } from "rxjs";
+import { firstValueFrom, forkJoin, switchMap } from "rxjs";
 
 type AcademicRow = Record<string, string | number | boolean | null>;
 
@@ -28,6 +29,7 @@ interface CadetNameParts {
 
 interface CadetExcelRow {
   fila_excel: number;
+  grupo?: string | number;
   nombre_completo: string;
   nombre_desglosado: CadetNameParts | null;
   requiere_revision_nombre: boolean;
@@ -101,6 +103,8 @@ interface SigaCadetPreflight {
   filas: Array<{
     fila_excel: number;
     resultado: string;
+    cuenta_pendiente_correo: boolean;
+    usuario_nuevo_previsto: boolean;
   }>;
 }
 
@@ -154,11 +158,12 @@ interface SigaPersonasExcelPreview {
   confirmacion_habilitada: boolean;
 }
 @Component({
-  imports: [],
+  imports: [AcademicOrganizationNavigationComponent],
   selector: "app-academic-organization-page",
   standalone: true,
   template: `
     <main class="space-y-6">
+        <app-academic-organization-navigation />
       <header class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
         <p class="text-xs font-semibold uppercase tracking-widest text-[#9b2247]">
           Administración académica
@@ -189,12 +194,12 @@ interface SigaPersonasExcelPreview {
         </h2>
 
         <p class="mt-2 text-sm text-gray-600">
-          Valida el archivo y revisa nombres y apellidos antes
-          de registrar identidades institucionales.
+          Selecciona el archivo. SIGA validará los datos
+          y consultará automáticamente los registros institucionales.
         </p>
 
         <label for="cadet-excel" class="mt-4 block font-semibold">
-          Archivo XLSX
+          Archivo Excel (.xlsx)
         </label>
 
         <input
@@ -206,539 +211,236 @@ interface SigaPersonasExcelPreview {
           class="mt-2 block w-full rounded-lg border p-3"
         />
 
-        <button data-testid="siga-cadet-validate-button"
+        <button
+          data-testid="siga-cadet-validate-button"
           type="button"
-          [disabled]="!cadetRosterFile() || cadetRosterLoading()"
           (click)="validateCadetRoster()"
-          class="mt-4 rounded-lg bg-[#611232] px-4 py-2 font-semibold text-white disabled:opacity-50"
+          [disabled]="!cadetRosterFile() || cadetRosterLoading() || cadetExistingLookupLoading() || cadetPreflightLoading()"
+          class="mt-4 rounded-lg bg-[#611232] px-5 py-3 font-semibold text-white disabled:opacity-40"
         >
-          {{
-            cadetRosterLoading()
-              ? "Validando..."
-              : "Validar archivo Excel"
-          }}
+          {{ cadetRosterLoading() ? "Validando..." : "Validar archivo Excel" }}
         </button>
 
-        @if (cadetRosterError()) {
-          <p role="alert" class="mt-4 text-sm text-red-700">
-            {{ cadetRosterError() }}
+        @if (cadetRosterError(); as message) {
+          <p role="alert" class="mt-3 text-sm text-red-800">
+            {{ message }}
           </p>
         }
 
-        @if (cadetRosterPreview(); as preview) {
-          <div
-            data-testid="siga-personas-excel-preview"
-            class="mt-5 rounded-xl border border-[#611232]/20 p-4"
-          >
-            <h3 class="font-semibold text-[#611232]">
-              Registro de Personas desde Excel
+        @if (cadetRosterPreview(); as report) {
+          <div class="mt-5 space-y-4">
+            <h3 class="text-lg font-semibold text-[#611232]">
+              Resultado de validación
             </h3>
 
-            <p class="mt-2 text-sm text-gray-600">
-              SIGA analiza las columnas de identidad, comprueba duplicados
-              y consulta Personas existentes. Esta revisión no crea
-              lotes, Personas ni Usuarios.
-            </p>
-
-            <button
-              type="button"
-              data-testid="siga-personas-preview-button"
-              (click)="previsualizarPersonasExcel()"
-              [disabled]="personasExcelPreviewLoading() || cadetRosterLoading()"
-              class="mt-3 rounded-lg border border-[#611232] px-4 py-2 text-sm font-semibold text-[#611232] disabled:opacity-40"
-            >
-              {{
-                personasExcelPreviewLoading()
-                  ? "Consultando Personas..."
-                  : "Previsualizar Personas"
-              }}
-            </button>
-
-            @if (personasExcelPreviewError(); as message) {
-              <p role="alert" class="mt-3 text-sm text-red-800">
-                {{ message }}
-              </p>
-            }
-
-            @if (personasExcelPreview(); as result) {
-              @if (personasExcelPreviewFile() === cadetRosterFile()) {
-                <div role="status" class="mt-4 rounded-lg bg-gray-50 p-4 text-sm">
-                  <p class="font-semibold text-[#611232]">
-                    Previsualización institucional de Personas
-                  </p>
-
-                  <div class="mt-3 grid grid-cols-2 gap-3">
-                    <p>Filas analizadas: {{ result.resumen.total }}</p>
-                    <p>Válidas: {{ result.resumen.validas }}</p>
-                    <p>Inválidas: {{ result.resumen.invalidas }}</p>
-                    <p>
-                      Candidatas nuevas:
-                      {{ result.resumen.candidatas_nuevas }}
-                    </p>
-                    <p>
-                      Personas existentes:
-                      {{ result.resumen.existentes_por_identificador }}
-                    </p>
-                    <p>
-                      Duplicadas en Excel:
-                      {{ result.resumen.duplicadas_en_excel }}
-                    </p>
-                    <p>
-                      Sin RFC ni CURP:
-                      {{ result.resumen.sin_rfc_ni_curp }}
-                    </p>
-                  </div>
-
-                  <p class="mt-3 font-semibold text-amber-800">
-                    Registro definitivo: NO AUTORIZADO desde esta revisión.
-                  </p>
-                  <p>Personas creadas: 0</p>
-                  <p>Usuarios creados: 0</p>
-                  <p>Lotes creados: 0</p>
-                </div>
-
-                @if (
-                  result.resumen.invalidas > 0 ||
-                  result.resumen.duplicadas_en_excel > 0 ||
-                  result.resumen.existentes_por_identificador > 0 ||
-                  result.resumen.sin_rfc_ni_curp > 0
-                ) {
-                  <div class="mt-4 rounded-lg border p-3 text-sm">
-                    <p class="font-semibold">
-                      Filas que necesitan revisión
-                    </p>
-
-                    @for (row of result.filas; track row.fila_excel) {
-                      @if (row.estado !== "CANDIDATA_NUEVA") {
-                        <p class="mt-2 border-t pt-2">
-                          Fila {{ row.fila_excel }}:
-                          {{ row.estado }}
-                          @if (row.campos_con_error.length > 0) {
-                            ({{ row.campos_con_error.join(", ") }})
-                          }
-                        </p>
-                      }
-                    }
-                  </div>
-                }
-              }
-            }
-          </div>
-
-          <!-- Previsualizacion preliminar del mismo Excel: sin escrituras -->
-          <div
-            data-testid="siga-precheck-sin-cohorte"
-            class="mt-5 rounded-xl border border-[#611232]/20 p-4"
-          >
-            <h3 class="font-semibold text-[#611232]">
-              Previsualización de incorporación sin registrar cohorte
-            </h3>
-            <p class="mt-2 text-sm text-gray-600">
-              Comprueba las filas, los grupos y la conciliación institucional.
-              Funciona también con archivos de ejemplo y no crea registros.
-              Esta revisión no autoriza el alta real de cadetes.
-            </p>
-
-            <button
-              type="button"
-              data-testid="siga-cadet-precheck-without-cohort"
-              (click)="previsualizarCadetesSinCohorte()"
-              [disabled]="precheckSinCohorteLoading() || cadetRosterLoading()"
-              class="mt-3 rounded-lg border border-[#611232] px-4 py-2 text-sm font-semibold text-[#611232] disabled:opacity-40"
-            >
-              {{
-                precheckSinCohorteLoading()
-                  ? "Consultando..."
-                  : "Previsualizar sin registrar"
-              }}
-            </button>
-
-            @if (precheckSinCohorteError(); as message) {
-              <p role="alert" class="mt-3 text-sm text-red-800">
-                {{ message }}
-              </p>
-            }
-
-            @if (precheckSinCohorte(); as check) {
-              @if (precheckSinCohorteArchivo() === cadetRosterFile()) {
-                <div role="status" class="mt-4 rounded-lg bg-gray-50 p-4 text-sm">
-                  <p class="font-semibold text-[#611232]">
-                    Revisión de solo lectura completada
-                  </p>
-                  <p>Filas analizadas: {{ check.filas_procesadas }}</p>
-                  <p>Filas válidas: {{ check.resumen.validos }}</p>
-                  <p>Con observaciones: {{ check.resumen.con_observaciones }}</p>
-                  <p>Con errores: {{ check.resumen.con_errores }}</p>
-                  <p>
-                    Generación: {{ check.academia.numero_generacion }}
-                    · Año: {{ check.academia.anio_generacion }}
-                  </p>
-                  <p>Grupos declarados: {{ check.grupos.join(", ") }}</p>
-                  <p class="mt-2 font-semibold">
-                    Personas creadas: 0 · Incorporaciones creadas: 0
-                  </p>
-                  <p class="text-amber-800">
-                    Confirmación de altas: NO HABILITADA desde esta revisión.
-                  </p>
-                </div>
-
-                <div class="mt-4">
-                  <h4 class="text-sm font-semibold">Conciliación institucional</h4>
-                  @for (entry of precheckSinCohorteConciliacion(); track entry[0]) {
-                    <p class="mt-1 text-sm">
-                      {{ entry[0] }}: {{ entry[1] }}
-                    </p>
-                  }
-                </div>
-
-                @if (check.resumen.con_observaciones > 0) {
-                  <div class="mt-4 rounded-lg border p-3">
-                    <h4 class="text-sm font-semibold">
-                      Filas que necesitan revisión
-                    </h4>
-                    @for (row of check.filas; track row.fila_excel) {
-                      @if (row.advertencias.length > 0) {
-                        <div class="mt-2 border-t pt-2 text-sm">
-                          <p>Fila Excel {{ row.fila_excel }} · Grupo {{ row.grupo }}</p>
-                          @for (warning of row.advertencias; track $index) {
-                            <p class="text-amber-800">{{ warning }}</p>
-                          }
-                        </div>
-                      }
-                    }
-                  </div>
-                }
-              }
-            }
-          </div>
-
-
-          @if (cadetAcademyInfo(); as academy) {
-            <section class="mt-5 rounded-xl border bg-white p-4">
-              <h3 class="font-semibold text-[#611232]">
-                Organización académica del Excel
-              </h3>
-
-              <p class="mt-2 text-sm">
-                Programa: {{ academy.nombre_programa }}
-                ({{ academy.codigo_programa }})
-              </p>
-
-              <p class="mt-1 text-sm">
-                Generación: {{ academy.numero_generacion }}
-                · Año: {{ academy.anio_generacion ?? "Pendiente" }}
-              </p>
-
-              <p class="mt-1 text-sm">
-                Grupos iniciales: {{ academy.grupos_iniciales.length }}
-              </p>
-
-              @for (group of academy.grupos_iniciales; track group.codigo) {
-                <p class="mt-1 text-sm">
-                  Grupo {{ group.codigo }}
-                  · {{ group.especializacion ?? "Formación inicial, sin perfilación" }}
+            <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div class="rounded-lg bg-gray-50 p-3">
+                <p class="text-xs">Registros encontrados</p>
+                <p class="text-2xl font-bold">
+                  {{ report.summary.total }}
                 </p>
-              }
+              </div>
 
-              @for (warning of academy.advertencias; track warning) {
-                <p class="mt-2 text-sm text-amber-800">
-                  {{ warning }}
+              <div class="rounded-lg bg-gray-50 p-3">
+                <p class="text-xs">Sin observaciones</p>
+                <p class="text-2xl font-bold">
+                  {{ report.summary.validos }}
                 </p>
-              }
+              </div>
 
-              @for (error of academy.errores; track error) {
-                <p class="mt-2 text-sm text-red-800">
-                  {{ error }}
+              <div class="rounded-lg bg-gray-50 p-3">
+                <p class="text-xs">Con observaciones</p>
+                <p class="text-2xl font-bold">
+                  {{ report.summary.con_observaciones }}
                 </p>
-              }
+              </div>
 
-              <p class="mt-4 text-xs text-gray-600">
-                Esta acción registra o reutiliza el programa, la generación
-                y los grupos en SIGA. No incorpora cadetes ni crea cuentas.
-                No utilices el archivo de ejemplos ficticios para realizar
-                altas institucionales.
-              </p>
-
-              <button
-                data-testid="siga-academia-organize-button"
-                type="button"
-                (click)="organizeCadetAcademy()"
-                [disabled]="!canOrganizeCadetAcademy() || cadetOrganizeLoading()"
-                class="mt-3 rounded-lg bg-[#611232] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-              >
-                {{
-                  cadetOrganizeLoading()
-                    ? "Registrando organización..."
-                    : "Registrar organización académica"
-                }}
-              </button>
-
-              @if (!canOrganizeCadetAcademy()) {
-                <p class="mt-2 text-xs text-amber-800">
-                  La organización no puede registrarse hasta que
-                  el Excel esté completo y validado para formación inicial.
+              <div class="rounded-lg bg-gray-50 p-3">
+                <p class="text-xs">Con errores</p>
+                <p class="text-2xl font-bold">
+                  {{ report.summary.con_errores }}
                 </p>
-              }
-
-              @if (cadetOrganizeError()) {
-                <p role="alert" class="mt-3 text-sm text-red-800">
-                  {{ cadetOrganizeError() }}
-                </p>
-              }
-
-              @if (cadetOrganizationResult(); as result) {
-                @if (result.file === cadetRosterFile()) {
-                  <div role="status" class="mt-3 rounded-lg border p-3 text-sm">
-                    <p class="font-semibold text-green-800">
-                      Organización académica registrada o reutilizada.
-                    </p>
-                    <p>Generación: {{ result.numero_generacion }}</p>
-                    <p>Año: {{ result.anio_generacion }}</p>
-                    <p>Grupos: {{ result.grupos.length }}</p>
-                    <p>Cadetes incorporados en esta operación: 0</p>
-
-                    <p class="mt-3 text-xs text-gray-700">
-                      El siguiente paso registra Personas y cadetes reales.
-                      Crea o reutiliza Usuarios PENDIENTE y asigna PERFIL_CADETE. No asigna roles ni habilita accesos.
-                    </p>
-
-                    <button
-                      data-testid="siga-cadet-preflight-button"
-                      type="button"
-                      (click)="previsualizarCadetes()"
-                      [disabled]="!canConfirmCadetIncorporation() || cadetPreflightLoading()"
-                      class="mt-3 mr-3 rounded-lg border border-[#611232] px-4 py-2 text-sm font-semibold text-[#611232] disabled:opacity-40"
-                    >
-                      {{
-                        cadetPreflightLoading()
-                          ? "Previsualizando..."
-                          : "Previsualizar incorporación"
-                      }}
-                    </button>
-
-                    @if (cadetPreflight(); as preflight) {
-                      @if (cadetPreflightMatches()) {
-                        <div role="status" class="mt-3 border p-3 text-sm">
-                          <p class="font-semibold">
-                            Previsualización completada sin escrituras
-                          </p>
-                          <p>Filas analizadas: {{ preflight.filas_procesadas }}</p>
-                          <p>Personas nuevas previstas:
-                            {{ preflight.personas_nuevas_previstas }}
-                          </p>
-                          <p>Personas existentes reutilizables:
-                            {{ preflight.personas_reutilizables_previstas }}
-                          </p>
-                          <p>Usuarios nuevos previstos:
-                            {{ preflight.usuarios_nuevos_previstos }}
-                          </p>
-                          <p>Filas sin correo para crear Usuario:
-                            {{ preflight.filas_sin_correo_para_cuenta }}
-                          </p>
-                          @if (preflight.filas_sin_correo_para_cuenta > 0) {
-                            <p role="alert" class="mt-2 font-semibold text-red-800">
-                              No es posible confirmar este lote. Hay cadetes
-                              sin correo para crear su cuenta institucional.
-                              Corrige el Excel y vuelve a previsualizar.
-                            </p>
-                          }
-                          <p>Personas creadas: 0</p>
-                          <p>Cadetes incorporados: 0</p>
-                        </div>
-                      }
-                    }
-
-                                        <label
-                      for="siga-cadet-reauth-password"
-                      class="mt-4 block text-sm font-semibold text-[#611232]"
-                    >
-                      Contraseña institucional para confirmar el registro real
-                    </label>
-                    <input
-                      #sigaCadetPassword
-                      id="siga-cadet-reauth-password"
-                      data-testid="siga-cadet-reauth-password"
-                      type="password"
-                      autocomplete="current-password"
-                      (input)="cadetAuthorizationPasswordPresent.set(sigaCadetPassword.value.length > 0)"
-                      [disabled]="!canConfirmCadetIncorporation() || !cadetPreflightMatches() || cadetIncorporationLoading()"
-                      class="mt-2 w-full max-w-md rounded-lg border px-3 py-2 text-sm"
-                    />
-                    <p class="mt-1 text-xs text-gray-600">
-                      La contraseña solo se utiliza para reautenticar al
-                      operador; no se registra en los expedientes.
-                    </p>
-
-<button
-                      data-testid="siga-cadet-incorporate-button"
-                      type="button"
-                      (click)="confirmCadetIncorporation(sigaCadetPassword.value); sigaCadetPassword.value = ''; cadetAuthorizationPasswordPresent.set(false)"
-                      [disabled]="!canConfirmCadetIncorporation() || !cadetAccountsReady() || !cadetAuthorizationPasswordPresent() || cadetIncorporationLoading()"
-                      class="mt-3 rounded-lg bg-[#611232] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-                    >
-                      {{
-                        cadetIncorporationLoading()
-                          ? "Incorporando cadetes..."
-                          : "Confirmar incorporación de cadetes"
-                      }}
-                    </button>
-
-                    @if (cadetIncorporationError()) {
-                      <p role="alert" class="mt-3 text-sm text-red-800">
-                        {{ cadetIncorporationError() }}
-                      </p>
-                    }
-
-                    @if (cadetIncorporationResult(); as incorporation) {
-                      <div role="status" class="mt-4 border-t pt-3">
-                        <p class="font-semibold text-green-800">
-                          Incorporación confirmada por SIGA
-                        </p>
-                        <p>Filas procesadas: {{ incorporation.filas_procesadas }}</p>
-                        <p>Personas creadas: {{ incorporation.personas_creadas }}</p>
-                        <p>Personas reutilizadas: {{ incorporation.personas_reutilizadas }}</p>
-                        <p>Usuarios creados: {{ incorporation.usuarios_creados }}</p>
-                        <p>Roles asignados: {{ incorporation.roles_asignados }}</p>
-                      </div>
-                    }
-                  </div>
-                }
-              }
-            </section>
-          }
-          <div class="mt-5 rounded-lg bg-gray-50 p-4 text-sm">
-            <p>Total de filas: {{ preview.summary.total }}</p>
-            <p>Válidas: {{ preview.summary.validos }}</p>
-            <p>Con observaciones:
-              {{ preview.summary.con_observaciones }}
-            </p>
-            <p>Con errores: {{ preview.summary.con_errores }}</p>
-            <p class="font-semibold text-amber-800">
-              Nombres pendientes de revisión:
-              {{ preview.summary.nombres_pendientes_revision }}
-            </p>
-          </div>
-
-          @if (preview.conciliacion) {
-            <div class="mt-4 rounded-lg border p-4 text-sm">
-              <h3 class="font-semibold">
-                Conciliación institucional
-              </h3>
-
-              @for (entry of cadetReconciliation(); track entry[0]) {
-                <p>{{ entry[0] }}: {{ entry[1] }}</p>
-              }
+              </div>
             </div>
-          }
 
-          <div class="mt-5 flex items-center justify-between gap-3">
-            <h3 class="font-semibold">Revisión de nombres</h3>
+            @if (cadetExistingLookupLoading() || cadetPreflightLoading()) {
+              <p role="status" class="text-sm text-gray-700">
+                Comprobando organización, Personas y Usuarios...
+              </p>
+            }
 
-            <button
-              type="button"
-              (click)="cadetOnlyPending.set(!cadetOnlyPending())"
-              class="rounded-lg border px-3 py-2 text-sm"
-            >
-              {{
-                cadetOnlyPending()
-                  ? "Mostrar todas"
-                  : "Solo pendientes"
-              }}
-            </button>
-          </div>
+            @if (cadetExistingLookupError(); as message) {
+              <p role="alert" class="text-sm text-amber-800">
+                {{ message }}
+              </p>
+            }
 
-          <p class="mt-2 text-xs text-gray-600">
-            SIGA toma nombres y apellidos directamente de las columnas del Excel.
-            Solo los archivos antiguos con nombre completo pueden necesitar revisión.
-          </p>
+            @if (cadetIncorporationError(); as message) {
+              <p role="alert" class="text-sm text-red-800">
+                {{ message }}
+              </p>
+            }
 
-                    <p class="mt-3 text-sm text-gray-700">
-            El nombre original del Excel se muestra como referencia.
-            Puedes corregir nombres y apellidos en las columnas siguientes.
-            Pulsa "Validar archivo Excel" para revisar los cambios.
-            Ninguna corrección se guarda en la base institucional
-            hasta que se confirme expresamente el alta.
-          </p>
-<div class="mt-4 max-h-[32rem] overflow-auto rounded-lg border">
-            <table class="w-full min-w-[850px] text-left text-sm">
-              <thead class="sticky top-0 bg-gray-100">
-                <tr>
-                  <th scope="col" class="p-3">Fila</th>
-                  <th scope="col" class="p-3">Nombre original</th>
-                  <th scope="col" class="p-3">Nombres</th>
-                  <th scope="col" class="p-3">Apellido paterno</th>
-                  <th scope="col" class="p-3">Apellido materno</th>
-                  <th scope="col" class="p-3">Resultado</th>
-                </tr>
-              </thead>
+            @if (cadetPreflightMatches()) {
+              <div class="rounded-lg border p-4 text-sm">
+                <h4 class="font-semibold text-[#611232]">
+                  Resultado institucional
+                </h4>
 
-              <tbody>
-                @for (row of cadetVisibleRows(); track row.fila_excel) {
-                  <tr class="border-t align-top">
-                    <td class="p-2">{{ row.fila_excel }}</td>
-                    <td class="p-2">{{ row.nombre_completo }}</td>
+                <p class="mt-2">
+                  Aptos preliminares:
+                  <strong>{{ cadetReadyRows() }}</strong>
+                </p>
 
-                    <td class="p-2">
-                      <input
-                        [attr.aria-label]="'Nombres fila ' + row.fila_excel"
-                        [value]="cadetName(row, 'nombres')"
-                        (input)="setCadetName(row, 'nombres', $event)"
-                        class="w-full rounded border p-2"
-                      />
-                    </td>
+                <p>
+                  No aptos o pendientes:
+                  <strong>
+                    {{ report.summary.total - cadetReadyRows() }}
+                  </strong>
+                </p>
 
-                    <td class="p-2">
-                      <input
-                        [attr.aria-label]="'Apellido paterno fila ' + row.fila_excel"
-                        [value]="cadetName(row, 'apellido_paterno')"
-                        (input)="setCadetName(row, 'apellido_paterno', $event)"
-                        class="w-full rounded border p-2"
-                      />
-                    </td>
+                <p>
+                  Personas nuevas previstas:
+                  {{ cadetPreflight()?.personas_nuevas_previstas }}
+                </p>
 
-                    <td class="p-2">
-                      <input
-                        [attr.aria-label]="'Apellido materno fila ' + row.fila_excel"
-                        [value]="cadetName(row, 'apellido_materno')"
-                        (input)="setCadetName(row, 'apellido_materno', $event)"
-                        class="w-full rounded border p-2"
-                      />
-                    </td>
+                <p>
+                  Personas reutilizables:
+                  {{ cadetPreflight()?.personas_reutilizables_previstas }}
+                </p>
 
-                    <td class="p-2">
-                      {{ row.estado }}
+                <p>
+                  Usuarios nuevos previstos:
+                  {{ cadetPreflight()?.usuarios_nuevos_previstos }}
+                </p>
 
-                      @if (row.requiere_revision_nombre) {
-                        <p class="text-amber-800">Nombre pendiente</p>
-                      }
+                <p>
+                  Filas sin correo institucional:
+                  {{ cadetPreflight()?.filas_sin_correo_para_cuenta }}
+                </p>
 
-                      @for (error of row.errores; track $index) {
-                        <p class="text-red-700">{{ error }}</p>
-                      }
-
-                      @for (warning of row.advertencias; track $index) {
-                        <p class="text-amber-800">{{ warning }}</p>
-                      }
-
-                      @if (row.conciliacion) {
-                        <p class="text-xs">
-                          {{ row.conciliacion.estado }}
-                        </p>
-                      }
-                    </td>
-                  </tr>
-                } @empty {
-                  <tr>
-                    <td colspan="6" class="p-4">
-                      Sin registros para este filtro.
-                    </td>
-                  </tr>
+                @if (!cadetAccountsReady()) {
+                  <p role="alert" class="mt-3 font-semibold text-amber-800">
+                    No se puede registrar este lote mientras existan
+                    cuentas institucionales pendientes.
+                  </p>
                 }
-              </tbody>
-            </table>
+              </div>
+            }
+
+            @if (
+              !cadetExistingLookupLoading() &&
+              !cadetPreflightLoading() &&
+              !cadetPreflightMatches()
+            ) {
+              <p class="text-sm text-amber-800">
+                La validación del Excel está disponible,
+                pero la conciliación institucional completa
+                todavía no está confirmada.
+              </p>
+            }
+
+            <div class="overflow-auto rounded-lg border">
+              <table class="w-full min-w-[750px] text-left text-sm">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th class="p-3">Fila</th>
+                    <th class="p-3">Cadete</th>
+                    <th class="p-3">Grupo</th>
+                    <th class="p-3">Estado</th>
+                    <th class="p-3">Motivos y observaciones</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  @for (row of report.filas; track row.fila_excel) {
+                    <tr class="border-t align-top">
+                      <td class="p-3">{{ row.fila_excel }}</td>
+                      <td class="p-3">{{ row.nombre_completo }}</td>
+                      <td class="p-3">{{ row.grupo ?? "—" }}</td>
+                      <td class="p-3 font-semibold">
+                        {{ cadetRowStatus(row) }}
+                      </td>
+                      <td class="p-3">
+                        {{ cadetRowNotes(row) }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            @if (cadetPreflightMatches() && cadetAccountsReady() && !cadetIncorporationResult()) {
+              <div class="rounded-lg border p-4">
+                <h4 class="font-semibold text-[#611232]">
+                  Registro de cadetes
+                </h4>
+
+                <p class="mt-2 text-sm">
+                  Esta operación requiere confirmación y
+                  reautenticación. No se registrará parcialmente
+                  el lote sin autorización.
+                </p>
+
+                <label
+                  for="siga-cadet-reauth-password"
+                  class="mt-3 block text-sm font-semibold"
+                >
+                  Contraseña del operador autorizado
+                </label>
+
+                <input
+                  #sigaCadetPassword
+                  id="siga-cadet-reauth-password"
+                  type="password"
+                  autocomplete="current-password"
+                  [disabled]="!canConfirmCadetIncorporation() || cadetIncorporationLoading()"
+                  (input)="cadetAuthorizationPasswordPresent.set(sigaCadetPassword.value.length > 0)"
+                  class="mt-2 w-full max-w-md rounded-lg border p-3"
+                />
+
+                <button
+                  data-testid="siga-cadet-incorporate-button"
+                  type="button"
+                  (click)="confirmCadetIncorporation(sigaCadetPassword.value); sigaCadetPassword.value = ''; cadetAuthorizationPasswordPresent.set(false)"
+                  [disabled]="!canConfirmCadetIncorporation() || !cadetAccountsReady() || !cadetAuthorizationPasswordPresent() || cadetIncorporationLoading()"
+                  class="mt-3 rounded-lg bg-[#611232] px-5 py-3 font-semibold text-white disabled:opacity-40"
+                >
+                  {{ cadetIncorporationLoading()
+                    ? "Registrando..."
+                    : "Registrar cadetes autorizados" }}
+                </button>
+              </div>
+            }
+
+            @if (cadetIncorporationResult(); as result) {
+              <div role="status" class="rounded-lg border p-4 text-sm">
+                <h4 class="font-semibold text-[#611232]">
+                  Registro confirmado por SIGA
+                </h4>
+                <p>
+                  Filas procesadas: {{ result.filas_procesadas }}
+                </p>
+                <p>
+                  Personas creadas: {{ result.personas_creadas }}
+                </p>
+                <p>
+                  Personas reutilizadas: {{ result.personas_reutilizadas }}
+                </p>
+                <p>
+                  Usuarios creados: {{ result.usuarios_creados }}
+                </p>
+              </div>
+            }
+
+            <p class="text-xs text-gray-600">
+              Validar el archivo no modifica la base institucional.
+              Apto para registro no significa registrado.
+            </p>
           </div>
         }
       </section>
+
       @if (loading()) {
         <p role="status" class="rounded-xl bg-white p-4">
           Consultando información académica...
@@ -820,7 +522,10 @@ export class AcademicOrganizationPageComponent implements OnInit {
 
 
   readonly cadetOrganizeLoading = signal(false);
+  readonly cadetOrganizePasswordPresent = signal(false);
   readonly cadetOrganizeError = signal<string | null>(null);
+  readonly cadetExistingLookupLoading = signal(false);
+  readonly cadetExistingLookupError = signal<string | null>(null);
 
   readonly cadetOrganizationResult = signal<
     (SigaOrganizacionExcel & { file: File }) | null
@@ -884,6 +589,7 @@ export class AcademicOrganizationPageComponent implements OnInit {
 
     this.cadetRosterFile.set(file);
     this.cadetAuthorizationPasswordPresent.set(false);
+    this.cadetOrganizePasswordPresent.set(false);
     this.cadetRosterPreview.set(null);
     this.cadetCorrections.set({});
     this.cadetRosterError.set(null);
@@ -980,8 +686,14 @@ export class AcademicOrganizationPageComponent implements OnInit {
       form
     ).subscribe({
       next: (response) => {
+        if (this.cadetRosterFile() !== file) {
+          this.cadetRosterLoading.set(false);
+          return;
+        }
+
         this.cadetRosterPreview.set(response.data);
         this.cadetRosterLoading.set(false);
+        void this.tryReuseExistingCadetAcademy(file, response.data);
       },
       error: (error) => {
         const status = Number(error?.status ?? 0);
@@ -1077,6 +789,183 @@ export class AcademicOrganizationPageComponent implements OnInit {
     }
     return String(value);
   }
+  private async findAcademicCatalogRows(
+    endpoint: string,
+    matches: (row: AcademicRow) => boolean,
+    requiredCount: number
+  ): Promise<AcademicRow[]> {
+    const found: AcademicRow[] = [];
+    let page = 1;
+    let lastPage = 1;
+
+    do {
+      const response = await firstValueFrom(
+        this.http.get<AcademicResponse>(
+          `${endpoint}?per_page=50&page=${page}`
+        )
+      );
+
+      if (
+        !response ||
+        !Array.isArray(response.data) ||
+        !response.meta ||
+        !Number.isInteger(response.meta.last_page) ||
+        response.meta.last_page < 1 ||
+        response.meta.current_page !== page
+      ) {
+        throw new Error("Respuesta inconsistente del catalogo academico.");
+      }
+
+      lastPage = response.meta.last_page;
+
+      for (const row of response.data) {
+        if (matches(row)) {
+          found.push(row);
+        }
+      }
+
+      if (found.length >= requiredCount) {
+        return found;
+      }
+
+      page++;
+    } while (page <= lastPage);
+
+    return found;
+  }
+
+  private async tryReuseExistingCadetAcademy(
+    file: File,
+    preview: CadetExcelPreview
+  ): Promise<void> {
+    const academy = (
+      preview as CadetExcelPreview & { academia?: SigaAcademiaExcel }
+    ).academia;
+
+    if (
+      !academy ||
+      academy.lista_para_registro !== true ||
+      academy.anio_generacion === null ||
+      academy.errores.length !== 0 ||
+      preview.summary.con_errores !== 0 ||
+      preview.summary.nombres_pendientes_revision !== 0 ||
+      academy.grupos_iniciales.length === 0
+    ) {
+      return;
+    }
+
+    this.cadetExistingLookupLoading.set(true);
+    this.cadetExistingLookupError.set(null);
+
+    const current = () =>
+      this.cadetRosterFile() === file &&
+      this.cadetRosterPreview() === preview;
+
+    try {
+      const programs = await this.findAcademicCatalogRows(
+        "/api/academico/programas",
+        row =>
+          String(row["codigo"] ?? "") === academy.codigo_programa &&
+          String(row["nombre"] ?? "") === academy.nombre_programa,
+        1
+      );
+
+      if (!current() || programs.length !== 1) {
+        return;
+      }
+
+      const programId = String(programs[0]["id_programa"] ?? "");
+
+      if (!programId) {
+        throw new Error("Programa institucional sin identificador.");
+      }
+
+      const cohorts = await this.findAcademicCatalogRows(
+        "/api/academico/cohortes",
+        row =>
+          String(row["id_programa"] ?? "") === programId &&
+          String(row["tipo"] ?? "") === academy.tipo_cohorte &&
+          Number(row["numero"]) === academy.numero_generacion &&
+          Number(row["anio"]) === academy.anio_generacion,
+        1
+      );
+
+      if (!current() || cohorts.length !== 1) {
+        return;
+      }
+
+      const cohortId = String(cohorts[0]["id_cohorte"] ?? "");
+
+      if (!cohortId) {
+        throw new Error("Cohorte institucional sin identificador.");
+      }
+
+      const expectedCodes = new Set(
+        academy.grupos_iniciales.map(group => group.codigo)
+      );
+
+      const existingGroups = await this.findAcademicCatalogRows(
+        "/api/academico/grupos",
+        row =>
+          String(row["id_cohorte"] ?? "") === cohortId &&
+          expectedCodes.has(String(row["codigo"] ?? "")),
+        expectedCodes.size
+      );
+
+      if (!current()) {
+        return;
+      }
+
+      const foundCodes = new Set(
+        existingGroups.map(row => String(row["codigo"] ?? ""))
+      );
+
+      if (
+        existingGroups.length !== expectedCodes.size ||
+        foundCodes.size !== expectedCodes.size ||
+        existingGroups.some(
+          row =>
+            row["especializacion"] !== null ||
+            !String(row["id_grupo"] ?? "")
+        )
+      ) {
+        this.cadetExistingLookupError.set(
+          "La organizacion existente requiere revisar sus grupos."
+        );
+        return;
+      }
+
+      this.cadetOrganizationResult.set({
+        id_programa: programId,
+        codigo_programa: academy.codigo_programa,
+        id_cohorte: cohortId,
+        numero_generacion: academy.numero_generacion,
+        anio_generacion: academy.anio_generacion,
+        cadetes_validados: preview.summary.total,
+        grupos: existingGroups.map(row => ({
+          codigo: String(row["codigo"]),
+          id_grupo: String(row["id_grupo"]),
+          especializacion: null,
+        })),
+        file,
+      });
+
+      // SIGA_C1_IMPORTACION_UNIFICADA_V1
+      // Conciliacion automatica, sin escrituras.
+      this.previsualizarCadetes();
+    } catch (error) {
+      if (current()) {
+        this.cadetExistingLookupError.set(
+          "No se pudo consultar la organizacion existente. " +
+          "Revisa la sesion, los permisos y la conexion con Laravel."
+        );
+      }
+    } finally {
+      if (current()) {
+        this.cadetExistingLookupLoading.set(false);
+      }
+    }
+  }
   cadetAcademyInfo(): SigaAcademiaExcel | null {
     const preview = this.cadetRosterPreview() as unknown as
       { academia?: SigaAcademiaExcel } | null;
@@ -1103,14 +992,6 @@ export class AcademicOrganizationPageComponent implements OnInit {
     } | null;
 
     const file = this.cadetRosterFile();
-    // SIGA_GUARD_ORGANIZAR_EJEMPLOS_UI_V1
-    if (
-      file !== null &&
-      /ejempl|fictici|plantilla|demo|prueba/i.test(file.name)
-    ) {
-      return false;
-    }
-
     if (
       !file ||
       !academy ||
@@ -1158,7 +1039,7 @@ export class AcademicOrganizationPageComponent implements OnInit {
     });
   }
 
-  organizeCadetAcademy(): void {
+  organizeCadetAcademy(password: string): void {
     const file = this.cadetRosterFile();
     const academy = this.cadetAcademyInfo();
 
@@ -1166,7 +1047,8 @@ export class AcademicOrganizationPageComponent implements OnInit {
       !file ||
       !academy ||
       !this.canOrganizeCadetAcademy() ||
-      this.cadetOrganizeLoading()
+      this.cadetOrganizeLoading() ||
+      password.length === 0
     ) {
       return;
     }
@@ -1189,6 +1071,7 @@ export class AcademicOrganizationPageComponent implements OnInit {
 
     const form = new FormData();
     form.append("archivo", file, file.name);
+    form.append("declaracion_origen", "DATOS_INSTITUCIONALES_REALES");
 
     this.cadetPreflight.set(null);
     this.cadetIncorporationResult.set(null);
@@ -1197,9 +1080,11 @@ export class AcademicOrganizationPageComponent implements OnInit {
     this.cadetOrganizeError.set(null);
     this.cadetOrganizationResult.set(null);
 
-    this.http.post<{ data: SigaOrganizacionExcel }>(
-      "/api/academico/importaciones/organizar",
-      form
+    this.auth.reauthenticate(password).pipe(
+      switchMap(() => this.http.post<{ data: SigaOrganizacionExcel }>(
+        "/api/academico/importaciones/organizar",
+        form
+      ))
     ).subscribe({
       next: response => {
         const result = response.data;
@@ -1253,6 +1138,90 @@ export class AcademicOrganizationPageComponent implements OnInit {
     });
   }
 
+  cadetRowStatus(row: CadetExcelRow): string {
+    const final = this.cadetIncorporationResult();
+    const academy = this.cadetOrganizationResult();
+    const preview = this.cadetRosterPreview();
+
+    if (
+      final &&
+      academy &&
+      preview &&
+      final.id_cohorte === academy.id_cohorte &&
+      final.filas_procesadas === preview.summary.total
+    ) {
+      return "REGISTRADO";
+    }
+
+    if (
+      row.errores.length > 0 ||
+      row.requiere_revision_nombre
+    ) {
+      return "NO APTO";
+    }
+
+    if (!this.cadetPreflightMatches()) {
+      return "EN REVISION";
+    }
+
+    const detail = this.cadetPreflight()?.filas.find(
+      item => item.fila_excel === row.fila_excel
+    );
+
+    if (!detail) {
+      return "EN REVISION";
+    }
+
+    return detail.cuenta_pendiente_correo
+      ? "NO APTO"
+      : "APTO PRELIMINAR";
+  }
+
+  cadetRowNotes(row: CadetExcelRow): string {
+    const notes = [
+      ...row.errores,
+      ...row.advertencias
+    ];
+
+    if (row.requiere_revision_nombre) {
+      notes.push("Nombre pendiente de revision");
+    }
+
+    if (this.cadetPreflightMatches()) {
+      const detail = this.cadetPreflight()?.filas.find(
+        item => item.fila_excel === row.fila_excel
+      );
+
+      if (detail?.cuenta_pendiente_correo) {
+        notes.push(
+          "Falta correo institucional para crear Usuario"
+        );
+      }
+    }
+
+    return notes.length > 0
+      ? notes.join("; ")
+      : "Sin incidencias";
+  }
+
+  cadetReadyRows(): number {
+    if (!this.cadetPreflightMatches()) {
+      return 0;
+    }
+
+    const rows = this.cadetRosterPreview()?.filas ?? [];
+    const details = this.cadetPreflight()?.filas ?? [];
+
+    const byRow = new Map(
+      details.map(item => [item.fila_excel, item])
+    );
+
+    return rows.filter(row =>
+      row.errores.length === 0 &&
+      !row.requiere_revision_nombre &&
+      byRow.get(row.fila_excel)?.cuenta_pendiente_correo === false
+    ).length;
+  }
   cadetPreflightMatches(): boolean {
     const file = this.cadetRosterFile();
     const organization = this.cadetOrganizationResult();
@@ -1479,10 +1448,18 @@ export class AcademicOrganizationPageComponent implements OnInit {
           result.id_cohorte === organization.id_cohorte &&
           Array.isArray(result.filas) &&
           result.filas.length === result.filas_procesadas &&
+          result.filas.every(item =>
+            Number.isInteger(item.fila_excel) &&
+            typeof item.cuenta_pendiente_correo === "boolean" &&
+            typeof item.usuario_nuevo_previsto === "boolean"
+          ) &&
           Number.isInteger(result.usuarios_nuevos_previstos) &&
           result.usuarios_nuevos_previstos >= 0 &&
           Number.isInteger(result.filas_sin_correo_para_cuenta) &&
           result.filas_sin_correo_para_cuenta >= 0 &&
+          result.filas.filter(item =>
+            item.cuenta_pendiente_correo
+          ).length === result.filas_sin_correo_para_cuenta &&
           result.personas_nuevas_previstas +
             result.personas_reutilizables_previstas ===
             result.filas_procesadas
@@ -1537,11 +1514,6 @@ export class AcademicOrganizationPageComponent implements OnInit {
       this.cadetOrganizeLoading() ||
       this.cadetIncorporationLoading()
     ) {
-      return false;
-    }
-
-    // Impide utilizar las plantillas ficticias del desarrollo.
-    if (/ejempl|fictici|plantilla|demo|prueba/i.test(file.name)) {
       return false;
     }
 
@@ -1620,6 +1592,7 @@ export class AcademicOrganizationPageComponent implements OnInit {
     form.append("id_cohorte", organization.id_cohorte);
     form.append("modo", "CONFIRMAR");
     form.append("confirmacion", "INCORPORAR_CADETES_REALES");
+    form.append("declaracion_origen", "DATOS_INSTITUCIONALES_REALES");
 
     this.cadetIncorporationLoading.set(true);
     this.cadetIncorporationError.set(null);
