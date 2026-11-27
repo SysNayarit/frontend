@@ -41,6 +41,13 @@ import { RouterLink, RouterLinkActive } from "@angular/router";
 
 
         @if (hasPermission("credenciales.emitir") && hasPermission("personas.ver")) {
+          <a
+            routerLink="/credenciales/institucionales/emitir"
+            routerLinkActive="bg-[#611232] text-white"
+            class="siga-focus flex items-center gap-3 rounded-xl border px-4 py-3 font-semibold text-[#611232]"
+          >
+            Emitir credencial institucional
+          </a>
           <a routerLink="/credenciales/qr/generar" routerLinkActive="bg-[#611232] text-white" class="siga-focus flex items-center gap-3 rounded-xl border px-4 py-3 font-semibold text-[#611232]">Generar QR</a>
         }
         @if (hasPermission("credenciales.validar")) {

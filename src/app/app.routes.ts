@@ -52,6 +52,13 @@ export const routes: Routes = [
             .then(m => m.EventRegistrationsPageComponent),
         canActivate: [authGuard],
       },
+      {
+        path: "credenciales/institucionales/emitir",
+        loadComponent: () =>
+          import("./credenciales/presentation/pages/institutional-credential-issue-page.component")
+            .then(m => m.InstitutionalCredentialIssuePageComponent),
+        canActivate: [credentialManagementGuard],
+      },
       { path: "credenciales/qr/generar", loadComponent: () => import("./credenciales/presentation/pages/credential-qr-generator-page.component").then(m => m.CredentialQrGeneratorPageComponent), canActivate: [credentialManagementGuard] },
       {
         path: "credenciales/qr/validar",
