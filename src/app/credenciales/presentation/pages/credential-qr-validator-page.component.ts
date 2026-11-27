@@ -9,7 +9,7 @@ import {
   OnInit,
   ViewChild,
 } from "@angular/core";
-import { finalize, of, switchMap, take } from "rxjs";
+import { catchError, finalize, of, switchMap, take, tap, throwError } from "rxjs";
 import jsQR from "jsqr";
 
 interface LecturaGuardadaQR {
@@ -1113,11 +1113,22 @@ export class CredentialQrValidatorPageComponent implements OnDestroy, OnInit {
     this.entradaEventoRegistrada = false;
     this.mensajeEntradaEvento = "";
 
+    let huboConsultaAutorizada = false;
+
     this.http.post<CredentialQrValidationResponse>(
       "/api/credenciales/qr/validar",
       { uid_qr: uid, latitud: this.latitud, longitud: this.longitud },
     ).pipe(
       take(1),
+      tap(() => {
+        huboConsultaAutorizada = true;
+      }),
+      catchError((error: unknown) => {
+        if (error instanceof HttpErrorResponse && error.status === 403) {
+          return of({ valida: false } as CredentialQrValidationResponse);
+        }
+        return throwError(() => error);
+      }),
       switchMap((response) => {
         if (response.valida) {
           return of(response);
@@ -1127,15 +1138,35 @@ export class CredentialQrValidatorPageComponent implements OnDestroy, OnInit {
           "/api/credenciales/institucionales/qr/validar",
           { uid_qr: uid },
         ).pipe(
+          tap(() => {
+            huboConsultaAutorizada = true;
+          }),
+          catchError((error: unknown) => {
+            if (error instanceof HttpErrorResponse && error.status === 403) {
+              return of({ valida: false } as CredentialQrValidationResponse);
+            }
+            return throwError(() => error);
+          }),
           switchMap((credentialResponse) => {
             if (credentialResponse.valida) {
               return of(credentialResponse);
             }
 
             return this.http.post<CredentialQrValidationResponse>(
-          "/api/eventos/qr/validar",
-          { uid_qr: uid },
-        )
+              "/api/eventos/qr/validar",
+              { uid_qr: uid },
+            ).pipe(
+              catchError((error: unknown) => {
+                if (
+                  error instanceof HttpErrorResponse &&
+                  error.status === 403 &&
+                  huboConsultaAutorizada
+                ) {
+                  return of({ valida: false } as CredentialQrValidationResponse);
+                }
+                return throwError(() => error);
+              }),
+            );
           }),
         );
       }),
