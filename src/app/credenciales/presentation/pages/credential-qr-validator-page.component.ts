@@ -32,7 +32,11 @@ interface RespuestaBitacoraQR {
 }
 interface CredentialQrValidationResponse {
   valida: boolean;
-  tipo?: "EVENTO";
+  tipo?: "EVENTO" | "CREDENCIAL_INSTITUCIONAL";
+  credencial?: {
+    categoria: string;
+    estado: string;
+  };
   evento?: {
     nombre: string;
     estado: string;
@@ -155,12 +159,21 @@ type ValidationState =
         </p>
 
 <p
-          *ngIf="estado === 'valida' && tipoLectura !== 'EVENTO'"
+          *ngIf="estado === 'valida' && tipoLectura === 'USUARIO'"
           class="result success"
           role="status"
         >
-          Credencial válida.
+          QR de Usuario válido.
         </p>
+        <section
+          *ngIf="estado === 'valida' && tipoLectura === 'CREDENCIAL_INSTITUCIONAL' && credencialLeida"
+          class="qr-read-history"
+          role="status"
+        >
+          <h2>Credencial institucional válida</h2>
+          <p><strong>Categoría:</strong> {{ credencialLeida.categoria }}</p>
+          <p><strong>Estado:</strong> {{ credencialLeida.estado }}</p>
+        </section>
         <section *ngIf="estado === 'valida' && tipoLectura === 'EVENTO' && eventoLeido"
                  class="qr-read-history" role="status">
           <h2>Inscripción de evento válida</h2>
@@ -588,7 +601,11 @@ export class CredentialQrValidatorPageComponent implements OnDestroy, OnInit {
   iniciandoCamara = false;
   mensajeCamara = "";
   estado: ValidationState = "inicial";
-  tipoLectura: "CREDENCIAL" | "EVENTO" | null = null;
+  tipoLectura: "USUARIO" | "CREDENCIAL_INSTITUCIONAL" | "EVENTO" | null = null;
+  credencialLeida: {
+    categoria: string;
+    estado: string;
+  } | null = null;
   eventoLeido: {
     nombre: string;
     id_inscripcion: string;
@@ -1075,6 +1092,15 @@ export class CredentialQrValidatorPageComponent implements OnDestroy, OnInit {
 
     const uid = this.qrUid.trim();
 
+    // Evitar datos residuales de una lectura anterior.
+    this.tipoLectura = null;
+    this.eventoLeido = null;
+    this.credencialLeida = null;
+    this.usuarioLeido = "";
+    this.rolesLeidos = [];
+    this.entradaEventoRegistrada = false;
+    this.mensajeEntradaEvento = "";
+
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid)) {
       this.estado = "invalida";
       return;
@@ -1098,8 +1124,19 @@ export class CredentialQrValidatorPageComponent implements OnDestroy, OnInit {
         }
 
         return this.http.post<CredentialQrValidationResponse>(
+          "/api/credenciales/institucionales/qr/validar",
+          { uid_qr: uid },
+        ).pipe(
+          switchMap((credentialResponse) => {
+            if (credentialResponse.valida) {
+              return of(credentialResponse);
+            }
+
+            return this.http.post<CredentialQrValidationResponse>(
           "/api/eventos/qr/validar",
           { uid_qr: uid },
+        )
+          }),
         );
       }),
       finalize(() => {
@@ -1112,13 +1149,27 @@ export class CredentialQrValidatorPageComponent implements OnDestroy, OnInit {
           return;
         }
 
-        this.tipoLectura = response.valida
-          ? (response.tipo === "EVENTO" ? "EVENTO" : "CREDENCIAL")
-          : null;
+        this.tipoLectura = !response.valida
+          ? null
+          : response.tipo === "EVENTO" && response.evento
+            ? "EVENTO"
+            : response.tipo === "CREDENCIAL_INSTITUCIONAL" &&
+                response.credencial?.estado === "VIGENTE"
+              ? "CREDENCIAL_INSTITUCIONAL"
+              : response.usuario
+                ? "USUARIO"
+                : null;
+
         this.eventoLeido = this.tipoLectura === "EVENTO"
           ? (response.evento ?? null)
           : null;
-        this.estado = response.valida ? "valida" : "invalida";
+
+        this.credencialLeida =
+          this.tipoLectura === "CREDENCIAL_INSTITUCIONAL"
+            ? (response.credencial ?? null)
+            : null;
+
+        this.estado = this.tipoLectura ? "valida" : "invalida";
 
         if (response.valida && response.usuario) {
           this.conteoLecturas++;
